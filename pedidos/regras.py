@@ -136,6 +136,12 @@ def qtd_br(numero: object) -> str:
     return _decimal_br(numero, "0.001")
 
 
+def saldo_br(numero: object) -> str:
+    """Saldo do cadastro como está gravado (4 casas, as do `Material.estoque`), sem zeros à
+    direita: 0.0004 → "0,0004". Para informar, não para limitar (o teto é `maximo_pedivel`)."""
+    return _decimal_br(numero, "0.0001")
+
+
 # ---------------------------------------------------------------------------
 # Quantidade por unidade do material (spec 005)
 #

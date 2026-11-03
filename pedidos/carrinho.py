@@ -20,6 +20,7 @@ from pedidos.regras import (
     interpretar_quantidade,
     maximo_pedivel,
     qtd_br,
+    saldo_br,
     texto_acima_do_estoque,
     texto_erro_quantidade,
 )
@@ -109,8 +110,8 @@ def motivo_bloqueio(fluxo, item: ItemCatalogo) -> str:
 
 
 def saldo_do_antigo(antigo: CodigoAntigo) -> str:
-    """O saldo de um código antigo do de/para na unidade dele ("4 UN")."""
-    numero = qtd_br(antigo.estoque)
+    """O saldo de um código antigo do de/para, como está no cadastro, na unidade dele ("4 UN")."""
+    numero = saldo_br(antigo.estoque)
     return f"{numero} {antigo.unidade}" if antigo.unidade else numero
 
 

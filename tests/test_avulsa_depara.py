@@ -138,6 +138,13 @@ def test_motivo_do_bloqueio_diz_onde_esta_o_saldo():
     )
 
 
+def test_saldo_do_antigo_vem_com_as_quatro_casas_do_cadastro():
+    material(NOVO, unidade="KG")
+    material(ANTIGO, "0.0004", unidade="KG")
+    par(ANTIGO, NOVO)
+    assert motivo_bloqueio(AVULSA, item(NOVO)) == f"Saldo só no código antigo {ANTIGO}: 0,0004 KG"
+
+
 def test_motivo_com_saldo_no_novo_nao_muda():
     material(NOVO, "1")
     material(ANTIGO, "4")
