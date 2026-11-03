@@ -231,7 +231,7 @@ def test_painel_no_estilo_clean(client, logado):
 
 
 def test_origem_da_lista_e_curta_com_o_nome_inteiro_no_title(client, logado):
-    criar_pedido()
+    limpeza = criar_pedido()
     criar_pedido(origem=AB)
     r = client.get(reverse("pedidos:painel"))
     assert (
@@ -242,6 +242,10 @@ def test_origem_da_lista_e_curta_com_o_nome_inteiro_no_title(client, logado):
         '<span class="numero-origem texto-secundario" title="Materiais AB">Materiais AB</span>'
         in r.text
     )
+    # O link do Nº cobre a linha (`a::after`) e fica por cima do texto da origem: o `title` dele
+    # é o que aparece ao passar o mouse.
+    detalhe = reverse("pedidos:detalhe", args=[limpeza.numero])
+    assert f'<a href="{detalhe}" title="Limpeza, copa/cozinha e escritório">' in r.text
 
 
 def test_saude_do_catalogo_fica_no_fim_do_painel(client, logado):
