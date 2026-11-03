@@ -18,7 +18,7 @@ from pedidos.consultas import (
 )
 from pedidos.models import ExecucaoRobo, ItemPedido, Pedido
 from pedidos.regras import AB, AVULSA, EPIS, LIMPEZA, OFICINA, VIATURAS
-from pedidos.templatetags.pedidos_extras import origem_tabela
+from pedidos.templatetags.pedidos_extras import origem_curta
 from tests.cenario import criar_pedido
 
 pytestmark = pytest.mark.django_db
@@ -111,9 +111,9 @@ def test_filtro_por_origem(client, logado):
     assert ab.numero in r.text and limpeza.numero not in r.text
 
 
-def test_tabela_mostra_a_origem_curta_embaixo_do_numero(client, logado):
-    # Na tabela, a origem é texto embaixo do Nº (nome curto, para caber na coluna fixa); o
-    # cartão segue com o selo da célula própria.
+def test_lista_mostra_a_origem_curta_embaixo_do_numero(client, logado):
+    # A origem é texto curto embaixo do Nº, na tabela (para caber na coluna fixa) e no cartão; não
+    # há mais coluna nem selo de origem.
     curtos = {
         LIMPEZA: "Limpeza",
         AB: "Materiais AB",
@@ -124,12 +124,11 @@ def test_tabela_mostra_a_origem_curta_embaixo_do_numero(client, logado):
     }
     assert set(curtos) == set(Pedido.Origem.values)
     for origem, curto in curtos.items():
-        assert origem_tabela(Pedido(origem=origem)) == curto
+        assert origem_curta(Pedido(origem=origem)) == curto
     criar_pedido(origem=VIATURAS)
     texto = client.get(reverse("pedidos:painel")).text
-    assert '<span class="numero-origem texto-secundario">Viaturas</span>' in texto
-    assert ">Reposição de peças das viaturas</span></td>" in texto  # selo do cartão
-    assert '<th scope="col">Origem</th>' not in texto
+    assert ' title="Reposição de peças das viaturas">Viaturas</span>' in texto
+    assert '<th scope="col">Origem</th>' not in texto and "col-origem" not in texto
 
 
 def test_busca_por_numero_solicitante_e_recebedor_sem_acento(client, logado):
@@ -151,15 +150,28 @@ def test_busca_por_codigo_ou_nome_de_material_do_pedido(client, logado):
     _acrescentar(b, None, Decimal("1"))  # 999.999.999, MATERIAL EXTRA
     c = criar_pedido(itens=(("045.010.002", "1"),))
 
-    def achados(q):
-        return list(pedidos_do_painel({"q": q}).values_list("numero", flat=True))
+    def achados(material):
+        filtros = {"material": material}
+        return list(pedidos_do_painel(filtros).values_list("numero", flat=True))
 
     assert achados("sabao") == [a.numero]
     assert achados("SABON") == [a.numero]
     assert achados("023.001") == [a.numero]  # dois itens batem, o pedido vem uma vez
     assert achados("045.010.002") == [c.numero]
     assert achados("material extra") == [b.numero]  # acrescentado pelo almoxarifado
-    assert c.numero in client.get(reverse("pedidos:painel"), {"q": "045.010.002"}).text
+    # A busca geral não procura no material: ele tem campo próprio.
+    assert not pedidos_do_painel({"q": "sabao"}).exists()
+    assert c.numero in client.get(reverse("pedidos:painel"), {"material": "045.010.002"}).text
+
+
+def test_busca_por_material_combina_com_a_busca_geral(client, logado):
+    joao = criar_pedido(itens=(("023.001.002", "1"),), atendido=True, recebedor="João")
+    criar_pedido(itens=(("023.001.002", "1"),), atendido=True, recebedor="Maria")
+    criar_pedido(itens=(("045.010.001", "1"),), atendido=True, recebedor="João")
+    filtros = {"material": "023.001.002", "q": "joao"}
+    assert list(pedidos_do_painel(filtros)) == [joao]
+    r = client.get(reverse("pedidos:painel"), filtros)
+    assert 'name="material"' in r.text and 'value="023.001.002"' in r.text
 
 
 def test_periodo_inclui_o_dia_final_inteiro(client, logado):
@@ -218,15 +230,18 @@ def test_painel_no_estilo_clean(client, logado):
     assert 'class="campo-entrada"' in r.text  # widgets do FiltrosPainel
 
 
-def test_selo_de_origem_da_lista_e_curto_com_o_nome_inteiro_no_title(client, logado):
+def test_origem_da_lista_e_curta_com_o_nome_inteiro_no_title(client, logado):
     criar_pedido()
     criar_pedido(origem=AB)
     r = client.get(reverse("pedidos:painel"))
     assert (
-        '<span class="selo selo-neutro" title="Limpeza, copa/cozinha e escritório">Limpeza</span>'
+        '<span class="numero-origem texto-secundario" '
+        'title="Limpeza, copa/cozinha e escritório">Limpeza</span>' in r.text
+    )
+    assert (
+        '<span class="numero-origem texto-secundario" title="Materiais AB">Materiais AB</span>'
         in r.text
     )
-    assert '<span class="selo selo-neutro" title="Materiais AB">Materiais AB</span>' in r.text
 
 
 def test_saude_do_catalogo_fica_no_fim_do_painel(client, logado):

@@ -41,18 +41,9 @@ _AUTORIZACAO = {
 }
 
 
-_ORIGEM_CURTA = {LIMPEZA: "Limpeza"}
-
-
-@register.filter
-def origem_curta(pedido) -> str:
-    """Nome curto da origem para o selo da lista; o nome inteiro vai no title."""
-    return _ORIGEM_CURTA.get(pedido.origem, pedido.get_origem_display())
-
-
-# Na tabela do painel a origem vai embaixo do Nº, numa coluna de largura fixa: o nome tem de ser
-# curto. O nome inteiro fica no detalhe do pedido e no filtro Origem.
-_ORIGEM_TABELA = {
+# Na lista do painel a origem vai embaixo do Nº, na tabela (coluna de largura fixa) e no cartão: o
+# nome tem de ser curto. O nome inteiro fica no detalhe do pedido e no filtro Origem.
+_ORIGEM_CURTA = {
     LIMPEZA: "Limpeza",
     AB: "Materiais AB",
     VIATURAS: "Viaturas",
@@ -63,9 +54,9 @@ _ORIGEM_TABELA = {
 
 
 @register.filter
-def origem_tabela(pedido) -> str:
-    """Nome curto da origem para a linha da tabela do painel, embaixo do Nº."""
-    return _ORIGEM_TABELA.get(pedido.origem, pedido.get_origem_display())
+def origem_curta(pedido) -> str:
+    """Nome curto da origem para a lista do painel, embaixo do Nº."""
+    return _ORIGEM_CURTA.get(pedido.origem, pedido.get_origem_display())
 
 
 @register.filter
