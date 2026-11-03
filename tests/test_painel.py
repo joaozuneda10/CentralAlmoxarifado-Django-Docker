@@ -9,7 +9,13 @@ from django.urls import reverse
 from django.utils import timezone
 
 from catalogo.models import Importacao
-from pedidos.consultas import OPCOES_SCPI, OPCOES_SITUACAO, filtrar_scpi, filtrar_situacao
+from pedidos.consultas import (
+    OPCOES_SCPI,
+    OPCOES_SITUACAO,
+    filtrar_scpi,
+    filtrar_situacao,
+    pedidos_do_painel,
+)
 from pedidos.models import ExecucaoRobo, ItemPedido, Pedido
 from pedidos.regras import AB, AVULSA
 from tests.cenario import criar_pedido
@@ -113,6 +119,25 @@ def test_busca_por_numero_solicitante_e_recebedor_sem_acento(client, logado):
     texto = client.get(url, {"q": "joao"}).text
     assert b.numero in texto and a.numero not in texto
     assert c.numero in client.get(url, {"q": c.numero}).text
+
+
+def test_busca_por_codigo_ou_nome_de_material_do_pedido(client, logado):
+    a = criar_pedido(itens=(("023.001.002", "2"), ("023.001.003", "1")))
+    a.itens.filter(codigo="023.001.002").update(material="SABÃO EM PÓ")
+    a.itens.filter(codigo="023.001.003").update(material="SABONETE LÍQUIDO")
+    b = criar_pedido(itens=(("045.010.001", "1"),), atendido=True)
+    _acrescentar(b, None, Decimal("1"))  # 999.999.999, MATERIAL EXTRA
+    c = criar_pedido(itens=(("045.010.002", "1"),))
+
+    def achados(q):
+        return list(pedidos_do_painel({"q": q}).values_list("numero", flat=True))
+
+    assert achados("sabao") == [a.numero]
+    assert achados("SABON") == [a.numero]
+    assert achados("023.001") == [a.numero]  # dois itens batem, o pedido vem uma vez
+    assert achados("045.010.002") == [c.numero]
+    assert achados("material extra") == [b.numero]  # acrescentado pelo almoxarifado
+    assert c.numero in client.get(reverse("pedidos:painel"), {"q": "045.010.002"}).text
 
 
 def test_periodo_inclui_o_dia_final_inteiro(client, logado):

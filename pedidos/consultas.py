@@ -59,7 +59,7 @@ class FiltrosPainel(forms.Form):
             attrs={
                 "class": "campo-entrada",
                 "type": "search",
-                "placeholder": "Nº, solicitante, recebedor ou ocorrência",
+                "placeholder": "Nº, solicitante, recebedor, ocorrência, material",
             }
         ),
     )
@@ -174,6 +174,13 @@ def pedidos_do_painel(filtros: dict) -> QuerySet:
             | Q(solicitante__icontains=q)
             | Q(atendimento__recebedor__icontains=q)
             | Q(ocorrencia__icontains=q)
+            # Material pedido ou acrescentado pelo almoxarifado; `Exists` para o pedido com
+            # vários materiais que batem não sair repetido.
+            | Exists(
+                ItemPedido.objects.filter(pedido=OuterRef("pk")).filter(
+                    Q(codigo__icontains=q) | Q(material__icontains=q)
+                )
+            )
         )
     if origem := filtros.get("origem"):
         qs = qs.filter(origem=origem)
