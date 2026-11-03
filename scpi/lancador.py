@@ -853,16 +853,28 @@ def localizar_salvar(frame: Frame):
     return salvar
 
 
+# Saída com data de outro mês (lançada depois da virada): o SCPI pergunta se prossegue.
+RE_AVISO_OUTRO_MES = re.compile(r"m[eê]s de refer[eê]ncia.*diferente do m[eê]s atual", re.I)
+
+
 def salvar_requisicao(frame: Frame, salvar) -> str:
     """Clique final em Salvar. Retorna o nº REQUI assim que ele aparece no formulário.
-    Qualquer exceção aqui é resultado incerto."""
+    O aviso de data em outro mês é confirmado uma vez (enquanto a caixa fecha, só espera);
+    qualquer outra mensagem, e qualquer exceção aqui, é resultado incerto."""
     salvar.click(timeout=10000)
+    mes_confirmado = False
     for _ in range(60):
         numero = RE_REQUI.search(frame.evaluate(JS_NUMERO_REQUISICAO) or "")
         if numero:
             return numero.group(1)
         msg = mensagem_scpi(frame)
-        if msg and "sucesso" not in msg["texto"].lower():
+        if msg and RE_AVISO_OUTRO_MES.search(" ".join(msg["texto"].split())):
+            if not mes_confirmado and "Sim" in msg["botoes"]:
+                log("  SCPI: data de saída em outro mês, aviso confirmado (Sim)")
+                responder_mensagem(frame, "Sim")
+                mes_confirmado = True
+                continue
+        elif msg and "sucesso" not in msg["texto"].lower():
             raise ResultadoIncerto(
                 f"SCPI respondeu ao Salvar: '{' '.join(msg['texto'].split())}' {msg['botoes']}"
             )

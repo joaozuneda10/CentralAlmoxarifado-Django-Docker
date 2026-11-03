@@ -721,3 +721,64 @@ def test_reconciliar_recusa_o_lote_se_a_grade_do_servidor_nao_recarrega(monkeypa
 
     with pytest.raises(ErroSCPI, match="não foi possível recarregar a grade do servidor"):
         lancador.reconciliar_itens(_Quadro(), req)
+
+
+AVISO_MES = {
+    "texto": "Mês de Referência da Data de Saída Diferente do Mês Atual(11) do Sistema! "
+    "Deseja Prosseguir ?",
+    "botoes": ["Sim", "Não"],
+}
+
+
+class _QuadroSalvar(_Quadro):
+    """Frame do Salvar: o número só aparece depois das respostas esperadas."""
+
+    def __init__(self, numero_depois_de=0):
+        super().__init__()
+        self.numero_depois_de = numero_depois_de
+        self.respostas = []
+
+    def evaluate(self, js):
+        return "003722/26" if len(self.respostas) >= self.numero_depois_de else ""
+
+
+class _BotaoSalvar:
+    def click(self, timeout=None):
+        pass
+
+
+def _salvar_simulado(monkeypatch, quadro, mensagens):
+    seq = iter(mensagens)
+    monkeypatch.setattr(lancador, "mensagem_scpi", lambda frame: next(seq, None))
+    monkeypatch.setattr(
+        lancador, "responder_mensagem", lambda frame, botao: quadro.respostas.append(botao)
+    )
+
+
+def test_salvar_confirma_o_aviso_de_data_em_outro_mes(monkeypatch):
+    # Saída com data do mês anterior: o SCPI pergunta se prossegue, e o lançamento confirma.
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    _salvar_simulado(monkeypatch, quadro, [AVISO_MES])
+
+    assert lancador.salvar_requisicao(quadro, _BotaoSalvar()) == "003722/26"
+    assert quadro.respostas == ["Sim"]
+
+
+def test_salvar_confirma_o_aviso_de_mes_uma_vez_so(monkeypatch):
+    # A caixa pode continuar visível enquanto fecha: o robô espera, não clica de novo.
+    quadro = _QuadroSalvar(numero_depois_de=99)
+    _salvar_simulado(monkeypatch, quadro, [AVISO_MES, AVISO_MES, AVISO_MES])
+
+    with pytest.raises(lancador.ResultadoIncerto):
+        lancador.salvar_requisicao(quadro, _BotaoSalvar())
+    assert quadro.respostas == ["Sim"]
+
+
+def test_salvar_nao_confirma_outra_pergunta_do_scpi(monkeypatch):
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    pergunta = {"texto": "Estoque insuficiente! Deseja Prosseguir ?", "botoes": ["Sim", "Não"]}
+    _salvar_simulado(monkeypatch, quadro, [pergunta])
+
+    with pytest.raises(lancador.ResultadoIncerto, match="Estoque insuficiente"):
+        lancador.salvar_requisicao(quadro, _BotaoSalvar())
+    assert quadro.respostas == []
