@@ -879,6 +879,10 @@ def salvar_requisicao(frame: Frame, salvar) -> str:
                 f"SCPI respondeu ao Salvar: '{' '.join(msg['texto'].split())}' {msg['botoes']}"
             )
         frame.page.wait_for_timeout(1000)
+    # Confirmado o aviso na última volta, o laço acaba sem ter lido o número.
+    numero = RE_REQUI.search(frame.evaluate(JS_NUMERO_REQUISICAO) or "")
+    if numero:
+        return numero.group(1)
     raise ResultadoIncerto("número da requisição não apareceu após Salvar")
 
 

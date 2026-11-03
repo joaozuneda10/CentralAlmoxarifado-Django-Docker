@@ -782,3 +782,12 @@ def test_salvar_nao_confirma_outra_pergunta_do_scpi(monkeypatch):
     with pytest.raises(lancador.ResultadoIncerto, match="Estoque insuficiente"):
         lancador.salvar_requisicao(quadro, _BotaoSalvar())
     assert quadro.respostas == []
+
+
+def test_salvar_le_o_numero_depois_de_confirmar_na_ultima_volta(monkeypatch):
+    # O aviso só aparece na última volta do laço: confirmado, o número ainda é lido.
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    _salvar_simulado(monkeypatch, quadro, [None] * 59 + [AVISO_MES])
+
+    assert lancador.salvar_requisicao(quadro, _BotaoSalvar()) == "003722/26"
+    assert quadro.respostas == ["Sim"]
