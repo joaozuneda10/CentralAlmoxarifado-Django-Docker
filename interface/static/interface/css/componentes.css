@@ -483,6 +483,12 @@ html:not(.js) .filtros-alternar { display: none; }
 .material-info { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-meio) var(--esp-1); min-width: 0; }
 .material-acao { display: flex; align-items: center; gap: var(--esp-1); }
 .material-bloqueado .material-dados strong { color: var(--texto-secundario); }
+/* Saída avulsa, de/para: o saldo que ficou nos códigos antigos, dentro da linha do material. Mais
+   compacto que o aviso da página, para caber na lista. */
+.material-alerta { margin-top: var(--esp-1); padding: var(--esp-1) 12px; font-size: 0.875rem; line-height: 1.45; }
+.material-alerta > .icone { width: 16px; height: 16px; margin-top: 2px; flex: none; }
+.material-alerta-lista { margin: 2px 0 4px; padding-left: 1.1em; }
+.material-alerta-lista li + li { margin-top: 2px; }
 .quantidade { display: inline-flex; align-items: center; border: 1px solid var(--borda); border-radius: var(--raio-controle); background: var(--fundo); }
 /* A quantidade é o que a pessoa confere: número em Geist 600, algarismos de largura fixa e os
    sinais de − e + no traço mais grosso, na cor do texto (no cinza secundário pareciam apagados). */

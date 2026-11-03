@@ -8,7 +8,9 @@
       <span class="material-titulo"><strong>{{ r.item.nome }}</strong></span>
       {# Com o material no pedido, o selo "N no pedido" aparece ao lado da informação (pedidos.js). Unidade longa: o selo desce para a linha de baixo, no mesmo alinhamento à esquerda. #}
       <span class="material-info"><span class="texto-secundario texto-pequeno">{% if fluxo.publico %}{{ r.linha_publica }}{% else %}<span class="mono">{{ r.item.codigo }}</span> · {% if r.estoque %}{{ r.estoque }} · {% endif %}{{ r.info }}{% if r.classe %} · {{ r.classe }}{% endif %}{% endif %}</span>{% if not r.motivo and not um_passo %}<span class="selo selo-info material-no-pedido" data-selo-pedido hidden>{% include "interface/_icone.html" with nome="check" %}<span data-selo-texto></span></span>{% endif %}</span>
-      {% if r.motivo %}<span><span class="selo selo-aviso">{{ r.motivo }}</span></span>{% endif %}
+      {# Saída avulsa: os códigos antigos do de/para que este substitui, numa linha própria; o saldo que ficou neles vira o alerta (bloqueado) ou a nota. #}
+      {% if r.item.antigos and not fluxo.publico %}<span class="texto-secundario texto-pequeno material-substitui">substitui {% for a in r.item.antigos %}<span class="mono">{{ a.codigo }}</span>{% if forloop.revcounter == 2 %} e {% elif not forloop.last %}, {% endif %}{% endfor %}</span>{% endif %}
+      {% if r.alerta_antigos %}{% include "pedidos/_saldo_antigos.html" with saldos=r.saldos_antigos bloqueado=True %}{% elif r.motivo %}<span><span class="selo selo-aviso">{{ r.motivo }}</span></span>{% elif r.saldos_antigos %}{% include "pedidos/_saldo_antigos.html" with saldos=r.saldos_antigos bloqueado=False %}{% endif %}
       {# A linha inteira abre a quantidade: o botão se estica sobre ela (pedidos.css); o "+" só indica que clica. #}
       {% if not r.motivo and not um_passo %}<button type="button" class="material-abrir" data-adicionar-abrir aria-expanded="false" aria-controls="qtd-area-{{ forloop.counter }}" aria-label="Adicionar {{ r.item.nome }}">Adicionar</button><span class="material-mais" aria-hidden="true">{% include "interface/_icone.html" with nome="mais" %}</span>{% endif %}
     </div>

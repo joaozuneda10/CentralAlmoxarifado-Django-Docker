@@ -2,7 +2,8 @@
 
 Traduz `montarCatalogos_` do `Catalogo.gs`: limpeza vem do `ItemLimpeza`; AB, das saídas do
 SCPI no período da curva ABC, consolidadas pelo de/para e ordenadas por número de ocorrências; a
-saída avulsa, de todo material não oculto e com saldo positivo; o de viaturas, da `PecaViatura`
+saída avulsa, de todo material não oculto e com saldo positivo, só pelo código canônico do de/para
+(o código novo lista os antigos); o de viaturas, da `PecaViatura`
 seguida do catálogo AB (spec 006); o da oficina mecânica, dos grupos da lista `GRUPO_OFICINA` e dos
 `MaterialOficina` (spec 007). Em todos, o material `duplicado`
 aparece (bloqueado pelo formulário).
@@ -12,10 +13,12 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils import timezone
 
-from catalogo.consultas_curva import consolidado
+from catalogo.consultas_curva import consolidado, pares
 from catalogo.curva import periodo
+from catalogo.depara import canonico_de, resolver_canonicos
 from catalogo.models import (
     CentroCusto,
     ConfiguracaoCurva,
@@ -45,6 +48,16 @@ GRUPOS_OCULTOS_PADRAO = (
 
 
 @dataclass(frozen=True)
+class CodigoAntigo:
+    """Um código antigo que o de/para leva ao material. `estoque` é o saldo dele no cadastro: 0
+    quando está oculto ou fora do cadastro (`unidade` vazia)."""
+
+    codigo: str
+    estoque: Decimal
+    unidade: str
+
+
+@dataclass(frozen=True)
 class ItemCatalogo:
     codigo: str
     nome: str
@@ -58,6 +71,12 @@ class ItemCatalogo:
     # A unidade do SCPI (não a exibida) admite fração: decide a regra de quantidade do formulário
     # público. O padrão é o lado seguro, só inteiro.
     fracionavel: bool = False
+    # Só na saída avulsa: os códigos antigos que o de/para leva a este, em ordem de código.
+    antigos: tuple[CodigoAntigo, ...] = ()
+
+    @property
+    def antigos_com_saldo(self) -> tuple[CodigoAntigo, ...]:
+        return tuple(a for a in self.antigos if a.estoque > 0)
 
 
 @dataclass
@@ -246,16 +265,42 @@ def catalogo_ab(hoje: date | None = None) -> CatalogoAB | None:
     return ab
 
 
-def materiais_avulsa():
-    """Materiais da saída avulsa: o cadastro com saldo positivo, menos os ocultos."""
-    return Material.objects.filter(oculto=False, estoque__gt=0)
+def _antigos_por_canonico() -> dict[str, tuple[CodigoAntigo, ...]]:
+    """Código canônico normalizado → os códigos antigos que levam a ele, em ordem de código,
+    cada um com o próprio saldo e a própria unidade (unidades diferem entre os antigos: nunca se
+    somam)."""
+    lista = pares()
+    mapa = resolver_canonicos(lista)
+    materiais = {
+        norm_u(m.codigo): m for m in Material.objects.filter(codigo__in=[p.antigo for p in lista])
+    }
+    por_canonico: dict[str, list[CodigoAntigo]] = {}
+    for p in sorted(lista, key=lambda p: norm_u(p.antigo)):
+        m = materiais.get(norm_u(p.antigo))
+        estoque = m.estoque if m is not None and not m.oculto else Decimal(0)
+        unidade = m.unidade if m is not None else ""
+        canonico = norm_u(canonico_de(p.antigo, mapa)[0])
+        por_canonico.setdefault(canonico, []).append(CodigoAntigo(p.antigo, estoque, unidade))
+    return {c: tuple(a) for c, a in por_canonico.items()}
 
 
 def catalogo_avulsa() -> list[ItemCatalogo]:
-    """Itens da saída avulsa: o cadastro com saldo positivo, menos os ocultos (duplicado
-    aparece bloqueado)."""
+    """Itens da saída avulsa: o cadastro não oculto, um item por código canônico do de/para
+    (duplicado aparece bloqueado). O código antigo de um par nunca entra: a saída é dada no
+    canônico, que lista os antigos. O canônico entra com saldo positivo ou, zerado, se algum
+    antigo ainda tem saldo (aparece bloqueado, com o alerta de onde está o saldo)."""
     fracionaveis = unidades_fracionaveis()
-    return [_item(m, fracionaveis) for m in materiais_avulsa()]
+    antigos = _antigos_por_canonico()
+    sao_antigos = {norm_u(a.codigo) for lista in antigos.values() for a in lista}
+    saldo_nos_antigos = [c for c, lista in antigos.items() if any(a.estoque > 0 for a in lista)]
+    materiais = Material.objects.filter(oculto=False).filter(
+        Q(estoque__gt=0) | Q(codigo__in=saldo_nos_antigos)
+    )
+    return [
+        _item(m, fracionaveis, antigos=antigos.get(norm_u(m.codigo), ()))
+        for m in materiais
+        if norm_u(m.codigo) not in sao_antigos
+    ]
 
 
 def formulario_limpeza() -> list[ItemCatalogo] | None:

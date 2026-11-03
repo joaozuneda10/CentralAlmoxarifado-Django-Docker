@@ -1,0 +1,6 @@
+{% comment %}
+Saída avulsa: o saldo que ficou nos códigos antigos do de/para, cada um na própria unidade (não se
+somam). `bloqueado`: o código novo está zerado e o alerta toma o lugar do selo "Sem estoque"; senão,
+uma nota que não bloqueia. Um antigo vai numa frase; dois ou mais, numa lista.
+{% endcomment %}
+<div class="aviso {% if bloqueado %}aviso-atencao{% else %}aviso-info{% endif %} material-alerta">{% if bloqueado %}{% include "interface/_icone.html" with nome="alerta" %}{% else %}{% include "interface/_icone.html" with nome="info" %}{% endif %}<div>{% if bloqueado %}Saldo só{% else %}Ainda há saldo{% endif %} {% if saldos|length == 1 %}no código antigo <span class="mono">{{ saldos.0.0 }}</span>: {{ saldos.0.1 }}.{% else %}nos códigos antigos:<ul class="material-alerta-lista">{% for codigo, saldo in saldos %}<li><span class="mono">{{ codigo }}</span>: {{ saldo }}</li>{% endfor %}</ul>{% endif %}{% if bloqueado %} Acerte o saldo no SCPI para dar saída por este código.{% endif %}</div></div>

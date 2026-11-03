@@ -279,8 +279,12 @@ transações precisam se comportar como no servidor.
   No atendimento, o almoxarifado troca um material pedido por outro ou acrescenta um
   (`ItemPedido.origem` `PEDIDO` ou `ALMOXARIFADO`; o acrescentado tem `qtd_pedida` nula,
   `adicionado_por` e, na troca, `no_lugar_de`, e o trocado fica com 0 sem deixar o pedido parcial),
-  do catálogo da saída avulsa (só material não oculto e com saldo > 0, `catalogos.materiais_avulsa`),
-  com a quantidade limitada ao saldo do cadastro truncado a 3 casas, em qualquer unidade
+  do catálogo da saída avulsa (`catalogos.catalogo_avulsa`: material não oculto e com saldo > 0,
+  só pelo código canônico do de/para; o código antigo de um par nunca aparece, e o novo lista os
+  antigos em `ItemCatalogo.antigos`, com o saldo e a unidade de cada um, sem somar: a busca pelo
+  antigo acha o novo, que mostra "substitui …"; o novo zerado com saldo em algum antigo entra
+  bloqueado, com o alerta de onde está o saldo no lugar do selo "Sem estoque", e o novo com saldo
+  ganha a nota do que sobrou nos antigos, `_saldo_antigos.html`), com a quantidade limitada ao saldo do cadastro truncado a 3 casas, em qualquer unidade
   (`maximo_pedivel` com a regra `livre`; `ItemSaida.estoque` em `regras.validar_saida`, e
   `carrinho.limite` na
   resposta imediata do carrinho e do "Adicionar"). Na edição (`servicos._limites_de_estoque`) o teto
