@@ -5,10 +5,15 @@ import re
 from django import template
 
 from pedidos.regras import (
+    AB,
     AUTORIZACAO_AGUARDANDO,
     AUTORIZACAO_AUTORIZADA,
     AUTORIZACAO_RECUSADA,
+    AVULSA,
+    EPIS,
     LIMPEZA,
+    OFICINA,
+    VIATURAS,
     frase_diferenca,
     qtd_br,
 )
@@ -43,6 +48,24 @@ _ORIGEM_CURTA = {LIMPEZA: "Limpeza"}
 def origem_curta(pedido) -> str:
     """Nome curto da origem para o selo da lista; o nome inteiro vai no title."""
     return _ORIGEM_CURTA.get(pedido.origem, pedido.get_origem_display())
+
+
+# Na tabela do painel a origem vai embaixo do Nº, numa coluna de largura fixa: o nome tem de ser
+# curto. O nome inteiro fica no detalhe do pedido e no filtro Origem.
+_ORIGEM_TABELA = {
+    LIMPEZA: "Limpeza",
+    AB: "Materiais AB",
+    VIATURAS: "Viaturas",
+    OFICINA: "Oficina",
+    EPIS: "EPIs",
+    AVULSA: "Saída avulsa",
+}
+
+
+@register.filter
+def origem_tabela(pedido) -> str:
+    """Nome curto da origem para a linha da tabela do painel, embaixo do Nº."""
+    return _ORIGEM_TABELA.get(pedido.origem, pedido.get_origem_display())
 
 
 @register.filter

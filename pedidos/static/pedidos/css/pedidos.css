@@ -530,6 +530,22 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .tabela-pedidos .col-destino { min-width: 13rem; }
 /* Situação e SCPI numa coluna só: o selo do SCPI embaixo do da situação. */
 .situacao-selos { display: flex; flex-direction: column; align-items: flex-start; gap: var(--esp-meio); }
+/* Lista do painel em tabela: colunas de largura fixa (as do `colgroup`; Pessoa e Destino dividem o
+   resto), para os pedidos da página não as mexerem. Cada largura é o maior conteúdo da coluna mais
+   o padding. A origem vai em texto curto embaixo do Nº, sem coluna própria. O cartão (abaixo de
+   720px) não muda: usa o selo da `col-origem`. */
+.tabela-painel .numero-origem { display: none; }
+@container (width > 720px) {
+  .tabela-painel { table-layout: fixed; min-width: 51rem; }
+  .tabela-painel .largura-numero { width: 6.75rem; }
+  .tabela-painel .largura-data { width: 9.25rem; }
+  .tabela-painel .largura-situacao { width: 13rem; }
+  .tabela-painel .col-pessoa, .tabela-painel .col-destino { min-width: 0; overflow-wrap: anywhere; }
+  .tabela-painel .col-origem { display: none; }
+  .tabela-painel .numero-origem { display: block; margin-top: 2px; font-size: 0.8125em; line-height: 1.35; }
+  /* O selo raro mais largo que a coluna (lançado em várias requisições) quebra dentro dela. */
+  .tabela-painel .col-situacao .selo { max-width: 100%; white-space: normal; }
+}
 /* Estreita (celular, ou tela pequena com a barra lateral): cada pedido vira um cartão. */
 @container (max-width: 720px) {
   .tabela-pedidos thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }

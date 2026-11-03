@@ -17,7 +17,8 @@ from pedidos.consultas import (
     pedidos_do_painel,
 )
 from pedidos.models import ExecucaoRobo, ItemPedido, Pedido
-from pedidos.regras import AB, AVULSA
+from pedidos.regras import AB, AVULSA, EPIS, LIMPEZA, OFICINA, VIATURAS
+from pedidos.templatetags.pedidos_extras import origem_tabela
 from tests.cenario import criar_pedido
 
 pytestmark = pytest.mark.django_db
@@ -110,6 +111,27 @@ def test_filtro_por_origem(client, logado):
     assert ab.numero in r.text and limpeza.numero not in r.text
 
 
+def test_tabela_mostra_a_origem_curta_embaixo_do_numero(client, logado):
+    # Na tabela, a origem é texto embaixo do Nº (nome curto, para caber na coluna fixa); o
+    # cartão segue com o selo da célula própria.
+    curtos = {
+        LIMPEZA: "Limpeza",
+        AB: "Materiais AB",
+        VIATURAS: "Viaturas",
+        OFICINA: "Oficina",
+        EPIS: "EPIs",
+        AVULSA: "Saída avulsa",
+    }
+    assert set(curtos) == set(Pedido.Origem.values)
+    for origem, curto in curtos.items():
+        assert origem_tabela(Pedido(origem=origem)) == curto
+    criar_pedido(origem=VIATURAS)
+    texto = client.get(reverse("pedidos:painel")).text
+    assert '<span class="numero-origem texto-secundario">Viaturas</span>' in texto
+    assert ">Reposição de peças das viaturas</span></td>" in texto  # selo do cartão
+    assert '<th scope="col">Origem</th>' not in texto
+
+
 def test_busca_por_numero_solicitante_e_recebedor_sem_acento(client, logado):
     a = criar_pedido(solicitante="Mariana")
     b = criar_pedido(atendido=True, recebedor="João")
@@ -191,7 +213,7 @@ def test_painel_no_estilo_clean(client, logado):
     r = client.get(reverse("pedidos:painel"))
     assert 'class="filtros-recolhiveis"' in r.text and 'class="campo-busca"' in r.text
     assert 'class="selo selo-info"' in r.text
-    tabela = r'<div class="tabela-rolagem">\s*<table class="tabela tabela-pedidos">'
+    tabela = r'<div class="tabela-rolagem">\s*<table class="tabela tabela-pedidos tabela-painel">'
     assert re.search(tabela, r.text)
     assert 'class="campo-entrada"' in r.text  # widgets do FiltrosPainel
 
