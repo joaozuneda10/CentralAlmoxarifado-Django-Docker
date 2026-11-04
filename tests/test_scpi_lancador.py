@@ -791,3 +791,127 @@ def test_salvar_le_o_numero_depois_de_confirmar_na_ultima_volta(monkeypatch):
 
     assert lancador.salvar_requisicao(quadro, _BotaoSalvar()) == "003722/26"
     assert quadro.respostas == ["Sim"]
+
+
+# ---------------------------------------------------------------- Tipo Saída enviado ao servidor
+
+# pedidos que o SCPI real mandou ao escolher BALCÃO num formulário novo (04/11/2026)
+SELECT_BALCAO = (
+    "Ajax=1&amp;IsEvent=1&amp;Obj=O9A0&amp;Evt=select&amp;&amp;_S_ID=V6A5&amp;"
+    "_fp_=%26O9A0%3D%25020%2502-1%2502BALC%25C3%2583O&amp;_seq_=1e&amp;_uo_=O7EB"
+)
+EDITED = "Ajax=1&amp;IsEvent=1&amp;Obj=O9A0&amp;Evt=edited&amp;This=O9A0&amp;_seq_=1d"
+# outro combo do formulário, sem o tipo: o único pedido do 3º lote depois do Cancelar
+SELECT_OUTRO = "Ajax=1&amp;IsEvent=1&amp;Obj=OB71&amp;Evt=select&amp;&amp;_seq_=a4&amp;_uo_=O7EB"
+
+
+def test_servidor_recebeu_so_com_o_select_que_leva_a_opcao():
+    assert lancador.servidor_recebeu([SELECT_OUTRO, EDITED, SELECT_BALCAO], "BALCÃO")
+    assert lancador.servidor_recebeu([SELECT_BALCAO], "balcao")
+    # depois do Cancelar: o combo mostra BALCÃO, mas nada (ou só outro combo) vai ao servidor
+    assert not lancador.servidor_recebeu([], "BALCÃO")
+    assert not lancador.servidor_recebeu([SELECT_OUTRO], "BALCÃO")
+    assert not lancador.servidor_recebeu([EDITED], "BALCÃO")
+    assert not lancador.servidor_recebeu([SELECT_BALCAO], "ENTREGA")
+    assert not lancador.servidor_recebeu([SELECT_BALCAO.replace("BALC", "XBALC")], "BALCÃO")
+
+
+def _combo_simulado(monkeypatch, envios, escuta=True):
+    """`envios`: os pedidos que o SCPI manda a cada escolha da opção pedida."""
+    envios = iter(envios)
+    escolhas = []
+    pendentes = []
+    monkeypatch.setattr(lancador, "campo", lambda frame, rotulo: object())
+    monkeypatch.setattr(lancador, "aguardar_mascara", lambda frame: None)
+    monkeypatch.setattr(lancador, "checar_mensagem", lambda frame, etapa: None)
+    monkeypatch.setattr(lancador, "escutar_pedidos", lambda frame: escuta)
+
+    def escolher(frame, entrada, opcao):
+        escolhas.append(opcao)
+        if opcao == "BALCÃO":
+            pendentes.extend(next(envios))
+
+    def enviados(frame):
+        lidos = list(pendentes)
+        pendentes.clear()
+        return lidos
+
+    monkeypatch.setattr(lancador, "escolher_opcao", escolher)
+    monkeypatch.setattr(lancador, "pedidos_enviados", enviados)
+    monkeypatch.setattr(lancador, "outra_opcao", lambda frame, entrada, opcao: "ENTREGA")
+    return escolhas
+
+
+def test_selecionar_combo_escolhe_uma_vez_quando_o_servidor_recebe(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[EDITED, SELECT_BALCAO]])
+
+    lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas == ["BALCÃO"]
+
+
+def test_selecionar_combo_escolhe_de_novo_com_calma_quando_nada_vai_ao_servidor(monkeypatch):
+    # Depois do Cancelar, escolher a opção que o combo já tem não manda nada: passa por outra antes.
+    escolhas = _combo_simulado(monkeypatch, [[], [SELECT_BALCAO]])
+    quadro = _Quadro()
+
+    lancador.selecionar_combo(quadro, "Tipo Saída", "BALCÃO")
+    assert escolhas == ["BALCÃO", "ENTREGA", "BALCÃO"]
+    assert lancador.PAUSA_COMBO_MS in quadro.page.pausas
+
+
+def test_selecionar_combo_recusa_depois_das_tentativas(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[SELECT_OUTRO]] * lancador.TENTATIVAS_COMBO)
+
+    with pytest.raises(ErroSCPI, match="não enviou 'BALCÃO' ao servidor"):
+        lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas.count("BALCÃO") == lancador.TENTATIVAS_COMBO
+
+
+def test_selecionar_combo_recusa_sem_poder_acompanhar_o_envio(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[SELECT_BALCAO]], escuta=False)
+
+    with pytest.raises(ErroSCPI, match="acompanhar o envio"):
+        lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas == []
+
+
+# ---------------------------------------------------------------- próximo lote em módulo novo
+
+
+def _navegador_que_recomeca(monkeypatch, reabrir_falha=False):
+    passos = []
+    nav = NavegadorSCPI(playwright=None)
+    nav.page = type("P", (), {"screenshot": lambda self, path: None})()
+    monkeypatch.setattr(nav, "limpar", lambda: passos.append("limpar"))
+
+    def reabrir():
+        passos.append("reabrir")
+        if reabrir_falha:
+            raise RuntimeError("Fechar não respondeu")
+
+    monkeypatch.setattr(nav, "reabrir_modulo", reabrir)
+    monkeypatch.setattr(nav, "reiniciar", lambda: passos.append("reiniciar"))
+    return nav, passos
+
+
+def test_descartar_reabre_o_modulo_depois_de_limpar(monkeypatch, settings, tmp_path):
+    # Só Cancelar deixava o formulário seguinte com o Tipo Saída vazio no SCPI.
+    settings.LOG_DIR = tmp_path
+    nav, passos = _navegador_que_recomeca(monkeypatch)
+
+    nav.descartar("AV-000058")
+    assert passos == ["limpar", "reabrir"]
+
+
+def test_simulacao_reabre_o_modulo_depois_de_limpar(monkeypatch):
+    nav, passos = _navegador_que_recomeca(monkeypatch)
+
+    nav.encerrar_simulacao()
+    assert passos == ["limpar", "reabrir"]
+
+
+def test_recomecar_reinicia_a_sessao_se_o_modulo_nao_reabre(monkeypatch):
+    nav, passos = _navegador_que_recomeca(monkeypatch, reabrir_falha=True)
+
+    nav.encerrar_simulacao()
+    assert passos == ["limpar", "reabrir", "reiniciar"]
