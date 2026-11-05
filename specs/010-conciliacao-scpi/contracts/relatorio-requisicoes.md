@@ -49,13 +49,18 @@ As demais colunas ficam só no arquivo bruto.
 4. Relatório cortado: depois da recolagem, um registro (em geral o último) fica com **menos campos
    que o cabeçalho**. A detecção é só por essa contagem. A quebra de linha no fim do arquivo é
    opcional: um CSV válido pode terminar sem ela, e a falta dela sozinha nunca é erro. É
-   `ErroImportacao` com a posição (linha física onde o registro começa), e vale a regra 3.
+   `ErroImportacao` com a posição (o número do registro depois do cabeçalho), e vale a regra 3.
 5. Um campo de cabeçalho que varia entre as linhas da mesma requisição: `ErroImportacao`. No CSV real,
    isso nunca acontece.
 6. Quantidade ilegível: `ErroImportacao`. Quantidade 0 é aceita, porque aparece nos ajustes de
    inventário.
 7. O mesmo código repetido numa requisição é aceito e lido como duas linhas. A comparação conta as
    linhas.
+8. Uma requisição com `DTPAG` fora do período da extração (um CSV de outro período no
+   `--arquivo`, ou o SCPI deixando de filtrar por `DTPAG`) faz a extração inteira falhar, pela regra
+   3: a extração só guarda o que o seu período promete.
+9. Quantidade que não cabe exata em `ItemOficial.quantidade` (10 dígitos inteiros e 4 casas) é
+   erro, como a ilegível: o banco a arredondaria em silêncio.
 
 ## Fixture de teste
 
