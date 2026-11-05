@@ -39,6 +39,19 @@ SCPI › Relatórios › Requisições › Relação de Requisições, rádio "R
 
 As demais colunas ficam só no arquivo bruto.
 
+## Relatório vazio
+
+Sem nenhuma requisição no período, o SCPI só avisa "Nada a exibir", sem gerar o CSV.
+`baixar_requisicoes` levanta `NadaAExibir` (um `ErroImportacao` de `scpi.leitura`) nesse caso, e
+`conciliacao.extracao.extrair` captura essa exceção e passa a decisão a `_vazio`. Só esse aviso faz
+o vazio valer: um download ou um `--arquivo` com bytes vazios, sem ele, faz a extração falhar ("o
+arquivo veio vazio"), e o `_relacao_de_requisicoes` recusa o CSV vazio entregue pelo SCPI. `_vazio`
+decide:
+- num período sem nenhum lote lançado, vale como extração sem requisições, e o piso fica vazio;
+- num período com lote lançado, o relatório não pode estar vazio, e a extração falha (FR-005).
+
+Sem isso, um período sem movimento travaria o robô para sempre na extração de antes.
+
 ## Regras de leitura
 
 1. Falta uma coluna obrigatória: `ErroImportacao` com o nome dela.
