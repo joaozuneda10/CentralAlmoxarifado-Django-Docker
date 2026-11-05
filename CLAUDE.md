@@ -654,6 +654,28 @@ transações precisam se comportar como no servidor.
   cria as tentativas históricas (`historica`) a partir do journal, idempotente por execução; em
   produção, só a pedido do usuário. Nos testes, `tests/conciliacao_cenario.py`
   (`tentativa_em_verificar`, `liberacao_comprovada`).
+  **Vereditos** (PR 4): `servicos.conciliar(extracao)` = `conciliar_lancados` +
+  `conciliar_verificar`, depois da extração de depois do robô, do `extrair_requisicoes` e do
+  `conciliar_lancamentos [--arquivo] [--desde --ate]` (sem nada, hoje − 9 dias e os lotes em verificar
+  abertos; recusa com lançamento ou importação em andamento). Para cada lote `LANCADA` com data no
+  período e lançado antes do início da extração, `regras.veredito` liga a requisição pelo lote nas
+  observações e pelo número (os dois têm de apontar para a mesma; senão `CONFLITO`; duas com o lote, ou
+  o número em outro lote, `DUPLICADO`; sem nenhuma, `NAO_ENCONTRADO` com número maior no relatório
+  ou com a requisição já achada numa conferência conclusiva, senão `AGUARDANDO`) e `regras.comparar` dá as diferenças (tipo, data, centro pelo código com o nome
+  diferente como nota, recebedor, itens por `norm_u` e quantidade exata mostrando só o que difere,
+  placa do item ou do centro) e as notas (de/para só explica). A entrega é a foto da tentativa; sem
+  ela (lote de antes do PR 2), `servicos.entrega_das_linhas`. A primeira conferência conclusiva é a do
+  `LANCAMENTO` (as `AGUARDANDO` são provisórias); as seguintes são `REVISAO`, com `alterado_depois` e
+  as alterações contra a requisição daquela; o veredito atual é o da última conclusiva. Nunca muda as
+  linhas de saída.
+  `conciliar` roda sob a trava `almoxarifado:conciliacao` (`GET_LOCK` com espera), primeiro os em
+  verificar e depois os lançados, cada etapa e cada lote isolados; um lote ou uma etapa que falha não impede os outros, mas no
+  fim sobe `ConciliacaoIncompleta` (com a contagem parcial): o robô só a registra no log, e os comandos
+  saem com erro; a contagem dela é lida do banco, porque a etapa que falhou pode ter gravado parte dos
+  lotes. A extração de um CSV já
+  baixado (`--arquivo` nos dois comandos) tem o motivo `ARQUIVO`: não se sabe quando foi exportado, então
+  nunca confere lote em verificar (um arquivo de antes do Salvar perdido liberaria o relançamento) nem
+  revisa um veredito; só dá o primeiro veredito de um lote lançado.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

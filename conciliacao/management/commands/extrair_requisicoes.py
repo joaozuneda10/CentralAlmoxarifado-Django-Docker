@@ -3,7 +3,8 @@ from django.core.management import BaseCommand, CommandError
 from catalogo.models import Importacao
 from conciliacao.extracao import extrair
 from conciliacao.models import ExtracaoOficial
-from conciliacao.servicos import conciliar_verificar
+from conciliacao.robo import resumo_da_contagem
+from conciliacao.servicos import ConciliacaoEmAndamento, ConciliacaoIncompleta, conciliar
 from scpi import relatorios
 from scpi.execucao import ImportacaoEmAndamento
 from scpi.management.comum import data_opcao, obter_csv
@@ -11,8 +12,8 @@ from scpi.management.comum import data_opcao, obter_csv
 
 class Command(BaseCommand):
     help = (
-        "Extrai do SCPI a Relação de Requisições de saída de todos os tipos no período e a "
-        "guarda (arquivo bruto e requisições), sem conciliar nada. Só lê o SCPI."
+        "Extrai do SCPI a Relação de Requisições de saída de todos os tipos no período, a guarda "
+        "(arquivo bruto e requisições) e concilia os lotes lançados e em verificar. Só lê o SCPI."
     )
 
     def add_arguments(self, parser):
@@ -26,7 +27,7 @@ class Command(BaseCommand):
             raise CommandError("O início do período é depois do fim.")
         try:
             extracao = extrair(
-                ExtracaoOficial.Motivo.MANUAL,
+                ExtracaoOficial.Motivo.ARQUIVO if arquivo else ExtracaoOficial.Motivo.MANUAL,
                 (de, ate),
                 obter_csv(arquivo, lambda: relatorios.baixar_requisicoes(de, ate)),
             )
@@ -40,6 +41,12 @@ class Command(BaseCommand):
             f"Requisições do SCPI ({de:%d/%m/%Y} a {ate:%d/%m/%Y}): {extracao.requisicoes} "
             f"requisições, a maior {maior}."
         )
-        conferidos = conciliar_verificar(extracao)
-        if conferidos:
-            self.stdout.write(f"  Lotes em verificar conferidos: {conferidos}.")
+        try:
+            contagem = conciliar(extracao)
+        except ConciliacaoEmAndamento as exc:
+            raise CommandError(str(exc)) from None
+        except ConciliacaoIncompleta as exc:
+            parcial = resumo_da_contagem(exc.contagem) or "nada gravado"
+            raise CommandError(f"{exc} (gravado: {parcial}).") from None
+        if contagem:
+            self.stdout.write(f"  Conciliação: {resumo_da_contagem(contagem)}.")
