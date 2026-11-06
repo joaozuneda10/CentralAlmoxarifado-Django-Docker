@@ -9,7 +9,6 @@ from catalogo.catalogos import (
     catalogo_avulsa,
     catalogo_limpeza,
     grupos_ocultos_ab,
-    materiais_avulsa,
 )
 from catalogo.models import ConfiguracaoCurva, ItemLimpeza, Material, Opcao, ParDePara, SaidaSCPI
 
@@ -127,22 +126,14 @@ def test_limpeza_usa_nome_exibido_e_esconde_oculto():
     assert itens[1].disponivel == 3
 
 
-def test_avulsa_so_nao_ocultos_e_com_estoque():
+def test_catalogo_avulsa_so_nao_ocultos_e_com_estoque():
     material("A", estoque=5)
     material("B", estoque=5, oculto=True)
     material("C", estoque=5, duplicado=True)
     material("D")  # estoque 0
     material("E", estoque=Decimal("0.5"))
-    assert list(materiais_avulsa().values_list("codigo", flat=True)) == ["A", "C", "E"]
-
-
-def test_catalogo_avulsa_so_nao_ocultos_e_com_estoque():
-    material("A", estoque=5)
-    material("B", estoque=5, oculto=True)
-    material("C", estoque=5, duplicado=True)
-    material("D")
     itens = catalogo_avulsa()
-    assert [(i.codigo, i.duplicado) for i in itens] == [("A", False), ("C", True)]
+    assert [(i.codigo, i.duplicado) for i in itens] == [("A", False), ("C", True), ("E", False)]
 
 
 # ---------------------------------------------------------------- consolidação pelo de/para

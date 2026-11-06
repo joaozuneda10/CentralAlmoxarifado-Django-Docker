@@ -1,31 +1,39 @@
 import json
 from contextlib import contextmanager
+from datetime import timedelta
 
 import pytest
 from django.db import DatabaseError, InterfaceError, connection, connections
 from django.db.models.query import QuerySet
 
 from catalogo.models import CentroCusto
-from pedidos.models import ExecucaoRobo, LinhaSaida
+from conciliacao.models import TentativaLancamento
+from pedidos.models import TRAVA_LANCAMENTO, ExecucaoRobo, LinhaSaida
 from scpi import lancamento
 from scpi.lancamento import LancamentoEmAndamento, executar_lancamento
 from scpi.leitura import ErroImportacao
 from scpi.requisicoes import ErroSCPI, FalhaCritica
+from tests.relacao_requisicoes import RequisicaoCSV, relatorio
 from tests.test_scpi_execucao import liberacao_quebrada
 
-pytestmark = pytest.mark.django_db
+# Nenhum teste grava o journal no `logs/` do repositório.
+pytestmark = [pytest.mark.django_db, pytest.mark.usefixtures("journal")]
 
 
-def lancar_todos(execucao, abrir):
+def so_requisicao_alheia(de, ate):
+    """O registro oficial com só uma requisição feita à mão no período: a extração de antes do
+    lançamento dá certo sem que estes testes, que não são da conciliação, se preocupem com ela."""
+    return relatorio([RequisicaoCSV("000500/26", 600, de + timedelta(days=1), tipo="OUTRA")])
+
+
+def lancar_todos(execucao, abrir, extrair=so_requisicao_alheia):
     """Escolhe todos os lotes que existem: o que o botão faria com a fila inteira marcada."""
     return executar_lancamento(
-        execucao, abrir, lotes=set(LinhaSaida.objects.values_list("lote", flat=True))
+        execucao,
+        abrir,
+        lotes=set(LinhaSaida.objects.values_list("lote", flat=True)),
+        extrair=extrair,
     )
-
-
-@pytest.fixture(autouse=True)
-def _journal_temporario(journal):
-    """Nenhum teste grava o journal no `logs/` do repositório."""
 
 
 def test_lanca_um_lote_por_requisicao_e_grava_o_numero(dois_lotes, scpi):
@@ -63,7 +71,12 @@ def test_trava_esta_confirmada_no_banco_antes_do_salvar(dois_lotes, scpi):
         outra.close()
 
     scpi.ao_salvar = olhar
-    executar_lancamento(ExecucaoRobo.objects.create(), scpi.abrir, lotes=[dois_lotes[0]])
+    executar_lancamento(
+        ExecucaoRobo.objects.create(),
+        scpi.abrir,
+        lotes=[dois_lotes[0]],
+        extrair=so_requisicao_alheia,
+    )
     assert vistos == [["EM_LANCAMENTO"]]
 
 
@@ -136,7 +149,9 @@ def test_linha_alterada_durante_a_execucao_nao_e_lancada(dois_lotes, scpi):
 
 def test_so_os_lotes_escolhidos_sao_lancados(dois_lotes, scpi):
     p, av = dois_lotes
-    e = executar_lancamento(ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av])
+    e = executar_lancamento(
+        ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av], extrair=so_requisicao_alheia
+    )
     assert e.resumo["lancadas"] == 1 and e.resumo["ignoradas"] == 1
     assert LinhaSaida.objects.get(lote=av).status == "LANCADA"
     assert not LinhaSaida.objects.filter(lote=p).exclude(status="PENDENTE").exists()
@@ -145,7 +160,9 @@ def test_so_os_lotes_escolhidos_sao_lancados(dois_lotes, scpi):
 def test_lote_escolhido_que_saiu_da_fila_nao_e_lancado_e_e_avisado(dois_lotes, scpi):
     p, av = dois_lotes
     LinhaSaida.objects.filter(lote=av).update(status="LANCADA", requisicao_scpi="000009/26")
-    e = executar_lancamento(ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av])
+    e = executar_lancamento(
+        ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av], extrair=so_requisicao_alheia
+    )
     assert e.resumo["requisicoes"] == 0 and e.resumo["lancadas"] == 0
     assert f"{av} não está mais na fila do robô" in e.log
     assert not LinhaSaida.objects.filter(lote=p).exclude(status="PENDENTE").exists()
@@ -154,7 +171,9 @@ def test_lote_escolhido_que_saiu_da_fila_nao_e_lancado_e_e_avisado(dois_lotes, s
 def test_lote_invalido_fora_da_escolha_nao_vira_erro(dois_lotes, scpi):
     p, av = dois_lotes
     LinhaSaida.objects.filter(lote=p).update(centro_custo="")
-    e = executar_lancamento(ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av])
+    e = executar_lancamento(
+        ExecucaoRobo.objects.create(), scpi.abrir, lotes=[av], extrair=so_requisicao_alheia
+    )
     assert e.resumo["lancadas"] == 1 and e.resumo["falhas"] == 0
     assert not LinhaSaida.objects.filter(lote=p, status="ERRO").exists()
 
@@ -207,7 +226,7 @@ def test_banco_fora_ate_o_fim_ainda_levanta_falha_critica(dois_lotes, scpi, monk
                 lancar_todos(ExecucaoRobo.objects.create(), scpi.abrir)
     finally:
         with connection.cursor() as c:
-            c.execute("SELECT RELEASE_LOCK('almoxarifado:lancar_saidas')")
+            c.execute("SELECT RELEASE_LOCK(%s)", [TRAVA_LANCAMENTO])
 
 
 def test_navegador_que_nao_abre_deixa_tudo_pendente(dois_lotes):
@@ -224,19 +243,13 @@ def test_navegador_que_nao_abre_deixa_tudo_pendente(dois_lotes):
     assert set(LinhaSaida.objects.values_list("status", flat=True)) == {"PENDENTE"}
 
 
-def test_trava_ocupada_recusa_sem_tocar_em_nada(dois_lotes, scpi):
-    outra = connections.create_connection("default")
-    with outra.cursor() as c:
-        c.execute("SELECT GET_LOCK('almoxarifado:lancar_saidas', 0)")
-    try:
-        e = ExecucaoRobo.objects.create()
-        with pytest.raises(LancamentoEmAndamento):
-            lancar_todos(e, scpi.abrir)
-        e.refresh_from_db()
-        assert (e.situacao, e.erro) == ("FALHA", "Outro lançamento já está em andamento.")
-        assert scpi.abertas == 0
-    finally:
-        outra.close()
+def test_trava_ocupada_recusa_sem_tocar_em_nada(dois_lotes, scpi, trava_ocupada):
+    e = ExecucaoRobo.objects.create()
+    with pytest.raises(LancamentoEmAndamento):
+        lancar_todos(e, scpi.abrir)
+    e.refresh_from_db()
+    assert (e.situacao, e.erro) == ("FALHA", "Outro lançamento já está em andamento.")
+    assert scpi.abertas == 0
 
 
 def test_pendente_com_numero_de_requisicao_nao_e_lancada_de_novo(dois_lotes, scpi):
@@ -348,3 +361,24 @@ def test_robo_trava_antes_e_a_edicao_e_recusada(dois_lotes, scpi):
     assert set(LinhaSaida.objects.filter(lote=p).values_list("status", "recebedor")) == {
         ("LANCADA", "João")
     }
+
+
+def test_tentativa_existe_em_verificar_quando_o_salvar_e_clicado(dois_lotes, scpi):
+    vistas = []
+    scpi.ao_salvar = lambda: vistas.append(
+        list(TentativaLancamento.objects.values_list("lote", "resultado"))
+    )
+    lancar_todos(ExecucaoRobo.objects.create(), scpi.abrir)
+    p, av = dois_lotes
+    assert vistas[0] == [(p, "VERIFICAR")]
+
+
+def test_falha_ao_registrar_a_tentativa_desfaz_a_trava_e_nao_salva(dois_lotes, scpi, monkeypatch):
+    def quebrado(*args, **kwargs):
+        raise DatabaseError("tabela de tentativas indisponível")
+
+    monkeypatch.setattr(lancamento.robo, "registrar_tentativa", quebrado)
+    with pytest.raises(FalhaCritica, match="não foi possível travar"):
+        lancar_todos(ExecucaoRobo.objects.create(), scpi.abrir)
+    assert set(LinhaSaida.objects.values_list("status", flat=True)) == {"PENDENTE"}
+    assert ("salvar", dois_lotes[0]) not in scpi.chamadas

@@ -216,7 +216,9 @@ def _passa(fluxo: Fluxo, item: ItemCatalogo, filtro: str) -> bool:
 
 
 def _texto_busca(fluxo: Fluxo, item: ItemCatalogo) -> str:
-    return item.nome if fluxo.publico else f"{item.nome} {item.codigo}"
+    if fluxo.publico:
+        return item.nome
+    return " ".join([item.nome, item.codigo, *(a.codigo for a in item.antigos)])
 
 
 def buscar(fluxo: Fluxo, catalogo, q: str, filtro: str) -> tuple[list[ItemCatalogo], int]:
@@ -224,7 +226,8 @@ def buscar(fluxo: Fluxo, catalogo, q: str, filtro: str) -> tuple[list[ItemCatalo
     primeiro e os bloqueados (sem estoque, duplicados) no fim, cada grupo na ordem do catálogo
     (nas viaturas, por nome); os primeiros `LIMITE_RESULTADOS` e o total. A ordenação vem antes
     do corte, para nenhum material que pode ser pedido ficar de fora. Só a saída avulsa (equipe)
-    busca também pelo código; os formulários públicos procuram só pelo nome."""
+    busca também pelo código e pelos códigos antigos do de/para (o antigo acha o novo); os
+    formulários públicos procuram só pelo nome."""
     from pedidos.carrinho import motivo_bloqueio
 
     palavras = normalizar_busca(q).split()
@@ -252,6 +255,15 @@ class Resultado:
     # "Estoque N": o máximo que o formulário aceita (o mesmo número do limite e das mensagens),
     # sem zeros à direita.
     estoque: str = ""
+    # Saída avulsa: o saldo que ficou nos códigos antigos do de/para, (código, "4 UN") na unidade
+    # de cada um.
+    saldos_antigos: tuple[tuple[str, str], ...] = ()
+
+    @property
+    def alerta_antigos(self) -> bool:
+        """Bloqueado porque o saldo ficou só nos códigos antigos: o alerta toma o lugar do selo
+        "Sem estoque". Com o material liberado, os mesmos saldos viram uma nota."""
+        return bool(self.motivo and self.saldos_antigos and not self.item.duplicado)
 
     @property
     def linha_publica(self) -> str:
@@ -261,12 +273,15 @@ class Resultado:
 
 
 def resultados(fluxo: Fluxo, itens) -> list[Resultado]:
-    from pedidos.carrinho import motivo_bloqueio
+    from pedidos.carrinho import motivo_bloqueio, saldo_do_antigo
 
     lista = []
     for i in itens:
         maximo = maximo_pedivel(i.estoque, i.fracionavel, fluxo.regra_quantidade)
         estoque = f"Estoque {qtd_br(maximo)}"
         classe = classe_ab(i) if fluxo.publico else i.grupo
-        lista.append(Resultado(i, motivo_bloqueio(fluxo, i), i.unidade or "—", classe, estoque))
+        saldos = tuple((a.codigo, saldo_do_antigo(a)) for a in i.antigos_com_saldo)
+        lista.append(
+            Resultado(i, motivo_bloqueio(fluxo, i), i.unidade or "—", classe, estoque, saldos)
+        )
     return lista

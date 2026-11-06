@@ -24,10 +24,12 @@ from contextlib import contextmanager
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import TYPE_CHECKING
+from urllib.parse import unquote
 
 from django.conf import settings
 from django.utils import timezone
 
+from conciliacao.regras import texto_observacoes
 from pedidos.regras import norm_placa
 from pedidos.regras import norm_u as norm
 from scpi.browser import abrir_sessao, frame_compras, orm_liberado
@@ -228,16 +230,123 @@ def sair_do_campo(frame: Frame, entrada, etapa: str) -> None:
     checar_mensagem(frame, etapa)
 
 
-def selecionar_combo(frame: Frame, rotulo: str, opcao: str) -> None:
+# Pedidos Ajax que o servidor do SCPI respondeu com sucesso. O valor do combo só vale no Salvar
+# se o servidor recebeu o evento `select` com ele: depois do Cancelar, no mesmo iframe, o componente
+# continua com a opção marcada, escolhê-la de novo não dispara nada, e o servidor (que zerou o
+# formulário) salvava o Tipo Saída vazio, com a tela e o combo mostrando BALCÃO.
+JS_ESCUTAR_PEDIDOS = """
+() => {
+    const E = window.Ext;
+    if (!E || !E.Ajax || !E.Ajax.on) return false;
+    window.__scpiPedidos = [];
+    if (!window.__scpiEscutando) {
+        window.__scpiEscutando = true;
+        // requestcomplete: só o pedido que o servidor respondeu com sucesso (não o cancelado,
+        // abortado, expirado ou com erro, que vão para requestexception)
+        E.Ajax.on('requestcomplete', (conn, resposta, o) => {
+            let p = o && o.params;
+            try { p = typeof p === 'string' ? p : JSON.stringify(p); } catch (e) { p = String(p); }
+            (window.__scpiPedidos = window.__scpiPedidos || []).push(String(p || ''));
+        });
+    }
+    return true;
+}
+"""
+JS_PEDIDOS_ENVIADOS = "() => (window.__scpiPedidos || []).splice(0)"
+
+TENTATIVAS_COMBO = 3
+PAUSA_COMBO_MS = 800  # entre as ações da nova escolha: o SCPI processa cada clique no combo
+
+
+def escutar_pedidos(frame: Frame) -> bool:
+    """Passa a guardar os pedidos Ajax do quadro concluídos com sucesso (zerando os já
+    guardados)."""
+    try:
+        return bool(frame.evaluate(JS_ESCUTAR_PEDIDOS))
+    except Exception:
+        return False
+
+
+def pedidos_enviados(frame: Frame) -> list[str]:
+    """Os parâmetros dos pedidos Ajax guardados desde a última leitura."""
+    try:
+        return [str(p) for p in frame.evaluate(JS_PEDIDOS_ENVIADOS) or []]
+    except Exception:
+        return []
+
+
+def servidor_recebeu(pedidos: list[str], opcao: str) -> bool:
+    """Algum pedido é o evento `select` de um combo levando `opcao` no `_fp_`, que vem em
+    URL dupla com os campos separados por \\x02 (`&O9A0=%020%02-1%02BALC%C3%83O`)."""
+    alvo = norm(opcao)
+    for pedido in pedidos:
+        texto = unquote(unquote(pedido.replace("&amp;", "&")))
+        if "Evt=select" not in texto:
+            continue
+        if any(norm(parte) == alvo for parte in re.split(r"[\x02&=]", texto)):
+            return True
+    return False
+
+
+def abrir_lista(entrada) -> None:
     # trigger-picker é instável ao clique sintético; abre via foco + seta
-    entrada = campo(frame, rotulo)
     entrada.click()
     entrada.press("ArrowDown")
+
+
+def escolher_opcao(frame: Frame, entrada, opcao: str) -> None:
+    abrir_lista(entrada)
     item = frame.locator(".x-boundlist-item").filter(has_text=re.compile(rf"^{re.escape(opcao)}$"))
     item.first.wait_for(state="visible", timeout=TIMEOUT)
     item.first.click()
-    if norm(entrada.input_value()) != norm(opcao):
-        raise ErroSCPI(f"combo '{rotulo}' ficou com '{entrada.input_value()}', esperado '{opcao}'")
+
+
+def outra_opcao(frame: Frame, entrada, opcao: str) -> str | None:
+    """Uma opção da lista diferente de `opcao` (a lista é fechada sem escolher)."""
+    abrir_lista(entrada)
+    itens = frame.locator(".x-boundlist-item").filter(visible=True)
+    itens.first.wait_for(state="visible", timeout=TIMEOUT)
+    textos = [t.strip() for t in itens.all_inner_texts()]
+    frame.page.keyboard.press("Escape")
+    return next((t for t in textos if t and norm(t) != norm(opcao)), None)
+
+
+def selecionar_combo(frame: Frame, rotulo: str, opcao: str) -> None:
+    """Escolhe a opção e confere que o SCPI mandou a escolha ao servidor (`servidor_recebeu`). Se
+    não mandou, escolhe de novo com calma, passando antes por outra opção (a escolha da opção que
+    o combo já tem não dispara nada). Depois das tentativas, recusa o lote, antes do Salvar."""
+    etapa = f"combo '{rotulo}'"
+    for tentativa in range(1, TENTATIVAS_COMBO + 1):
+        entrada = campo(frame, rotulo)
+        if tentativa > 1:
+            log(
+                f"  ⚠ {etapa}: a escolha de '{opcao}' não foi enviada ao servidor do SCPI; "
+                f"escolhendo de novo com calma ({tentativa}/{TENTATIVAS_COMBO})"
+            )
+            frame.page.keyboard.press("Escape")
+            frame.page.wait_for_timeout(PAUSA_COMBO_MS)
+            outra = outra_opcao(frame, entrada, opcao)
+            frame.page.wait_for_timeout(PAUSA_COMBO_MS)
+            if outra:
+                escolher_opcao(frame, entrada, outra)
+                aguardar_mascara(frame)
+                checar_mensagem(frame, etapa)
+                frame.page.wait_for_timeout(PAUSA_COMBO_MS)
+        if not escutar_pedidos(frame):
+            raise ErroSCPI(f"{etapa}: não foi possível acompanhar o envio da escolha ao SCPI")
+        escolher_opcao(frame, entrada, opcao)
+        aguardar_mascara(frame)
+        checar_mensagem(frame, etapa)
+        enviados = pedidos_enviados(frame)
+        if not servidor_recebeu(enviados, opcao):
+            frame.page.wait_for_timeout(PAUSA_COMBO_MS)  # o pedido pode sair um pouco depois
+            enviados += pedidos_enviados(frame)
+        if servidor_recebeu(enviados, opcao):
+            log(f"    ok: {etapa} = {opcao}, enviado ao servidor do SCPI")
+            return
+    raise ErroSCPI(
+        f"{etapa}: o SCPI não enviou '{opcao}' ao servidor depois de {TENTATIVAS_COMBO} tentativas"
+    )
 
 
 def abrir_tela_saida(frame: Frame) -> None:
@@ -383,6 +492,12 @@ def preencher_cabecalho(frame: Frame, req: Requisicao) -> None:
     cc = campo(frame, "Centro de Custo")
     cc.fill(req.cod_ccusto)
     sair_do_campo(frame, cc, "centro de custo")
+
+    # o lote nas Observações liga a requisição ao lote no relatório (spec 010, FR-011); numa
+    # requisição nova o campo vem vazio. Sem Tab, como no Recebimento.
+    obs = campo(frame, "Observações")
+    obs.fill(texto_observacoes(req.lote, req.obs))
+    obs.dispatch_event("change")
 
     # sem Tab: no Recebimento o Tab pula para os itens e cria uma linha vazia
     receb = campo(frame, "Recebimento")
@@ -807,13 +922,15 @@ def conferir_item(frame: Frame, i: int, item: Item, req: Requisicao, etapa: str)
 
 
 def conferir_cabecalho(frame: Frame, req: Requisicao) -> None:
-    """Relê o cabeçalho depois dos itens — o SCPI pode ter alterado algo nos lookups."""
+    """Relê o cabeçalho depois dos itens — o SCPI pode ter alterado algo nos lookups. Que o
+    servidor recebeu o Tipo Saída já foi conferido na escolha (`selecionar_combo`)."""
     frame.get_by_role("tab", name="Dados da Saída").click()
     esperado = {
         "Data e Hora da Saída": req.data,
         "Tipo Saída": req.tipo_saida,
         "Centro de Custo": req.cod_ccusto,
         "Recebimento": req.recebedor,
+        "Observações": texto_observacoes(req.lote, req.obs),
     }
     for rotulo, valor in esperado.items():
         atual = campo(frame, rotulo).input_value()
@@ -853,20 +970,36 @@ def localizar_salvar(frame: Frame):
     return salvar
 
 
+# Saída com data de outro mês (lançada depois da virada): o SCPI pergunta se prossegue.
+RE_AVISO_OUTRO_MES = re.compile(r"m[eê]s de refer[eê]ncia.*diferente do m[eê]s atual", re.I)
+
+
 def salvar_requisicao(frame: Frame, salvar) -> str:
     """Clique final em Salvar. Retorna o nº REQUI assim que ele aparece no formulário.
-    Qualquer exceção aqui é resultado incerto."""
+    O aviso de data em outro mês é confirmado uma vez (enquanto a caixa fecha, só espera);
+    qualquer outra mensagem, e qualquer exceção aqui, é resultado incerto."""
     salvar.click(timeout=10000)
+    mes_confirmado = False
     for _ in range(60):
         numero = RE_REQUI.search(frame.evaluate(JS_NUMERO_REQUISICAO) or "")
         if numero:
             return numero.group(1)
         msg = mensagem_scpi(frame)
-        if msg and "sucesso" not in msg["texto"].lower():
+        if msg and RE_AVISO_OUTRO_MES.search(" ".join(msg["texto"].split())):
+            if not mes_confirmado and "Sim" in msg["botoes"]:
+                log("  SCPI: data de saída em outro mês, aviso confirmado (Sim)")
+                responder_mensagem(frame, "Sim")
+                mes_confirmado = True
+                continue
+        elif msg and "sucesso" not in msg["texto"].lower():
             raise ResultadoIncerto(
                 f"SCPI respondeu ao Salvar: '{' '.join(msg['texto'].split())}' {msg['botoes']}"
             )
         frame.page.wait_for_timeout(1000)
+    # Confirmado o aviso na última volta, o laço acaba sem ter lido o número.
+    numero = RE_REQUI.search(frame.evaluate(JS_NUMERO_REQUISICAO) or "")
+    if numero:
+        return numero.group(1)
     raise ResultadoIncerto("número da requisição não apareceu após Salvar")
 
 
@@ -1060,9 +1193,20 @@ class NavegadorSCPI(Sessao):
             log(f"  ⚠ janelas pós-salvar ({type(e).__name__}); seguindo com a reabertura do módulo")
         self.reabrir_modulo()
 
+    def recomecar(self) -> None:
+        """Depois de um lote não salvo, o próximo começa num módulo reaberto, como depois de um
+        lançamento: no mesmo iframe, o formulário seguinte ao Cancelar mostrava o Tipo Saída
+        escolhido, mas o SCPI o salvava vazio."""
+        self.limpar()
+        try:
+            self.reabrir_modulo()
+        except Exception as e:
+            log(f"  reabertura do módulo falhou ({resumo_erro(e)}); tentando o próximo passo")
+            self.reiniciar()
+
     def encerrar_simulacao(self) -> None:
         log("  [DRY-RUN] formulário preenchido e conferido — NÃO clicado em Salvar")
-        self.limpar()
+        self.recomecar()
 
     def descartar(self, lote: str) -> None:
         momento = timezone.localtime()
@@ -1072,7 +1216,7 @@ class NavegadorSCPI(Sessao):
             log(f"  print da tela: {caminho}")
         except Exception:
             log(f"  não foi possível salvar o print da tela em {caminho}")
-        self.limpar()
+        self.recomecar()
 
 
 @contextmanager

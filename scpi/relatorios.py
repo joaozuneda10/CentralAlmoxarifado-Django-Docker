@@ -21,7 +21,7 @@ from datetime import date
 from django.conf import settings
 
 from scpi.browser import abrir_sessao, frame_compras, interceptar_csv, orm_liberado
-from scpi.leitura import ErroImportacao
+from scpi.leitura import ErroImportacao, NadaAExibir
 
 # Início do período de cadastro pedido ao SCPI: antes de qualquer material (os mais antigos
 # têm DTAINSERE 01/01/2014), para o relatório trazer o cadastro inteiro.
@@ -259,7 +259,23 @@ def baixar_estoque() -> bytes:
 
 def baixar_saidas(de: date, ate: date) -> bytes:
     """Relação de Requisições de saída (BALCÃO) no período."""
-    with _sessao("saidas") as sessao:
+    return _relacao_de_requisicoes(de, ate, tipo="BALCÃO", rotulo="Saídas do SCPI", perfil="saidas")
+
+
+def baixar_requisicoes(de: date, ate: date) -> bytes:
+    """Relação de Requisições de saída de **todos os tipos** no período (spec 010): o registro
+    oficial da conciliação. O período filtra pela coluna DTPAG."""
+    return _relacao_de_requisicoes(
+        de, ate, tipo=None, rotulo="Requisições do SCPI", perfil="requisicoes"
+    )
+
+
+def _relacao_de_requisicoes(
+    de: date, ate: date, *, tipo: str | None, rotulo: str, perfil: str
+) -> bytes:
+    """Relatórios › Requisições › Relação de Requisições, "Requisições de Saída", no período;
+    com `tipo`, só as requisições daquele tipo (o primeiro combo); sem ele, todas."""
+    with _sessao(perfil) as sessao:
         frame = sessao.frame
 
         frame.get_by_role("button", name="Relatórios").click()
@@ -276,21 +292,28 @@ def baixar_saidas(de: date, ate: date) -> bytes:
         frame.locator(f"#{ids['datas'][1]}").fill(_br(ate))
         frame.locator(f"#{ids['datas'][1]}").press("Tab")
 
-        # combos ordenados por Y: [0]=BALCÃO
-        # inputEl = trigger ID com sufixo trocado
-        def abrir_combo(trigger_id: str) -> None:
-            input_id = trigger_id.replace("-trigger-picker", "-inputEl")
-            frame.locator(f"#{input_id}").hover()
-            frame.locator(f"#{trigger_id}").click()
+        if tipo is not None:
+            # combos ordenados por Y: [0]=tipo da requisição
+            # inputEl = trigger ID com sufixo trocado
+            def abrir_combo(trigger_id: str) -> None:
+                input_id = trigger_id.replace("-trigger-picker", "-inputEl")
+                frame.locator(f"#{input_id}").hover()
+                frame.locator(f"#{trigger_id}").click()
 
-        abrir_combo(ids["combos"][0])
-        frame.get_by_role("option", name="BALCÃO").click()
+            abrir_combo(ids["combos"][0])
+            frame.get_by_role("option", name=tipo).click()
 
         frame.get_by_role("button", name="Imprimir").click()
         if not _gerar(frame, timeout=ESPERA_GERACAO_SAIDAS_MS):
+            if tipo is None:
+                # Sem filtro de tipo, "Nada a exibir" é um período sem nenhuma requisição: a
+                # extração decide se isso vale (conciliacao.extracao._vazio).
+                raise NadaAExibir(f"{rotulo}: nada a exibir de {_br(de)} a {_br(ate)}.")
             raise ErroImportacao(
-                f"Saídas do SCPI: nenhuma requisição de saída de {_br(de)} a {_br(ate)}."
+                f"{rotulo}: nenhuma requisição de saída de {_br(de)} a {_br(ate)}."
             )
-        conteudo = interceptar_csv(sessao.page, frame, "saidas")
+        conteudo = interceptar_csv(sessao.page, frame, perfil)
+        if not conteudo:
+            raise ErroImportacao(f"{rotulo}: o SCPI entregou um CSV vazio.")
         _fechar_relatorio(frame)
         return conteudo

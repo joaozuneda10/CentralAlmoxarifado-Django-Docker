@@ -12,7 +12,7 @@ em qualquer unidade. O teto (`limite`) é o mesmo número que a lista mostra com
 from dataclasses import dataclass, field
 from decimal import Decimal
 
-from catalogo.catalogos import ItemCatalogo
+from catalogo.catalogos import CodigoAntigo, ItemCatalogo
 from pedidos.regras import (
     CAUSA_ZERO,
     ItemEnviado,
@@ -20,6 +20,7 @@ from pedidos.regras import (
     interpretar_quantidade,
     maximo_pedivel,
     qtd_br,
+    saldo_br,
     texto_acima_do_estoque,
     texto_erro_quantidade,
 )
@@ -104,8 +105,34 @@ def motivo_bloqueio(fluxo, item: ItemCatalogo) -> str:
     if item.duplicado:
         return "Cadastro duplicado — avise o almoxarifado"
     if limite(fluxo, item) <= 0:
-        return "Sem estoque"
+        return _saldo_so_nos_antigos(item) or "Sem estoque"
     return ""
+
+
+def saldo_do_antigo(antigo: CodigoAntigo) -> str:
+    """O saldo de um código antigo do de/para, como está no cadastro, na unidade dele ("4 UN")."""
+    numero = saldo_br(antigo.estoque)
+    return f"{numero} {antigo.unidade}" if antigo.unidade else numero
+
+
+def _saldo_so_nos_antigos(item: ItemCatalogo) -> str:
+    """O bloqueio do canônico zerado cujo saldo ficou nos códigos antigos ("" se não ficou)."""
+    antigos = item.antigos_com_saldo
+    if not antigos:
+        return ""
+    if len(antigos) == 1:
+        return f"Saldo só no código antigo {antigos[0].codigo}: {saldo_do_antigo(antigos[0])}"
+    partes = [f"{a.codigo} ({saldo_do_antigo(a)})" for a in antigos]
+    return f"Saldo só nos códigos antigos {', '.join(partes[:-1])} e {partes[-1]}"
+
+
+def recusa_do_material(fluxo, item: ItemCatalogo | None) -> str:
+    """Por que o material não pode entrar ("" se pode): fora do catálogo ou bloqueado. O mesmo
+    texto no carrinho e no material acrescentado pelo almoxarifado no atendimento."""
+    if item is None:
+        return "Material não encontrado no catálogo."
+    motivo = motivo_bloqueio(fluxo, item)
+    return f"{item.nome} ({item.codigo}): {motivo} — não pode ser adicionado." if motivo else ""
 
 
 def acima_do_estoque(fluxo, item: ItemCatalogo, q) -> str:
@@ -129,13 +156,8 @@ def quantidade(fluxo, texto_qtd, item: ItemCatalogo | None = None):
 
 def adicionar(linhas, fluxo, item: ItemCatalogo | None, texto_qtd: str) -> Carrinho:
     linhas = list(linhas)
-    if item is None:
-        return Carrinho(linhas, erro="Material não encontrado no catálogo.")
-    motivo = motivo_bloqueio(fluxo, item)
-    if motivo:
-        return Carrinho(
-            linhas, erro=f"{item.nome} ({item.codigo}): {motivo} — não pode ser adicionado."
-        )
+    if recusa := recusa_do_material(fluxo, item):
+        return Carrinho(linhas, erro=recusa)
     q, erro = quantidade(fluxo, texto_qtd, item)
     if erro:
         return Carrinho(linhas, erro=erro)

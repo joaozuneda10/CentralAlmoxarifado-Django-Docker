@@ -1,7 +1,6 @@
 """O formulário da oficina mecânica de ponta a ponta (spec 007, US1; FR-001 a FR-005, FR-010,
 FR-011): página inicial, busca, regra de quantidade, envio, painel, aviso e atendimento."""
 
-import re
 import time
 import uuid
 from datetime import date
@@ -18,6 +17,7 @@ from pedidos.servicos import confirmar_atendimento
 from pedidos.telegram import texto_aviso
 from tests.cenario import saida
 from tests.oficina_cenario import FILTRO, FITA, OFICINA, OLEO, PNEU, enviar, montar_oficina
+from tests.paginas import texto
 
 pytestmark = pytest.mark.django_db
 
@@ -29,10 +29,6 @@ INDISPONIVEL = "Este formulário está indisponível no momento. Avise o almoxar
 @pytest.fixture(autouse=True)
 def cenario():
     montar_oficina()
-
-
-def texto(html):
-    return " ".join(re.sub(r"<[^>]+>", " ", html).split())
 
 
 def test_a_pagina_inicial_lista_o_formulario(client):
@@ -103,7 +99,7 @@ def test_painel_e_aviso(client):
     pedido = Pedido.objects.get()
     client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
     filtrado = client.get(reverse("pedidos:painel"), {"origem": ORIGEM}).text
-    assert pedido.numero in filtrado and 'title="Oficina mecânica">Oficina mecânica<' in filtrado
+    assert pedido.numero in filtrado and 'title="Oficina mecânica">Oficina<' in filtrado
     assert pedido.numero not in client.get(reverse("pedidos:painel"), {"origem": "AB"}).text
     assert "Oficina mecânica" in texto_aviso(pedido)
 

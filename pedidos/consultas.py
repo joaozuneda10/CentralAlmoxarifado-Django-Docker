@@ -18,7 +18,6 @@ from pedidos.models import AutorizacaoPedido, ItemPedido, LinhaSaida, Pedido
 from pedidos.regras import (
     AVULSA,
     EM_LANCAMENTO,
-    ERRO,
     LANCADA,
     NAO_LANCAR,
     PENDENTE,
@@ -61,6 +60,18 @@ class FiltrosPainel(forms.Form):
                 "class": "campo-entrada",
                 "type": "search",
                 "placeholder": "Nº, solicitante, recebedor ou ocorrência",
+            }
+        ),
+    )
+    # Campo próprio, para combinar com a busca geral (o material e quem recebeu, por exemplo).
+    material = forms.CharField(
+        required=False,
+        label="Buscar material",
+        widget=forms.TextInput(
+            attrs={
+                "class": "campo-entrada",
+                "type": "search",
+                "placeholder": "Material: código ou nome",
             }
         ),
     )
@@ -143,7 +154,7 @@ def filtrar_scpi(qs: QuerySet, chave: str) -> QuerySet:
     sem_req = Q(requisicao_scpi="")
     ativa = Exists(ativas)
     lancada = Exists(ativas.filter(~sem_req | Q(status=LANCADA)))
-    atencao = Exists(ativas.filter(sem_req, status__in=[VERIFICAR, EM_LANCAMENTO, ERRO]))
+    atencao = Exists(ativas.filter(sem_req, status__in=ESTADOS_TRAVA))
     pendente = Exists(ativas.filter(sem_req, status=PENDENTE))
     if chave == "sem":
         return qs.exclude(ativa)
@@ -175,6 +186,16 @@ def pedidos_do_painel(filtros: dict) -> QuerySet:
             | Q(solicitante__icontains=q)
             | Q(atendimento__recebedor__icontains=q)
             | Q(ocorrencia__icontains=q)
+        )
+    if material := (filtros.get("material") or "").strip():
+        # Material pedido ou acrescentado pelo almoxarifado; `Exists` para o pedido com vários
+        # materiais que batem não sair repetido.
+        qs = qs.filter(
+            Exists(
+                ItemPedido.objects.filter(pedido=OuterRef("pk")).filter(
+                    Q(codigo__icontains=material) | Q(material__icontains=material)
+                )
+            )
         )
     if origem := filtros.get("origem"):
         qs = qs.filter(origem=origem)
@@ -255,10 +276,15 @@ def fila_do_robo(limite: int | None = None) -> Fila:
         .annotate(primeira=Min("id"), materiais=Count("id"))
         .order_by("primeira")
     )
-    total = lotes.count()
-    if not total or limite == 0:
+    if limite is None:
+        # A fila inteira: uma consulta só, sem o `count()` à parte.
+        escolhidos = list(lotes)
+        total = len(escolhidos)
+    else:
+        total = lotes.count()
+        escolhidos = list(lotes[:limite]) if total and limite else []
+    if not escolhidos:
         return Fila(total, [])
-    escolhidos = list(lotes if limite is None else lotes[:limite])
     primeiras = LinhaSaida.objects.in_bulk([lote["primeira"] for lote in escolhidos])
     return Fila(
         total,
@@ -285,18 +311,32 @@ class LoteTravado:
     lote: str
     linhas: list[LinhaSaida]
     conferir: bool  # alguma linha `VERIFICAR` ou `EM_LANCAMENTO`: o SCPI pode ter gravado
+    # O que a conciliação sabe do lote em verificar (`conciliacao.consultas.Verificacao`); a aba
+    # o preenche.
+    verificacao: object | None = None
 
 
 def lotes_travados() -> list[LoteTravado]:
     """Linhas em `VERIFICAR`, `EM_LANCAMENTO` ou `ERRO`, agrupadas por lote (na ordem do `id`
     da primeira linha de cada um)."""
-    linhas = LinhaSaida.objects.filter(status__in=[VERIFICAR, EM_LANCAMENTO, ERRO]).order_by("id")
+    linhas = LinhaSaida.objects.filter(status__in=ESTADOS_TRAVA).order_by("id")
     lotes: dict[str, LoteTravado] = {}
     for linha in linhas:
         lote = lotes.setdefault(linha.lote, LoteTravado(linha.lote, [], False))
         lote.linhas.append(linha)
         lote.conferir = lote.conferir or linha.status in (VERIFICAR, EM_LANCAMENTO)
     return list(lotes.values())
+
+
+def contar_lotes_travados() -> int:
+    """Quantos lotes `lotes_travados` devolveria, contados no banco, sem carregar as linhas."""
+    return (
+        LinhaSaida.objects.filter(status__in=ESTADOS_TRAVA)
+        .order_by()
+        .values("lote")
+        .distinct()
+        .count()
+    )
 
 
 def nomes_scpi(pedidos) -> dict[str, str]:

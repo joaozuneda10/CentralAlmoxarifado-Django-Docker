@@ -112,14 +112,24 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
 Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`)
-e `atualizar_catalogo` (os três em sequência, num navegador só; com `--carga-inicial`, o cadastro
-inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no botão "Carga inicial
-completa" da página Automações) abrem o SCPI pelo Playwright; com `--arquivo`
+e `atualizar_catalogo` (os três em sequência e, por último, `conciliar_lancamentos --diaria`, a
+extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
+`--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
+botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
+SCPI só é estável das 7h às 17h) abrem o SCPI pelo Playwright; com `--arquivo`
 leem um CSV já baixado. Os testes nunca abrem o navegador.
 
 O pytest usa `config.settings_test` (definido no `pyproject.toml`) e cria o banco
 `test_almoxarifado`. Testes rodam contra MySQL/MariaDB, nunca SQLite: `select_for_update` e
 transações precisam se comportar como no servidor.
+
+## Servidor de desenvolvimento e verificação no navegador
+
+- Quase sempre já há um servidor Django rodando na porta 8000. Confira antes de subir outro
+  (`lsof -nP -iTCP:8000 -sTCP:LISTEN` no Mac, `netstat -ano | findstr :8000` no Windows, ou um
+  `curl` na porta) e reaproveite o que está no ar, dizendo de qual checkout e branch ele serve.
+- Esboços e protótipos são um único arquivo HTML autocontido, com o CSS embutido e sem fontes
+  externas.
 
 ## Arquitetura
 
@@ -271,8 +281,12 @@ transações precisam se comportar como no servidor.
   No atendimento, o almoxarifado troca um material pedido por outro ou acrescenta um
   (`ItemPedido.origem` `PEDIDO` ou `ALMOXARIFADO`; o acrescentado tem `qtd_pedida` nula,
   `adicionado_por` e, na troca, `no_lugar_de`, e o trocado fica com 0 sem deixar o pedido parcial),
-  do catálogo da saída avulsa (só material não oculto e com saldo > 0, `catalogos.materiais_avulsa`),
-  com a quantidade limitada ao saldo do cadastro truncado a 3 casas, em qualquer unidade
+  do catálogo da saída avulsa (`catalogos.catalogo_avulsa`: material não oculto e com saldo > 0,
+  só pelo código canônico do de/para; o código antigo de um par nunca aparece, e o novo lista os
+  antigos em `ItemCatalogo.antigos`, com o saldo e a unidade de cada um, sem somar: a busca pelo
+  antigo acha o novo, que mostra "substitui …"; o novo zerado com saldo em algum antigo entra
+  bloqueado, com o alerta de onde está o saldo no lugar do selo "Sem estoque", e o novo com saldo
+  ganha a nota do que sobrou nos antigos, `_saldo_antigos.html`), com a quantidade limitada ao saldo do cadastro truncado a 3 casas, em qualquer unidade
   (`maximo_pedivel` com a regra `livre`; `ItemSaida.estoque` em `regras.validar_saida`, e
   `carrinho.limite` na
   resposta imediata do carrinho e do "Adicionar"). Na edição (`servicos._limites_de_estoque`) o teto
@@ -566,7 +580,16 @@ transações precisam se comportar como no servidor.
   servidor às vezes devolvia a QTD de uma linha ao padrão (1), então antes de cada rodada da
   conferência final (`RODADAS_RECONCILIACAO`, 5) o robô pede essa recarga (`recarregar_grade`) e a
   tela passa a mostrar o que o servidor tem (se a recarga falha, a conferência final recusa o lote em vez de aceitar a tela); o log traz o diagnóstico (`registrar_regressoes`,
-  `registrar_servidor`). `simular_repeticoes --lote <n> --vezes <k>` (só para testes do robô)
+  `registrar_servidor`). O Tipo Saída só vale quando o servidor do SCPI recebeu a escolha:
+  o `selecionar_combo` escuta os pedidos Ajax do ExtJS que o servidor respondeu com sucesso
+  (`requestcomplete`; `escutar_pedidos`, `pedidos_enviados`) e
+  exige o evento `select` com a opção (`servidor_recebeu`, puro). Nem o texto da tela nem o valor do
+  componente bastam: no mesmo iframe, depois do Cancelar, o combo continua com BALCÃO, escolhê-lo de
+  novo não manda nada, e o servidor salvava o tipo vazio. Sem o envio, escolhe de novo com calma
+  (`PAUSA_COMBO_MS`, passando antes por outra opção) até `TENTATIVAS_COMBO` vezes e só então recusa
+  o lote, antes do Salvar; e
+  todo lote não salvo (falha ou simulação) termina em `recomecar`, que reabre o módulo como depois de
+  um lançamento. `simular_repeticoes --lote <n> --vezes <k>` (só para testes do robô)
   simula a mesma requisição várias vezes numa sessão só do SCPI e resume os resets. A trava do
   lançamento é um `GET_LOCK` do servidor de banco: a suíte não roda junto de uma simulação real.
 - `LANCAMENTO_REAL` (`.env`, padrão desligado) bloqueia o lançamento real no SCPI em todo
@@ -575,6 +598,112 @@ transações precisam se comportar como no servidor.
   `lancar_saidas` recusa sem `--dry-run`, a aba Lançamento no SCPI recusa o modo "Lançar" (só
   "Simular") e o painel avisa que está bloqueado. O `settings_test` o liga, porque os testes do
   robô lançam no SCPI simulado; os testes do bloqueio o desligam com o fixture `settings`.
+- Conciliação com o SCPI (spec `specs/010-conciliacao-scpi/`, entregue em PRs empilhados; o
+  plano diz o que cada um traz). O app `conciliacao` guarda o registro oficial: cada extração da
+  "Relação de Requisições" de saída **sem filtro de tipo** (`scpi.relatorios.baixar_requisicoes`, a
+  mesma navegação de `baixar_saidas` sem escolher o tipo; o período filtra por `DTPAG`) é uma
+  `Importacao` do tipo `REQUISICOES` com uma `ExtracaoOficial` (motivo, execução do robô quando
+  houver, bruto gzip no banco com a impressão SHA-256, `maior_requisicao`) e as
+  `RequisicaoOficial`/`ItemOficial` lidas, uma foto por extração. `conciliacao.extracao.extrair`
+  (sobre `scpi.execucao.executar`, que ganhou o `ao_criar`) é a única camada que grava a extração,
+  também na falha (sem requisições, `maior_requisicao` nulo, bruto guardado se chegou a ser
+  baixado); o sinal é a situação da `Importacao`, e só `ImportacaoEmAndamento` sobe. Impressão igual
+  a uma extração que ainda tem os bytes aponta para ela (`mesmo_arquivo_que`) em vez de guardar
+  outra cópia. `scpi.leitura.ler_requisicoes` é tudo ou nada (relatório cortado, pela contagem de
+  campos depois da recolagem, número fora do formato, cabeçalho que varia dentro da requisição e
+  quantidade ilegível são `ErroImportacao`); `conciliacao/regras.py` (puro) tem a chave de ordem do
+  número (`003588/26` → (2026, 3588), o ano decide na virada), o período (dia anterior à data mais
+  antiga até o dia seguinte a hoje) e o lote nas observações ("Central Almoxarifado <lote>").
+  `extrair_requisicoes --desde --ate [--arquivo]` só extrai e guarda, sem conciliar. Os testes usam
+  CSV sintético no formato real (`tests/relacao_requisicoes.py`); o CSV real tem nomes de pessoas e
+  nunca entra no repositório. `SaidaSCPI` e o importador das saídas BALCÃO não mudam.
+  Na execução **real** do robô (PR 2), `lancamento.lancar` recebe `extrair` (o
+  `relatorios.baixar_requisicoes` no `lancar_saidas`, o `SCPISimulado.relatorio` nos testes) e, depois
+  da seleção e antes de qualquer linha mudar, faz a extração de antes (`conciliacao.robo.extrair_antes`:
+  período do dia anterior à data mais antiga dos lotes escolhidos e dos lotes em verificar abertos
+  até o dia seguinte a hoje; até `TENTATIVAS_EXTRACAO` vezes com `PAUSA_EXTRACAO_S`, zerada nos
+  testes pelo fixture autouse `extracao_sem_pausa`; outra extração com a trava conta como tentativa
+  falha). Sem nenhuma bem-sucedida, `ExtracaoAntesFalhou` (um `ErroImportacao`): a execução termina
+  `FALHA`, nada é lançado nem marcado `ERRO`, e o `lancar_saidas` sai com `CommandError`. O piso é o
+  `maior_requisicao` dessa extração. Cada lote vira uma `TentativaLancamento` (ordem, foto do que o
+  robô vai digitar, `conciliacao.robo.foto`), criada `VERIFICAR` na mesma transação do `_travar`
+  (antes do Salvar) e marcada `LANCADA` com o número depois do `_gravar`; o lote que falha no
+  preenchimento é `ERRO`, o que mudou durante a execução é `IGNORADA`. Depois do laço, com o navegador
+  do lançamento fechado, vem a extração de depois, que só registra (falha vai para o log, e a
+  execução não piora). A simulação nunca extrai (o `simular_repeticoes` passa um `nunca_extrai`). O
+  robô escreve "Central Almoxarifado <lote>" nas Observações do formulário (`preencher_cabecalho`,
+  conferido em `conferir_cabecalho`; `regras.texto_observacoes`) e, num parágrafo novo, a observação
+  da saída no Central (`Requisicao.obs`, da `LinhaSaida.obs`) como "Obs.: <texto>", numa linha só: o
+  "Obs.: " impede que uma observação começada por data parta o registro na leitura do relatório,
+  e o ";" vira "," (é o separador do CSV sem aspas). "Nada a exibir" no relatório sem
+  filtro levanta `scpi.leitura.NadaAExibir`, que `extrair` captura: num período sem lote lançado é
+  extração sem requisições; com lote lançado, falha. Bytes vazios sem esse aviso sempre são falha. O `SCPISimulado` guarda cada requisição salva (`salvas`) e tem as falhas da
+  conciliação: `falhas_relatorio`, `salva_e_falha` (grava e perde a resposta), `perde_tipo`,
+  `perde_observacoes` e `requisicao_manual`.
+  **Lote em verificar** (PR 3): toda extração bem-sucedida (a de depois do robô e a do
+  `extrair_requisicoes`) chama `conciliacao.servicos.conciliar_verificar`, que grava, para cada lote
+  `VERIFICAR`/`EM_LANCAMENTO` coberto, uma `ConferenciaLote` `VERIFICAR` (só se a extração começou
+  depois da tentativa mais recente do lote; sem tentativa, `SEM_TENTATIVA`) com o intervalo
+  (`regras.intervalo`: exclusivo, do piso ou do número anterior da execução até o primeiro número
+  posterior, aberto sem ele) e as `Candidata` (`regras.candidatas`: toda requisição no intervalo,
+  seja qual for o tipo, menos a que tem outro lote nas observações; a com este lote é "é esta"
+  mesmo fora do intervalo; ordem pela semelhança com a foto). `servicos.piso` é o da extração de
+  antes ou, numa execução histórica, o maior número lançado antes do início. **Liberar** um lote com
+  linha `VERIFICAR` ou `EM_LANCAMENTO` (`pedidos.servicos._resolver_com_a_trava`, além do "Conferi no
+  SCPI") exige `conciliacao.consultas.liberacao`: tentativa registrada, ao menos uma conferência dela
+  e nenhuma candidata em nenhuma (uma candidata vista uma vez continua bloqueando). "É esta" é a ação
+  `lancada` de sempre com o número da candidata. `importar_tentativas --journal <jsonl> [--dry-run]`
+  cria as tentativas históricas (`historica`) a partir do journal, idempotente por execução; em
+  produção, só a pedido do usuário. Nos testes, `tests/conciliacao_cenario.py`
+  (`tentativa_em_verificar`, `liberacao_comprovada`).
+  **Vereditos** (PR 4): `servicos.conciliar(extracao)` = `conciliar_lancados` +
+  `conciliar_verificar`, depois da extração de depois do robô, do `extrair_requisicoes` e do
+  `conciliar_lancamentos [--arquivo] [--desde --ate]` (sem nada, hoje − 9 dias e os lotes em verificar
+  abertos; recusa com lançamento ou importação em andamento). Para cada lote `LANCADA` com data no
+  período e lançado antes do início da extração, `regras.veredito` liga a requisição pelo lote nas
+  observações e pelo número (os dois têm de apontar para a mesma; senão `CONFLITO`; duas com o lote, ou
+  o número em outro lote, `DUPLICADO`; sem nenhuma, `NAO_ENCONTRADO` com número maior no relatório
+  ou com a requisição já achada numa conferência conclusiva, senão `AGUARDANDO`) e `regras.comparar` dá as diferenças (tipo, data, centro pelo código com o nome
+  diferente como nota, recebedor, itens por `norm_u` e quantidade exata mostrando só o que difere,
+  placa do item ou do centro) e as notas (de/para só explica). A entrega é a foto da tentativa; sem
+  ela (lote de antes do PR 2), `servicos.entrega_das_linhas`. A primeira conferência conclusiva é a do
+  `LANCAMENTO` (as `AGUARDANDO` são provisórias); as seguintes são `REVISAO`, com `alterado_depois` e
+  as alterações contra a requisição daquela; o veredito atual é o da última conclusiva. Nunca muda as
+  linhas de saída.
+  `conciliar` roda sob a trava `almoxarifado:conciliacao` (`GET_LOCK` com espera), primeiro os em
+  verificar e depois os lançados, cada etapa e cada lote isolados; um lote ou uma etapa que falha não impede os outros, mas no
+  fim sobe `ConciliacaoIncompleta` (com a contagem parcial): o robô só a registra no log, e os comandos
+  saem com erro; a contagem dela é lida do banco, porque a etapa que falhou pode ter gravado parte dos
+  lotes. A extração de um CSV já
+  baixado (`--arquivo` nos dois comandos) tem o motivo `ARQUIVO`: não se sabe quando foi exportado, então
+  nunca confere lote em verificar (um arquivo de antes do Salvar perdido liberaria o relançamento) nem
+  revisa um veredito; só dá o primeiro veredito de um lote lançado.
+  **Tela e correção** (PR 5): a aba Lançamento no SCPI ganha, fora da região que o HTMX recarrega, o
+  cartão "Conferência com o SCPI" (`conciliacao/_conciliacao.html`): a última extração, o botão
+  "Conferir agora" (`automacoes:conferir` → `scpi.disparo.iniciar_conciliacao`, que roda
+  `conciliar_lancamentos` em processo separado; desabilitado com lançamento ou importação em
+  andamento) e o veredito atual de cada requisição lançada (`conciliacao.consultas.lotes_conferidos`:
+  a última conferência conclusiva que ainda vale), com o filtro em links `?veredito=` (Divergências,
+  o padrão, Aguardando, Comprovados, Todos; 50 por página, `?pagina_conciliacao=`). O cabeçalho (`div#conferir-agora`)
+  se recarrega a cada 5 s só enquanto o botão está bloqueado. No cartão de cada trava em verificar,
+  `conciliacao/_verificacao.html` mostra as candidatas, com "É esta" (a ação `lancada` de sempre).
+  O lote **lançado** Não encontrado ou em Vínculo em conflito tem o número corrigido em
+  `automacoes:corrigir` → `pedidos.servicos.corrigir_requisicao` (sob a `TRAVA_LANCAMENTO` e a da conciliação, nessa ordem, com o momento tomado dentro delas; no conflito,
+  só uma das duas apontadas; recusa o número de outro lote), que troca só `requisicao_scpi` e `mensagem`
+  e grava a `CorrecaoVinculo`: daí em diante só valem as conferências de extrações começadas depois
+  dela, e a próxima é de novo `LANCAMENTO`. Os avisos de saúde (`conciliacao/saude.py`) entram no
+  `catalogo.saude._demais`. Na interface, a saída do Central é "requisição", nunca "lote".
+  **Diária e retenção** (PR 6): o `atualizar_catalogo` termina com o passo Requisições
+  (`conciliar_lancamentos --diaria`: motivo `DIARIA`, período de hoje − 9 dias e dos lotes em verificar
+  abertos), que não desfaz os três primeiros se falhar. Depois de conciliar (mesmo incompleta), o
+  `conciliar_lancamentos` roda `conciliacao.limpeza.limpar`, salvo com `--sem-limpeza` (o repasse numa
+  cópia local): esvazia o bruto da extração quando ela e todas as que apontam para ela
+  (`mesmo_arquivo_que`) passaram dos 60 dias (`arquivo_apagado_em`; a impressão fica) e apaga as
+  requisições de extrações com mais de 60 dias que nenhuma conferência liga (a ligada ou a outra do
+  conflito) nem lista como candidata. Roda com a trava das extrações `REQUISICOES` (uma extração nova
+  pode estar apontando para o bruto) e a da conciliação (nenhuma liga uma requisição no meio da
+  exclusão); com alguma ocupada, fica para a próxima. Uma falha da conciliação, prevista ou não, não
+  impede a limpeza, e as duas falhas saem juntas no erro do comando.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

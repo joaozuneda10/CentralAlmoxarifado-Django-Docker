@@ -1,27 +1,30 @@
-def test_navegador_implementa_o_protocolo_do_lancamento():
-    from scpi.lancador import NavegadorSCPI
-    from scpi.lancamento import SCPI
+import logging
+import os
+from contextlib import nullcontext
 
+import playwright.sync_api
+import pytest
+from playwright.sync_api import Error as ErroPlaywright
+from playwright.sync_api import TimeoutError as TimeoutPlaywright
+
+from scpi import lancador
+from scpi.lancador import ErroAberturaFormulario, NavegadorSCPI, falha_de_abertura, linha_confere
+from scpi.lancamento import SCPI
+from scpi.requisicoes import ErroSCPI, Item, Requisicao
+
+
+def test_navegador_implementa_o_protocolo_do_lancamento():
     metodos = {n for n in vars(SCPI) if not n.startswith("_")}
     assert metodos <= set(dir(NavegadorSCPI))
 
 
 def test_lancador_nao_importa_playwright_no_topo():
-    import scpi.lancador
-
-    assert "sync_playwright" not in vars(scpi.lancador)
+    assert "sync_playwright" not in vars(lancador)
 
 
 def test_navegador_libera_o_orm_enquanto_esta_aberto(monkeypatch):
     # A API síncrona do Playwright mantém um laço asyncio na thread enquanto o navegador está
     # aberto, e o lançamento grava no banco nesse meio (SynchronousOnlyOperation).
-    import os
-    from contextlib import nullcontext
-
-    import playwright.sync_api
-
-    from scpi import lancador
-
     monkeypatch.setattr(playwright.sync_api, "sync_playwright", lambda: nullcontext(object()))
     monkeypatch.setattr(lancador.NavegadorSCPI, "abrir", lambda self: None)
     monkeypatch.delenv("DJANGO_ALLOW_ASYNC_UNSAFE", raising=False)
@@ -79,8 +82,6 @@ class _Entrada:
 
 
 def test_preencher_celula_reabre_o_editor_quando_o_foco_some(monkeypatch):
-    from scpi import lancador
-
     abertas = []
     entrada = _Entrada(falhas=1)
     monkeypatch.setattr(
@@ -94,11 +95,6 @@ def test_preencher_celula_reabre_o_editor_quando_o_foco_some(monkeypatch):
 
 
 def test_preencher_celula_desiste_depois_das_tentativas(monkeypatch):
-    import pytest
-    from playwright.sync_api import TimeoutError as TimeoutPlaywright
-
-    from scpi import lancador
-
     entrada = _Entrada(falhas=99)
     monkeypatch.setattr(lancador, "editar_celula", lambda frame, linha, coluna: entrada)
     monkeypatch.setattr(lancador, "aguardar_mascara", lambda frame: None)
@@ -109,9 +105,6 @@ def test_preencher_celula_desiste_depois_das_tentativas(monkeypatch):
 
 
 def test_preencher_celula_tenta_de_novo_quando_o_editor_nao_abre(monkeypatch):
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     entrada = _Entrada(falhas=0)
     chamadas = []
 
@@ -133,7 +126,6 @@ def _limpeza_simulada(monkeypatch, dialogos):
     """Prepara `cancelar_formulario` com Salvar e Cancelar desabilitados e Inserir habilitado
     (o `_Quadro` faz o papel do Inserir); `dialogos` é a sequência de respostas de 'há diálogo
     aberto?' a cada conferência."""
-    from scpi import lancador
 
     respostas = iter(dialogos)
     monkeypatch.setattr(lancador, "mensagem_scpi", lambda frame: None)
@@ -145,10 +137,6 @@ def _limpeza_simulada(monkeypatch, dialogos):
 
 
 def test_limpeza_nao_da_o_estado_por_limpo_com_o_dialogo_aberto(monkeypatch):
-    import pytest
-
-    from scpi.requisicoes import ErroSCPI
-
     # Inserir fica "habilitado" para o Playwright mesmo atrás do diálogo modal: sem a conferência
     # do diálogo, a limpeza voltava normalmente e o lote seguinte morria no primeiro clique.
     lancador = _limpeza_simulada(monkeypatch, [True, True, True])
@@ -166,8 +154,6 @@ def test_limpeza_termina_quando_o_dialogo_fecha(monkeypatch):
 
 
 def _item(qtd="5"):
-    from scpi.requisicoes import Item
-
     return Item(cadpro="016.002.018", qtd=qtd, placa="")
 
 
@@ -176,8 +162,6 @@ def _linha(qtd, desc="ADAPTADOR"):
 
 
 def test_aguardar_linha_estavel_espera_o_produto_carregar_e_parar_de_mudar(monkeypatch):
-    from scpi import lancador
-
     leituras = iter(
         [
             [{"Código": "016.002.018", "Descrição do Produto/Serviço": "", "QTD": "1"}],
@@ -193,16 +177,12 @@ def test_aguardar_linha_estavel_espera_o_produto_carregar_e_parar_de_mudar(monke
 
 
 def test_aguardar_linha_estavel_desiste_sem_levantar_erro(monkeypatch):
-    from scpi import lancador
-
     monkeypatch.setattr(lancador, "ler_itens", lambda frame: [])
 
     assert lancador.aguardar_linha_estavel(_Quadro(), 0, _item()) is False
 
 
 def test_definir_qtd_repreenche_quando_o_grid_volta_para_1(monkeypatch):
-    from scpi import lancador
-
     # o SCPI aceita o fill e, depois, redesenha a linha com a QTD padrão (AV-000094 e 103)
     grids = iter([[_linha("1")], [_linha("5")]])
     preenchidos = []
@@ -226,8 +206,6 @@ def test_definir_qtd_repreenche_quando_o_grid_volta_para_1(monkeypatch):
 
 
 def test_definir_qtd_deixa_a_divergencia_para_a_conferencia_do_item(monkeypatch):
-    from scpi import lancador
-
     chamadas = []
 
     class Campo:
@@ -248,7 +226,6 @@ def test_definir_qtd_deixa_a_divergencia_para_a_conferencia_do_item(monkeypatch)
 
 def _navegador_com_abertura(monkeypatch, resultados):
     """NavegadorSCPI cujo `abrir_formulario` segue `resultados` (None = abriu, ou a exceção)."""
-    from scpi import lancador
 
     nav = lancador.NavegadorSCPI(object())
     nav.frame = _Quadro()
@@ -276,8 +253,6 @@ class _Requisicao:
 
 
 def test_preencher_limpa_e_repete_quando_o_formulario_nao_entra_em_inclusao(monkeypatch):
-    from scpi.lancador import ErroAberturaFormulario
-
     erro = ErroAberturaFormulario("formulário não entrou em modo de inclusão")
     nav, limpezas = _navegador_com_abertura(monkeypatch, [erro, erro, None])
 
@@ -286,10 +261,6 @@ def test_preencher_limpa_e_repete_quando_o_formulario_nao_entra_em_inclusao(monk
 
 
 def test_preencher_desiste_da_abertura_depois_das_tentativas(monkeypatch):
-    import pytest
-
-    from scpi.lancador import ErroAberturaFormulario
-
     erro = ErroAberturaFormulario("formulário não entrou em modo de inclusão")
     nav, limpezas = _navegador_com_abertura(monkeypatch, [erro, erro, erro])
 
@@ -299,10 +270,6 @@ def test_preencher_desiste_da_abertura_depois_das_tentativas(monkeypatch):
 
 
 def test_preencher_nao_repete_erro_que_nao_e_de_abertura(monkeypatch):
-    import pytest
-
-    from scpi.requisicoes import ErroSCPI
-
     nav, limpezas = _navegador_com_abertura(monkeypatch, [ErroSCPI("SCPI respondeu 'Ajax Error'")])
 
     with pytest.raises(ErroSCPI):
@@ -311,12 +278,6 @@ def test_preencher_nao_repete_erro_que_nao_e_de_abertura(monkeypatch):
 
 
 def test_falha_de_abertura_converte_so_o_timeout_do_playwright():
-    import pytest
-    from playwright.sync_api import TimeoutError as TimeoutPlaywright
-
-    from scpi.lancador import ErroAberturaFormulario, falha_de_abertura
-    from scpi.requisicoes import ErroSCPI
-
     with pytest.raises(ErroAberturaFormulario, match="botão Inserir não respondeu"):
         with falha_de_abertura("botão Inserir não respondeu"):
             raise TimeoutPlaywright("Locator.click: Timeout 30000ms exceeded")
@@ -329,11 +290,6 @@ def test_falha_de_abertura_converte_so_o_timeout_do_playwright():
 
 
 def test_campo_da_abertura_ausente_vira_erro_de_abertura(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     def sem_campo(frame, rotulo):
         raise ErroSCPI(f"campo '{rotulo}' não encontrado no formulário")
 
@@ -344,11 +300,6 @@ def test_campo_da_abertura_ausente_vira_erro_de_abertura(monkeypatch):
 
 
 def test_definir_qtd_nao_preenche_com_a_linha_instavel(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     monkeypatch.setattr(lancador, "aguardar_linha_estavel", lambda frame, i, item: False)
     monkeypatch.setattr(
         lancador,
@@ -361,11 +312,6 @@ def test_definir_qtd_nao_preenche_com_a_linha_instavel(monkeypatch):
 
 
 def test_preencher_registra_a_mensagem_do_scpi_antes_de_limpar(monkeypatch, caplog):
-    import logging
-
-    from scpi import lancador
-    from scpi.lancador import ErroAberturaFormulario
-
     erro = ErroAberturaFormulario("formulário não entrou em modo de inclusão")
     nav, limpezas = _navegador_com_abertura(monkeypatch, [erro, None])
     monkeypatch.setattr(
@@ -379,10 +325,6 @@ def test_preencher_registra_a_mensagem_do_scpi_antes_de_limpar(monkeypatch, capl
 
 
 def test_preencher_celula_segue_tentando_se_a_mascara_nao_some(monkeypatch):
-    from playwright.sync_api import TimeoutError as TimeoutPlaywright
-
-    from scpi import lancador
-
     entrada = _Entrada(falhas=1)
     abertas = []
 
@@ -413,8 +355,6 @@ class _CampoQueHabilitaDepois:
 
 
 def test_aguardar_modo_inclusao_espera_o_scpi_habilitar_os_campos(monkeypatch):
-    from scpi import lancador
-
     campos = {
         "Data e Hora da Saída": _CampoQueHabilitaDepois(3),
         "Recebimento": _CampoQueHabilitaDepois(0),
@@ -426,20 +366,16 @@ def test_aguardar_modo_inclusao_espera_o_scpi_habilitar_os_campos(monkeypatch):
 
 
 def test_aguardar_modo_inclusao_desiste_se_os_campos_nunca_habilitam(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-
     campo_travado = _CampoQueHabilitaDepois(10**6)
     monkeypatch.setattr(lancador, "campo", lambda frame, rotulo: campo_travado)
+    # O `_Quadro` não pausa de verdade: com o prazo real, o laço giraria 6 s no relógio real.
+    monkeypatch.setattr(lancador, "ESPERA_MODO_INCLUSAO_MS", 50)
 
     with pytest.raises(lancador.ErroAberturaFormulario, match="modo de inclusão"):
         lancador.aguardar_modo_inclusao(_Quadro())
 
 
 def _item_n(cadpro, qtd):
-    from scpi.requisicoes import Item
-
     return Item(cadpro=cadpro, qtd=qtd, placa="")
 
 
@@ -461,9 +397,6 @@ class _PedidoDe:
 
 
 def test_linha_confere_compara_codigo_qtd_e_placa():
-    from scpi.lancador import linha_confere
-    from scpi.requisicoes import Item
-
     item = Item(cadpro="016.002.098", qtd="5", placa="")
     assert linha_confere({"Código": "016.002.098", "QTD": "5"}, item)
     assert not linha_confere({"Código": "016.002.098", "QTD": "1"}, item)
@@ -475,8 +408,6 @@ def test_linha_confere_compara_codigo_qtd_e_placa():
 
 
 def test_aguardar_grid_estavel_exige_leituras_iguais_seguidas(monkeypatch):
-    from scpi import lancador
-
     leituras = iter([[1], [2], [2], [2], [2], [2]])
     monkeypatch.setattr(lancador, "ler_itens", lambda frame: next(leituras))
 
@@ -485,8 +416,6 @@ def test_aguardar_grid_estavel_exige_leituras_iguais_seguidas(monkeypatch):
 
 
 def test_reconciliar_itens_corrige_a_qtd_devolvida_ao_padrao(monkeypatch):
-    from scpi import lancador
-
     # AV-000094: itens 3, 5 e 8 voltaram a QTD 1 depois de conferidos
     itens = [_item_n("001.000.001", "3"), _item_n("001.000.002", "5"), _item_n("001.000.003", "4")]
     grids = iter(
@@ -514,11 +443,6 @@ def test_reconciliar_itens_corrige_a_qtd_devolvida_ao_padrao(monkeypatch):
 
 
 def test_reconciliar_itens_recusa_o_lote_se_a_divergencia_persiste(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     itens = [_item_n("001.000.001", "3"), _item_n("001.000.002", "5")]
     monkeypatch.setattr(lancador, "recarregar_grade", lambda frame: True)
     monkeypatch.setattr(lancador, "aguardar_grid_estavel", lambda frame: True)
@@ -536,8 +460,6 @@ def test_reconciliar_itens_recusa_o_lote_se_a_divergencia_persiste(monkeypatch):
 
 
 def test_aguardar_modo_inclusao_consulta_de_novo_depois_da_ultima_pausa(monkeypatch):
-    from scpi import lancador
-
     # habilita só na consulta posterior à última pausa (prazo todo consumido)
     consultas = lancador.ESPERA_MODO_INCLUSAO_MS // lancador.INTERVALO_MODO_INCLUSAO_MS
     campos = {
@@ -550,11 +472,6 @@ def test_aguardar_modo_inclusao_consulta_de_novo_depois_da_ultima_pausa(monkeypa
 
 
 def test_reconciliar_itens_recusa_o_lote_se_o_grid_nao_estabiliza(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     monkeypatch.setattr(lancador, "recarregar_grade", lambda frame: True)
     monkeypatch.setattr(lancador, "aguardar_grid_estavel", lambda frame: False)
     # mesmo com a leitura igual ao pedido, o grid instável não autoriza o salvamento
@@ -565,9 +482,6 @@ def test_reconciliar_itens_recusa_o_lote_se_o_grid_nao_estabiliza(monkeypatch):
 
 
 def test_aguardar_modo_inclusao_espera_o_campo_recebimento_aparecer(monkeypatch):
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     chamadas = {"Recebimento": 0}
     data = _CampoQueHabilitaDepois(0)
 
@@ -585,11 +499,6 @@ def test_aguardar_modo_inclusao_espera_o_campo_recebimento_aparecer(monkeypatch)
 
 
 def test_reconciliar_itens_recusa_o_grid_com_linha_a_mais(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI
-
     itens = [_item_n("001.000.001", "3")]
     monkeypatch.setattr(lancador, "recarregar_grade", lambda frame: True)
     monkeypatch.setattr(lancador, "aguardar_grid_estavel", lambda frame: True)
@@ -605,10 +514,6 @@ def test_reconciliar_itens_recusa_o_grid_com_linha_a_mais(monkeypatch):
 
 
 def test_aguardar_modo_inclusao_limita_cada_consulta_ao_prazo(monkeypatch):
-    from playwright.sync_api import TimeoutError as TimeoutPlaywright
-
-    from scpi import lancador
-
     class CampoQueExpiraUmaVez(_CampoQueHabilitaDepois):
         def is_enabled(self, timeout=None):
             if not hasattr(self, "expirou"):
@@ -625,11 +530,6 @@ def test_aguardar_modo_inclusao_limita_cada_consulta_ao_prazo(monkeypatch):
 
 
 def test_aguardar_modo_inclusao_recalcula_o_prazo_antes_de_cada_consulta(monkeypatch):
-    import pytest
-    from playwright.sync_api import TimeoutError as TimeoutPlaywright
-
-    from scpi import lancador
-
     agora = [0.0]
     monkeypatch.setattr(lancador.time, "monotonic", lambda: agora[0])
     consultas = []
@@ -663,10 +563,6 @@ def test_aguardar_modo_inclusao_recalcula_o_prazo_antes_de_cada_consulta(monkeyp
 
 
 def test_aguardar_modo_inclusao_limita_a_pausa_ao_prazo(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-
     agora = [0.0]
     pausas = []
     monkeypatch.setattr(lancador.time, "monotonic", lambda: agora[0])
@@ -692,9 +588,6 @@ def test_aguardar_modo_inclusao_limita_a_pausa_ao_prazo(monkeypatch):
 
 
 def test_linha_confere_com_quantidade_fracionaria():
-    from scpi.lancador import linha_confere
-    from scpi.requisicoes import Item
-
     item = Item(cadpro="016.002.098", qtd="0,33", placa="")
     assert linha_confere({"Código": "016.002.098", "QTD": "0,33"}, item)
     assert not linha_confere({"Código": "016.002.098", "QTD": "1"}, item)
@@ -705,10 +598,6 @@ def test_linha_confere_com_quantidade_fracionaria():
 
 
 def test_aguardar_modo_inclusao_trata_input_desconectado_como_ainda_nao_habilitado(monkeypatch):
-    from playwright.sync_api import Error as ErroPlaywright
-
-    from scpi import lancador
-
     class CampoTrocado:
         chamadas = 0
 
@@ -724,11 +613,6 @@ def test_aguardar_modo_inclusao_trata_input_desconectado_como_ainda_nao_habilita
 
 
 def test_aguardar_modo_inclusao_nao_engole_outros_erros_do_playwright(monkeypatch):
-    import pytest
-    from playwright.sync_api import Error as ErroPlaywright
-
-    from scpi import lancador
-
     class CampoComErro:
         def is_enabled(self, timeout=None):
             raise ErroPlaywright("Target page, context or browser has been closed")
@@ -751,16 +635,10 @@ class _QuadroQueRecarrega(_Quadro):
 
 
 def test_recarregar_grade_devolve_se_o_servidor_respondeu():
-    from scpi import lancador
-
     assert lancador.recarregar_grade(_QuadroQueRecarrega(True)) is True
 
 
 def test_recarregar_grade_nao_derruba_o_lancamento_se_nao_recarregar(caplog):
-    import logging
-
-    from scpi import lancador
-
     with caplog.at_level(logging.INFO, logger="scpi.lancamento"):
         assert lancador.recarregar_grade(_QuadroQueRecarrega(False)) is False
         assert lancador.recarregar_grade(_QuadroQueRecarrega(RuntimeError("x"))) is False
@@ -768,9 +646,6 @@ def test_recarregar_grade_nao_derruba_o_lancamento_se_nao_recarregar(caplog):
 
 
 def test_reconciliar_recarrega_a_grade_do_servidor_antes_de_cada_conferencia(monkeypatch):
-    from scpi import lancador
-    from scpi.requisicoes import Requisicao
-
     eventos = []
     monkeypatch.setattr(
         lancador, "recarregar_grade", lambda frame: eventos.append("recarregar") or True
@@ -801,8 +676,6 @@ class _EntradaTeclada:
 
 
 def test_preencher_celula_digitando_seleciona_e_digita_sem_usar_fill(monkeypatch):
-    from scpi import lancador
-
     entrada = _EntradaTeclada()
     monkeypatch.setattr(lancador, "editar_celula", lambda frame, linha, coluna: entrada)
 
@@ -811,8 +684,6 @@ def test_preencher_celula_digitando_seleciona_e_digita_sem_usar_fill(monkeypatch
 
 
 def test_preencher_celula_sem_digitando_continua_usando_fill(monkeypatch):
-    from scpi import lancador
-
     entrada = _EntradaTeclada()
     monkeypatch.setattr(lancador, "editar_celula", lambda frame, linha, coluna: entrada)
 
@@ -821,8 +692,6 @@ def test_preencher_celula_sem_digitando_continua_usando_fill(monkeypatch):
 
 
 def test_definir_qtd_digita_a_quantidade(monkeypatch):
-    from scpi import lancador
-
     chamadas = []
 
     class Campo:
@@ -842,11 +711,6 @@ def test_definir_qtd_digita_a_quantidade(monkeypatch):
 
 
 def test_reconciliar_recusa_o_lote_se_a_grade_do_servidor_nao_recarrega(monkeypatch):
-    import pytest
-
-    from scpi import lancador
-    from scpi.requisicoes import ErroSCPI, Requisicao
-
     monkeypatch.setattr(lancador, "recarregar_grade", lambda frame: False)
     monkeypatch.setattr(
         lancador,
@@ -857,3 +721,197 @@ def test_reconciliar_recusa_o_lote_se_a_grade_do_servidor_nao_recarrega(monkeypa
 
     with pytest.raises(ErroSCPI, match="não foi possível recarregar a grade do servidor"):
         lancador.reconciliar_itens(_Quadro(), req)
+
+
+AVISO_MES = {
+    "texto": "Mês de Referência da Data de Saída Diferente do Mês Atual(11) do Sistema! "
+    "Deseja Prosseguir ?",
+    "botoes": ["Sim", "Não"],
+}
+
+
+class _QuadroSalvar(_Quadro):
+    """Frame do Salvar: o número só aparece depois das respostas esperadas."""
+
+    def __init__(self, numero_depois_de=0):
+        super().__init__()
+        self.numero_depois_de = numero_depois_de
+        self.respostas = []
+
+    def evaluate(self, js):
+        return "003722/26" if len(self.respostas) >= self.numero_depois_de else ""
+
+
+class _BotaoSalvar:
+    def click(self, timeout=None):
+        pass
+
+
+def _salvar_simulado(monkeypatch, quadro, mensagens):
+    seq = iter(mensagens)
+    monkeypatch.setattr(lancador, "mensagem_scpi", lambda frame: next(seq, None))
+    monkeypatch.setattr(
+        lancador, "responder_mensagem", lambda frame, botao: quadro.respostas.append(botao)
+    )
+
+
+def test_salvar_confirma_o_aviso_de_data_em_outro_mes(monkeypatch):
+    # Saída com data do mês anterior: o SCPI pergunta se prossegue, e o lançamento confirma.
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    _salvar_simulado(monkeypatch, quadro, [AVISO_MES])
+
+    assert lancador.salvar_requisicao(quadro, _BotaoSalvar()) == "003722/26"
+    assert quadro.respostas == ["Sim"]
+
+
+def test_salvar_confirma_o_aviso_de_mes_uma_vez_so(monkeypatch):
+    # A caixa pode continuar visível enquanto fecha: o robô espera, não clica de novo.
+    quadro = _QuadroSalvar(numero_depois_de=99)
+    _salvar_simulado(monkeypatch, quadro, [AVISO_MES, AVISO_MES, AVISO_MES])
+
+    with pytest.raises(lancador.ResultadoIncerto):
+        lancador.salvar_requisicao(quadro, _BotaoSalvar())
+    assert quadro.respostas == ["Sim"]
+
+
+def test_salvar_nao_confirma_outra_pergunta_do_scpi(monkeypatch):
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    pergunta = {"texto": "Estoque insuficiente! Deseja Prosseguir ?", "botoes": ["Sim", "Não"]}
+    _salvar_simulado(monkeypatch, quadro, [pergunta])
+
+    with pytest.raises(lancador.ResultadoIncerto, match="Estoque insuficiente"):
+        lancador.salvar_requisicao(quadro, _BotaoSalvar())
+    assert quadro.respostas == []
+
+
+def test_salvar_le_o_numero_depois_de_confirmar_na_ultima_volta(monkeypatch):
+    # O aviso só aparece na última volta do laço: confirmado, o número ainda é lido.
+    quadro = _QuadroSalvar(numero_depois_de=1)
+    _salvar_simulado(monkeypatch, quadro, [None] * 59 + [AVISO_MES])
+
+    assert lancador.salvar_requisicao(quadro, _BotaoSalvar()) == "003722/26"
+    assert quadro.respostas == ["Sim"]
+
+
+# ---------------------------------------------------------------- Tipo Saída enviado ao servidor
+
+# pedidos que o SCPI real mandou ao escolher BALCÃO num formulário novo (04/11/2026)
+SELECT_BALCAO = (
+    "Ajax=1&amp;IsEvent=1&amp;Obj=O9A0&amp;Evt=select&amp;&amp;_S_ID=V6A5&amp;"
+    "_fp_=%26O9A0%3D%25020%2502-1%2502BALC%25C3%2583O&amp;_seq_=1e&amp;_uo_=O7EB"
+)
+EDITED = "Ajax=1&amp;IsEvent=1&amp;Obj=O9A0&amp;Evt=edited&amp;This=O9A0&amp;_seq_=1d"
+# outro combo do formulário, sem o tipo: o único pedido do 3º lote depois do Cancelar
+SELECT_OUTRO = "Ajax=1&amp;IsEvent=1&amp;Obj=OB71&amp;Evt=select&amp;&amp;_seq_=a4&amp;_uo_=O7EB"
+
+
+def test_servidor_recebeu_so_com_o_select_que_leva_a_opcao():
+    assert lancador.servidor_recebeu([SELECT_OUTRO, EDITED, SELECT_BALCAO], "BALCÃO")
+    assert lancador.servidor_recebeu([SELECT_BALCAO], "balcao")
+    # depois do Cancelar: o combo mostra BALCÃO, mas nada (ou só outro combo) vai ao servidor
+    assert not lancador.servidor_recebeu([], "BALCÃO")
+    assert not lancador.servidor_recebeu([SELECT_OUTRO], "BALCÃO")
+    assert not lancador.servidor_recebeu([EDITED], "BALCÃO")
+    assert not lancador.servidor_recebeu([SELECT_BALCAO], "ENTREGA")
+    assert not lancador.servidor_recebeu([SELECT_BALCAO.replace("BALC", "XBALC")], "BALCÃO")
+
+
+def _combo_simulado(monkeypatch, envios, escuta=True):
+    """`envios`: os pedidos que o SCPI manda a cada escolha da opção pedida."""
+    envios = iter(envios)
+    escolhas = []
+    pendentes = []
+    monkeypatch.setattr(lancador, "campo", lambda frame, rotulo: object())
+    monkeypatch.setattr(lancador, "aguardar_mascara", lambda frame: None)
+    monkeypatch.setattr(lancador, "checar_mensagem", lambda frame, etapa: None)
+    monkeypatch.setattr(lancador, "escutar_pedidos", lambda frame: escuta)
+
+    def escolher(frame, entrada, opcao):
+        escolhas.append(opcao)
+        if opcao == "BALCÃO":
+            pendentes.extend(next(envios))
+
+    def enviados(frame):
+        lidos = list(pendentes)
+        pendentes.clear()
+        return lidos
+
+    monkeypatch.setattr(lancador, "escolher_opcao", escolher)
+    monkeypatch.setattr(lancador, "pedidos_enviados", enviados)
+    monkeypatch.setattr(lancador, "outra_opcao", lambda frame, entrada, opcao: "ENTREGA")
+    return escolhas
+
+
+def test_selecionar_combo_escolhe_uma_vez_quando_o_servidor_recebe(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[EDITED, SELECT_BALCAO]])
+
+    lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas == ["BALCÃO"]
+
+
+def test_selecionar_combo_escolhe_de_novo_com_calma_quando_nada_vai_ao_servidor(monkeypatch):
+    # Depois do Cancelar, escolher a opção que o combo já tem não manda nada: passa por outra antes.
+    escolhas = _combo_simulado(monkeypatch, [[], [SELECT_BALCAO]])
+    quadro = _Quadro()
+
+    lancador.selecionar_combo(quadro, "Tipo Saída", "BALCÃO")
+    assert escolhas == ["BALCÃO", "ENTREGA", "BALCÃO"]
+    assert lancador.PAUSA_COMBO_MS in quadro.page.pausas
+
+
+def test_selecionar_combo_recusa_depois_das_tentativas(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[SELECT_OUTRO]] * lancador.TENTATIVAS_COMBO)
+
+    with pytest.raises(ErroSCPI, match="não enviou 'BALCÃO' ao servidor"):
+        lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas.count("BALCÃO") == lancador.TENTATIVAS_COMBO
+
+
+def test_selecionar_combo_recusa_sem_poder_acompanhar_o_envio(monkeypatch):
+    escolhas = _combo_simulado(monkeypatch, [[SELECT_BALCAO]], escuta=False)
+
+    with pytest.raises(ErroSCPI, match="acompanhar o envio"):
+        lancador.selecionar_combo(_Quadro(), "Tipo Saída", "BALCÃO")
+    assert escolhas == []
+
+
+# ---------------------------------------------------------------- próximo lote em módulo novo
+
+
+def _navegador_que_recomeca(monkeypatch, reabrir_falha=False):
+    passos = []
+    nav = NavegadorSCPI(playwright=None)
+    nav.page = type("P", (), {"screenshot": lambda self, path: None})()
+    monkeypatch.setattr(nav, "limpar", lambda: passos.append("limpar"))
+
+    def reabrir():
+        passos.append("reabrir")
+        if reabrir_falha:
+            raise RuntimeError("Fechar não respondeu")
+
+    monkeypatch.setattr(nav, "reabrir_modulo", reabrir)
+    monkeypatch.setattr(nav, "reiniciar", lambda: passos.append("reiniciar"))
+    return nav, passos
+
+
+def test_descartar_reabre_o_modulo_depois_de_limpar(monkeypatch, settings, tmp_path):
+    # Só Cancelar deixava o formulário seguinte com o Tipo Saída vazio no SCPI.
+    settings.LOG_DIR = tmp_path
+    nav, passos = _navegador_que_recomeca(monkeypatch)
+
+    nav.descartar("AV-000058")
+    assert passos == ["limpar", "reabrir"]
+
+
+def test_simulacao_reabre_o_modulo_depois_de_limpar(monkeypatch):
+    nav, passos = _navegador_que_recomeca(monkeypatch)
+
+    nav.encerrar_simulacao()
+    assert passos == ["limpar", "reabrir"]
+
+
+def test_recomecar_reinicia_a_sessao_se_o_modulo_nao_reabre(monkeypatch):
+    nav, passos = _navegador_que_recomeca(monkeypatch, reabrir_falha=True)
+
+    nav.encerrar_simulacao()
+    assert passos == ["limpar", "reabrir", "reiniciar"]

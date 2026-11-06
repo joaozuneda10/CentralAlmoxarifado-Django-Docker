@@ -5,11 +5,17 @@ import re
 from django import template
 
 from pedidos.regras import (
+    AB,
     AUTORIZACAO_AGUARDANDO,
     AUTORIZACAO_AUTORIZADA,
     AUTORIZACAO_RECUSADA,
+    AVULSA,
+    EPIS,
     LIMPEZA,
+    OFICINA,
+    VIATURAS,
     frase_diferenca,
+    qtd_br,
 )
 
 register = template.Library()
@@ -35,12 +41,21 @@ _AUTORIZACAO = {
 }
 
 
-_ORIGEM_CURTA = {LIMPEZA: "Limpeza"}
+# Na lista do painel a origem vai embaixo do Nº, na tabela (coluna de largura fixa) e no cartão: o
+# nome tem de ser curto. O nome inteiro fica no detalhe do pedido e no filtro Origem.
+_ORIGEM_CURTA = {
+    LIMPEZA: "Limpeza",
+    AB: "Materiais AB",
+    VIATURAS: "Viaturas",
+    OFICINA: "Oficina",
+    EPIS: "EPIs",
+    AVULSA: "Saída avulsa",
+}
 
 
 @register.filter
 def origem_curta(pedido) -> str:
-    """Nome curto da origem para o selo da lista; o nome inteiro vai no title."""
+    """Nome curto da origem para a lista do painel, embaixo do Nº."""
     return _ORIGEM_CURTA.get(pedido.origem, pedido.get_origem_display())
 
 
@@ -69,6 +84,13 @@ def nome_usuario(usuario) -> str:
 def frase_diferenca_filtro(diferenca: dict) -> str:
     """Uma diferença do histórico de alterações em frase (`regras.frase_diferenca`)."""
     return frase_diferenca(diferenca)
+
+
+@register.filter
+def qtd_campo(valor) -> str:
+    """Quantidade num valor que volta a um campo ou é lido pelo JS (`data-pedido`): pt-BR sem o
+    "." do milhar (`regras.qtd_br`), que o `parse_qtd_br` aceita. Para exibir, `quantidade`."""
+    return "" if valor in (None, "") else qtd_br(valor)
 
 
 @register.filter

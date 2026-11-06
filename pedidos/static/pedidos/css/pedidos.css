@@ -128,7 +128,6 @@ html:not(.js) .formulario-pedido { display: none; }
   max-height: var(--busca-limite, 26rem); overflow-y: auto;
 }
 .js .busca-painel .lista-materiais { border: 0; border-radius: 0; }
-.carrinho-qtd { white-space: nowrap; font-weight: 500; }
 .numero-pedido { white-space: nowrap; }
 
 .sucesso-pedido { display: grid; justify-items: center; gap: var(--esp-2); text-align: center; animation: subir 0.4s ease both; }
@@ -459,6 +458,39 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .andamento-frase { margin: 0; font-size: 1.0625em; font-weight: 500; color: var(--texto); }
 .contadores { display: flex; flex-wrap: wrap; gap: var(--esp-meio) var(--esp-1); margin: 0; padding: 0; list-style: none; }
 .pilha-curta { display: grid; gap: var(--esp-meio); min-width: 0; }
+/* Conferência com o SCPI (spec 010): o filtro por veredito em links, a lista dos lotes lançados
+   separada por linhas (não um cartão por lote) e as candidatas do lote em verificar. */
+#conciliacao { margin-top: var(--esp-3); }
+.conciliacao-filtros { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin: 0; padding: 0; list-style: none; }
+.conciliacao-filtro {
+  display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px;
+  padding: var(--esp-meio) var(--esp-2); border: 1px solid var(--borda); border-radius: 100px;
+  color: var(--texto-secundario); text-decoration: none; font-weight: 500;
+  transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
+}
+.conciliacao-filtro:hover { background: var(--superficie); color: var(--texto); }
+.conciliacao-filtro[aria-current="page"] { background: var(--destaque-superficie); border-color: var(--destaque); color: var(--info-texto); }
+.conciliacao-filtro-numero { font-variant-numeric: tabular-nums; }
+.conciliacao-lista, .verificacao-candidatas { margin: 0; padding: 0; list-style: none; }
+.conciliacao-lote { display: grid; gap: var(--esp-2); padding: var(--esp-3) 0; border-top: 1px solid var(--borda); }
+.conciliacao-lote:last-child { padding-bottom: 0; }
+.conciliacao-lote-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); }
+.conciliacao-lote-titulo { margin: 0; font-size: 1em; }
+.conciliacao-diferencas { margin: 0; padding-left: var(--esp-3); display: grid; gap: var(--esp-meio); }
+.conciliacao-notas { margin: 0; padding-left: var(--esp-3); }
+.conciliacao-corrigir > summary { width: fit-content; list-style: none; cursor: pointer; }
+.conciliacao-corrigir > summary::-webkit-details-marker { display: none; }
+.conciliacao-corrigir[open] > summary { margin-bottom: var(--esp-1); }
+.conciliacao-corrigir fieldset { margin: 0; padding: 0; border: 0; }
+.verificacao { padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
+.verificacao-candidata { display: grid; gap: var(--esp-meio); padding: var(--esp-2) 0; border-top: 1px solid var(--borda); }
+.verificacao-candidata:first-child { border-top: 0; }
+.verificacao-candidata p { margin: 0; overflow-wrap: anywhere; }
+.verificacao-candidata form { margin-top: var(--esp-meio); }
+.verificacao-numero { font-weight: 500; }
+@media (max-width: 767px) {
+  .conciliacao-filtro { min-height: 44px; }
+}
 .pilha-curta p { margin: 0; overflow-wrap: anywhere; }
 .detalhe-tecnico > summary { width: fit-content; cursor: pointer; color: var(--texto-secundario); font-size: 0.875em; }
 .detalhe-tecnico[open] > summary { margin-bottom: var(--esp-1); }
@@ -531,6 +563,20 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .tabela-pedidos .col-destino { min-width: 13rem; }
 /* Situação e SCPI numa coluna só: o selo do SCPI embaixo do da situação. */
 .situacao-selos { display: flex; flex-direction: column; align-items: flex-start; gap: var(--esp-meio); }
+/* A origem da lista do painel: texto curto embaixo do Nº, na tabela e no cartão. */
+.tabela-painel .numero-origem { display: block; margin-top: 2px; font-size: 0.8125em; font-weight: 400; line-height: 1.35; }
+/* Lista do painel em tabela: colunas de largura fixa (as do `colgroup`; Pessoa e Destino dividem o
+   resto), para os pedidos da página não as mexerem. Cada largura é o maior conteúdo da coluna mais
+   o padding. */
+@container (width > 720px) {
+  .tabela-painel { table-layout: fixed; min-width: 51rem; }
+  .tabela-painel .largura-numero { width: 6.75rem; }
+  .tabela-painel .largura-data { width: 9.25rem; }
+  .tabela-painel .largura-situacao { width: 13rem; }
+  .tabela-painel .col-pessoa, .tabela-painel .col-destino { min-width: 0; overflow-wrap: anywhere; }
+  /* O selo raro mais largo que a coluna (lançado em várias requisições) quebra dentro dela. */
+  .tabela-painel .col-situacao .selo { max-width: 100%; white-space: normal; }
+}
 /* Estreita (celular, ou tela pequena com a barra lateral): cada pedido vira um cartão. */
 @container (max-width: 720px) {
   .tabela-pedidos thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
@@ -544,8 +590,10 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
   .tabela-pedidos .col-data { order: 2; font-size: 0.875em; }
   .tabela-pedidos .col-pessoa { order: 3; flex-basis: 100%; }
   .tabela-pedidos .col-destino { order: 4; flex-basis: 100%; font-size: 0.875em; color: var(--texto-secundario); }
-  .tabela-pedidos .col-origem { order: 5; }
   .tabela-pedidos .col-situacao { order: 6; }
+  /* Na lista do painel o Nº tem a origem embaixo: o que fica ao lado dele (a data; no tablet, os
+     selos) se alinha pela linha do Nº, não pelo meio das duas. */
+  .tabela-painel .col-numero, .tabela-painel .col-data, .tabela-painel .col-situacao { align-self: baseline; }
   /* O que complementa a linha (materiais, quem decidiu, motivo): embaixo, em texto menor. */
   .tabela-pedidos .col-extra { order: 7; flex-basis: 100%; font-size: 0.875em; color: var(--texto-secundario); }
   /* No cartão, os dois selos voltam a ficar lado a lado, quebrando linha se faltar largura. */
@@ -556,7 +604,6 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
    No celular, os selos ficam embaixo, como acima. */
 @container (min-width: 481px) and (max-width: 720px) {
   .tabela-pedidos .col-numero { flex: none; margin-right: var(--esp-meio); }
-  .tabela-pedidos .col-origem { order: 2; }
   .tabela-pedidos .col-situacao { order: 3; }
   .tabela-pedidos .col-data { position: absolute; right: var(--esp-1); bottom: 14px; white-space: nowrap; }
   .tabela-pedidos .col-pessoa { order: 5; margin-top: 2px; }
