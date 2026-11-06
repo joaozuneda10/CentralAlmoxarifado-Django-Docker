@@ -1,0 +1,49 @@
+{% extends "interface/base_publico.html" %}
+{% load static pedidos_extras %}
+{% block title %}Consultar pedido — Central Almoxarifado{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'pedidos/css/pedidos.css' %}">{% endblock %}
+{% block voltar %}<a class="link-voltar" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao início</a>{% endblock %}
+{% block rotulo %}Almoxarifado SAEP{% endblock %}
+{% block heading %}Consultar pedido{% endblock %}
+{% block sub %}Digite o número que apareceu quando o pedido foi enviado e o seu primeiro nome. Funciona em qualquer aparelho.{% endblock %}
+{% block page %}
+{% comment %}
+Spec 011: número e primeiro nome, por POST (nada vai para a URL); a resposta mostra só o que a seção 4 permite.
+   O `#resultado` da ação faz o navegador rolar, sem JavaScript, até o cartão do pedido ou, no erro, até o formulário,
+   que cabe na tela com o aviso logo abaixo.
+{% endcomment %}
+<div class="pilha-larga">
+  <form method="post" class="cartao pilha-larga consulta-formulario"{% if aviso %} id="resultado"{% endif %} action="{% url 'pedidos:consulta' %}#resultado">
+    {% csrf_token %}
+    <div class="campo">
+      <label class="campo-rotulo" for="numero">Número do pedido</label>
+      <input id="numero" class="campo-entrada mono" type="text" name="numero" value="{{ numero }}" maxlength="20" placeholder="Ex.: P-000123" autocomplete="off" autocapitalize="characters" spellcheck="false" required{% if aviso %} aria-invalid="true" aria-describedby="consulta-aviso"{% endif %}>
+    </div>
+    <div class="campo">
+      <label class="campo-rotulo" for="nome">Primeiro nome</label>
+      <input id="nome" class="campo-entrada" type="text" name="nome" value="{{ nome }}" maxlength="200" placeholder="Como foi escrito no pedido" autocomplete="given-name" autocapitalize="words" spellcheck="false" required{% if aviso %} aria-invalid="true" aria-describedby="consulta-aviso"{% endif %}>
+    </div>
+    <div class="acoes"><button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="busca" %}Consultar</button></div>
+  </form>
+  {% if resultado %}
+  <section class="cartao pilha consulta-resultado" id="resultado" aria-live="polite" aria-labelledby="consulta-titulo">
+    <div class="consulta-cabecalho">
+      <h2 class="cartao-titulo" id="consulta-titulo">Pedido <span class="mono">{{ resultado.numero }}</span></h2>
+      <span class="selo {{ resultado.consulta.chave|badge_situacao }}" data-situacao>{{ resultado.consulta.rotulo }}</span>
+    </div>
+    <p class="texto-secundario texto-pequeno">{{ resultado.formulario }} · Enviado em {{ resultado.enviado_em|date:"d/m/Y" }}</p>
+    <p>{{ resultado.consulta.frase }}</p>
+    {% if resultado.consulta.motivo %}<p><strong>Motivo:</strong> {{ resultado.consulta.motivo }}</p>{% endif %}
+    {% if resultado.itens %}
+    {# Os materiais e as quantidades pedidas, como na tela de confirmação do envio (spec 011, seção 4). #}
+    <div class="pilha consulta-itens-bloco">
+      <h3 class="rotulo-secao" id="consulta-itens-titulo">Materiais pedidos</h3>
+      {% include "pedidos/_itens_pedidos.html" with itens=resultado.itens rotulo_id="consulta-itens-titulo" %}
+    </div>
+    {% endif %}
+  </section>
+  {% elif aviso %}
+  <div class="aviso aviso-atencao" role="alert" id="consulta-aviso">{% include "interface/_icone.html" with nome="alerta" %}<p>{{ aviso }}</p></div>
+  {% endif %}
+</div>
+{% endblock %}
