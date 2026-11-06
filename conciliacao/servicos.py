@@ -13,6 +13,7 @@ from conciliacao import regras
 from conciliacao.models import (
     Candidata,
     ConferenciaLote,
+    CorrecaoVinculo,
     ExtracaoOficial,
     RequisicaoOficial,
     TentativaLancamento,
@@ -225,14 +226,49 @@ def entrega_das_linhas(linhas: list[LinhaSaida], lista_de_centros) -> regras.Ent
     )
 
 
+def ultima_correcao(lote: str) -> CorrecaoVinculo | None:
+    return CorrecaoVinculo.objects.filter(lote=lote).order_by("-quando", "-pk").first()
+
+
+def _conclusivas(lote: str):
+    """As conferências conclusivas do lote lançado que ainda valem: depois de uma correção do
+    número (FR-026), só as de extrações começadas depois dela; o número novo começa do zero."""
+    conferencias = ConferenciaLote.objects.filter(
+        lote=lote, tipo__in=(ConferenciaLote.Tipo.LANCAMENTO, ConferenciaLote.Tipo.REVISAO)
+    ).exclude(veredito=ConferenciaLote.Veredito.AGUARDANDO)
+    correcao = ultima_correcao(lote)
+    if correcao is not None:
+        conferencias = conferencias.filter(extracao__importacao__inicio__gt=correcao.quando)
+    return conferencias.select_related("requisicao")
+
+
 def _veredito_conclusivo(lote: str) -> ConferenciaLote | None:
     """A conferência do lançamento: a primeira conclusiva (FR-017, data-model)."""
     return (
-        ConferenciaLote.objects.filter(lote=lote, tipo=ConferenciaLote.Tipo.LANCAMENTO)
-        .exclude(veredito=ConferenciaLote.Veredito.AGUARDANDO)
-        .select_related("requisicao")
+        _conclusivas(lote)
+        .filter(tipo=ConferenciaLote.Tipo.LANCAMENTO)
         .order_by("criada_em", "pk")
         .first()
+    )
+
+
+def veredito_atual(lote: str) -> ConferenciaLote | None:
+    """A última conferência conclusiva do lote (o veredito atual); None é "Aguardando"."""
+    return _conclusivas(lote).order_by("-criada_em", "-pk").first()
+
+
+def registrar_correcao(
+    lote: str, anterior: str, novo: str, *, conferencia: ConferenciaLote, usuario, quando
+) -> CorrecaoVinculo:
+    """Grava a correção do número (R16). Só `pedidos.servicos.corrigir_requisicao` chama, na
+    mesma transação em que troca o número das linhas."""
+    return CorrecaoVinculo.objects.create(
+        lote=lote,
+        anterior=anterior,
+        novo=novo,
+        conferencia=conferencia,
+        usuario=usuario,
+        quando=quando,
     )
 
 
@@ -267,6 +303,9 @@ def conciliar_lancados(
             lancado = max((linha.lancado_em for linha in linhas if linha.lancado_em), default=None)
             if lancado is None or imp.inicio <= lancado:
                 continue  # a extração começou antes do lançamento: não pode trazê-lo
+            correcao = ultima_correcao(lote)
+            if correcao is not None and imp.inicio <= correcao.quando:
+                continue  # nem a correção do número: o número novo espera a extração seguinte
             if ConferenciaLote.objects.filter(
                 lote=lote,
                 extracao=extracao,
@@ -357,6 +396,9 @@ def conciliar_lancados(
 
 TRAVA_CONCILIACAO = "almoxarifado:conciliacao"
 ESPERA_TRAVA_S = 120
+# A correção do número espera pouco: roda numa requisição da tela e segura a trava do lançamento
+# enquanto espera (o robô não começa); uma conciliação comum termina em menos de um segundo.
+ESPERA_CORRECAO_S = 10
 
 
 class ConciliacaoEmAndamento(Exception):
@@ -374,11 +416,13 @@ class ConciliacaoIncompleta(Exception):
 
 
 @contextmanager
-def _trava_conciliacao():
+def trava_conciliacao(espera: int | None = None):
     """Uma conciliação por vez entre processos (`GET_LOCK`, com espera): duas ao mesmo tempo
-    poderiam gravar, cada uma, a conferência do lançamento do mesmo lote."""
+    poderiam gravar, cada uma, a conferência do lançamento do mesmo lote. `espera` em segundos;
+    sem ela, `ESPERA_TRAVA_S`."""
+    espera = ESPERA_TRAVA_S if espera is None else espera
     with connection.cursor() as cursor:
-        cursor.execute("SELECT GET_LOCK(%s, %s)", [TRAVA_CONCILIACAO, ESPERA_TRAVA_S])
+        cursor.execute("SELECT GET_LOCK(%s, %s)", [TRAVA_CONCILIACAO, espera])
         obtida = cursor.fetchone()[0] == 1
     if not obtida:
         raise ConciliacaoEmAndamento("Outra conciliação com o SCPI está em andamento.")
@@ -413,7 +457,7 @@ def conciliar(extracao: ExtracaoOficial) -> dict[str, int]:
     log; os comandos saem com erro."""
     contagem: dict[str, int] = {}
     falhas: list[str] = []
-    with _trava_conciliacao():
+    with trava_conciliacao():
         try:
             verificar = conciliar_verificar(extracao, falhas)
         except Exception as exc:
