@@ -6,13 +6,16 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_http_methods
 
+from contas.acesso import eh_solicitante
 from pedidos import carrinho as carrinho_mod
 from pedidos.fluxos import fluxo_da_origem, fluxo_publico, fluxos_publicos, opcoes_filtro
+from pedidos.minhas import situacao_para_solicitante
 from pedidos.models import ItemPedido, Pedido
 from pedidos.protecao import (
     CAMPO_ISCA,
     MENSAGEM_RAPIDO,
     MENSAGEM_RECUSA,
+    MENSAGEM_SESSAO_TERMINOU,
     MENSAGEM_TOKEN_INVALIDO,
     MOTIVO_ISCA,
     emitir,
@@ -22,12 +25,12 @@ from pedidos.protecao import (
 from pedidos.regras import (
     EnvioPedido,
     nome_confere,
+    nome_da_conta,
     numero_de_pedido_publico,
     opcoes_destino,
     resolver_destino,
-    texto_consulta_publica,
 )
-from pedidos.servicos import catalogo_de, centros_do_fluxo, registrar_pedido
+from pedidos.servicos import catalogo_de, centros_do_fluxo, destino_sugerido, registrar_pedido
 from pedidos.views.materiais import contexto_busca, urls_do_fluxo
 
 
@@ -62,6 +65,9 @@ def _contexto(fluxo, catalogo, envio, **extra) -> dict:
         "campos": {},
         "codigos_erro": set(),
         "erros_por_campo": {},
+        # O formulário abriu com a conta do solicitante (spec 013): nome travado, sem o
+        # `localStorage` do aparelho (`data-com-conta`) e o CSRF do cookie no envio.
+        "com_conta": envio.conta is not None,
         **contexto_busca(fluxo, catalogo or []),
         **urls_do_fluxo(fluxo),
     }
@@ -76,8 +82,21 @@ def formulario(request, fluxo):
     fluxo = fluxo_publico(fluxo)
     catalogo = catalogo_de(fluxo.origem)
     parcial = bool(request.headers.get("HX-Request"))
+    # Spec 013: o solicitante logado pede com a conta; a equipe e quem não entrou, anônimos.
+    conta = request.user if eh_solicitante(request.user) else None
+    conta_id = conta.pk if conta else None
     if request.method != "POST":
-        return render(request, "pedidos/formulario.html", _contexto(fluxo, catalogo, emitir()))
+        extra = {}
+        if conta is not None:
+            extra["campos"] = {
+                "solicitante": nome_da_conta(conta.first_name, conta.last_name),
+                "destino": destino_sugerido(conta, fluxo.origem, centros_do_fluxo(fluxo)),
+            }
+        return render(
+            request,
+            "pedidos/formulario.html",
+            _contexto(fluxo, catalogo, emitir(conta_id=conta_id), **extra),
+        )
 
     nomes = (
         ("solicitante", "destino", "obs", "ocorrencia")
@@ -102,12 +121,20 @@ def formulario(request, fluxo):
 
     envio = ler(request.POST.get("token", ""))
     if envio is None:
-        return de_volta(emitir(), mensagem=MENSAGEM_TOKEN_INVALIDO)
+        return de_volta(emitir(conta_id=conta_id), mensagem=MENSAGEM_TOKEN_INVALIDO)
     if motivo := recusar(envio, request.POST.get(CAMPO_ISCA, "")):
         # Só a isca (que uma pessoa nunca preenche) recebe a mensagem genérica.
         return de_volta(
             envio, mensagem=MENSAGEM_RECUSA if motivo == MOTIVO_ISCA else MENSAGEM_RAPIDO
         )
+    # Aberto com uma conta e enviado sem ela (a sessão terminou) ou com outra: nada é gravado, e
+    # o carrinho fica para a pessoa entrar de novo e enviar (spec 013, FR-015). Vale a situação de
+    # quando a página abriu: o pedido nunca vira anônimo sem ela perceber.
+    if envio.conta is not None and envio.conta != conta_id:
+        return de_volta(envio, mensagem=MENSAGEM_SESSAO_TERMINOU, sessao_terminou=True)
+    if envio.conta is not None:
+        # O nome é o da conta; o enviado é ignorado (FR-013).
+        campos["solicitante"] = nome_da_conta(conta.first_name, conta.last_name)
 
     # O texto como está no cadastro; o que não existe segue como veio, para a validação recusar.
     destino = resolver_destino(campos["destino"], centros_do_fluxo(fluxo)) or campos["destino"]
@@ -129,6 +156,7 @@ def formulario(request, fluxo):
         ),
         # O mesmo que a tela usa na volta com erro: o envio monta o catálogo uma vez só.
         catalogo=catalogo,
+        conta=conta if envio.conta is not None else None,
     )
     if resposta.ok:
         # `_sucesso.html` lista só o que o funcionário pediu (filtro por segurança).
@@ -138,12 +166,16 @@ def formulario(request, fluxo):
             "resposta": resposta,
             "itens": itens,
             "n_itens": len(itens),
+            "com_conta": envio.conta is not None,
+            # Aberto sem conta e enviado por um solicitante que entrou depois: o pedido é anônimo,
+            # e a tela diz que ele não aparece em "Meus pedidos" (US4, cenário 3).
+            "sem_conta_logado": envio.conta is None and conta is not None,
         }
         if parcial:
             return render(request, "pedidos/_sucesso.html", contexto)
         return render(request, "pedidos/formulario.html", {**contexto, "sucesso": True})
     if resposta.divergente:
-        envio = emitir(aberto_em=envio.aberto_em)
+        envio = emitir(aberto_em=envio.aberto_em, conta_id=envio.conta)
     return de_volta(
         envio,
         mensagem=resposta.mensagem,
@@ -225,7 +257,13 @@ def consulta(request):
             pedido = (
                 Pedido.objects.select_related("atendimento", "autorizacao")
                 .prefetch_related("itens")
-                .filter(numero=numero, origem__in=[f.origem for f in fluxos_publicos()])
+                # O pedido feito com conta só abre em "Meus pedidos" (spec 013, FR-022): aqui, a
+                # mesma resposta de um número que não existe.
+                .filter(
+                    numero=numero,
+                    origem__in=[f.origem for f in fluxos_publicos()],
+                    conta__isnull=True,
+                )
                 .first()
             )
             if pedido is None or not nome_confere(nome, pedido.solicitante):
@@ -236,9 +274,6 @@ def consulta(request):
 
 
 def _resultado_da_consulta(pedido: Pedido) -> dict:
-    autorizacao = pedido.autorizacao_ou_none
-    atendimento = pedido.atendimento_ou_none
-    decidido_em = autorizacao.decidido_em if autorizacao else None
     return {
         "numero": pedido.numero,
         "formulario": fluxo_da_origem(pedido.origem).titulo,
@@ -246,11 +281,6 @@ def _resultado_da_consulta(pedido: Pedido) -> dict:
         # Só o que o solicitante pediu, com a quantidade pedida (como na tela de sucesso): nem o
         # acrescentado pelo almoxarifado, nem a quantidade entregue. Vem do prefetch.
         "itens": [i for i in pedido.itens.all() if i.origem == ItemPedido.Origem.PEDIDO],
-        "consulta": texto_consulta_publica(
-            pedido.situacao,
-            autorizacao=autorizacao.situacao if autorizacao else None,
-            motivo=autorizacao.motivo if autorizacao else "",
-            decidido_em=timezone.localdate(decidido_em) if decidido_em else None,
-            saida_em=atendimento.data_efetiva if atendimento else None,
-        ),
+        # O mesmo texto de "Meus pedidos" (spec 013): a fonte é uma só.
+        "consulta": situacao_para_solicitante(pedido),
     }

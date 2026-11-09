@@ -1,0 +1,43 @@
+{% extends "interface/base_publico.html" %}
+{% load static pedidos_extras interface_extras %}
+{% comment %}
+Um pedido da conta (spec 013). Recebe só o dicionário de `pedidos.minhas.apresentar`: a situação com
+o texto da consulta pública (spec 011), o que o solicitante informou e os materiais que ele pediu, com
+a quantidade entregue e a troca. Nada da equipe chega aqui (FR-020).
+{% endcomment %}
+{% block title %}Pedido {{ pedido.numero }} · Central Almoxarifado{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'pedidos/css/pedidos.css' %}">{% endblock %}
+{% block voltar %}<a class="link-voltar" href="{% url 'pedidos:meus_pedidos' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar a Meus pedidos</a>{% endblock %}
+{% block rotulo %}{{ pedido.formulario }}{% endblock %}
+{% block heading %}Pedido <span class="mono">{{ pedido.numero }}</span>{% endblock %}
+{% block sub %}Enviado em {{ pedido.enviado_em|date:"d/m/Y" }}{% endblock %}
+{% block page %}
+<section class="cartao pilha" aria-labelledby="situacao-titulo">
+  <div class="consulta-cabecalho">
+    <h2 class="cartao-titulo" id="situacao-titulo">Situação</h2>
+    <span class="selo {{ pedido.consulta.chave|badge_situacao }}" data-situacao>{{ pedido.consulta.rotulo }}</span>
+  </div>
+  <p>{{ pedido.consulta.frase }}</p>
+  {% if pedido.consulta.motivo %}<p><strong>Motivo:</strong> {{ pedido.consulta.motivo }}</p>{% endif %}
+</section>
+<section class="cartao pilha" aria-labelledby="materiais-titulo">
+  <h2 class="cartao-titulo" id="materiais-titulo">Materiais pedidos</h2>
+  <ul class="meu-pedido-itens">
+    {% for i in pedido.itens %}
+    <li>
+      <span class="meu-pedido-material">{{ i.material }}</span>
+      <span class="texto-pequeno">Pedido: <strong>{{ i.qtd_pedida|quantidade }}{% if i.unidade %} {{ i.unidade }}{% endif %}</strong>{% if pedido.atendido %} · Entregue: <strong>{{ i.qtd_entregue|default_if_none:0|quantidade }}{% if i.unidade %} {{ i.unidade }}{% endif %}</strong>{% endif %}</span>
+      {% if i.trocado_por %}<span class="texto-pequeno texto-secundario">{% include "interface/_icone.html" with nome="trocar" %} Trocado por {{ i.trocado_por }}</span>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+</section>
+<section class="cartao" aria-labelledby="dados-titulo">
+  <h2 class="cartao-titulo" id="dados-titulo">O que você informou</h2>
+  <dl class="dados">
+    <dt>Destino</dt><dd>{{ pedido.destino|default:"—" }}</dd>
+    {% if pedido.ocorrencia %}<dt>Nº da ocorrência</dt><dd class="mono">{{ pedido.ocorrencia }}</dd>{% endif %}
+    {% if pedido.obs %}<dt>Observação</dt><dd>{{ pedido.obs }}</dd>{% endif %}
+  </dl>
+</section>
+{% endblock %}

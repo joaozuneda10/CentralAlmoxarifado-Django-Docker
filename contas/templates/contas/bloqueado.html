@@ -1,0 +1,17 @@
+{% extends "interface/base_publico.html" %}
+{% comment %}
+Login bloqueado pelo limite de tentativas (spec 013, django-axes, `AXES_LOCKOUT_TEMPLATE`): vale para
+a matrícula naquela origem, nas duas portas de login. Não diz se a matrícula existe.
+{% endcomment %}
+{% block title %}Muitas tentativas · Central Almoxarifado{% endblock %}
+{% block rotulo %}Entrar{% endblock %}
+{% block heading %}Muitas tentativas{% endblock %}
+{% block page %}
+<section class="cartao">
+  <div class="vazio">
+    {% include "interface/_icone.html" with nome="relogio" %}
+    <p class="vazio-titulo">Muitas tentativas. Tente de novo em alguns minutos ou procure o almoxarifado.</p>
+    <a class="botao botao-secundario" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar aos formulários</a>
+  </div>
+</section>
+{% endblock %}

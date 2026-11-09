@@ -962,3 +962,13 @@ html:not(.js) [data-quantidade] { display: none; }
    alto; até 1286px (layouts.css), abaixo da barra fixa do topo (49px). */
 #pedidos { scroll-margin-top: var(--esp-2); }
 @media (max-width: 1286px) { #pedidos { scroll-margin-top: 65px; } }
+
+/* Meus pedidos (spec 013): uma linha por pedido, inteira clicável; o selo tem texto. */
+.meus-pedidos { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--esp-2); }
+.meus-pedidos-linha { display: grid; gap: var(--esp-1); color: var(--texto); text-decoration: none; }
+.meus-pedidos-linha:hover { border-color: var(--borda-forte, var(--borda)); text-decoration: none; }
+.meus-pedidos-cabeca { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); flex-wrap: wrap; }
+.meu-pedido-itens { list-style: none; margin: 0; padding: 0; display: grid; gap: var(--esp-2); }
+.meu-pedido-itens > li { display: grid; gap: 2px; padding-block: var(--esp-1); border-bottom: 1px solid var(--borda); }
+.meu-pedido-itens > li:last-child { border-bottom: 0; }
+.meu-pedido-itens .icone { width: 14px; height: 14px; vertical-align: -2px; }

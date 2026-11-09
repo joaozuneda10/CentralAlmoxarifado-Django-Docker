@@ -48,6 +48,10 @@ input[type="date"].campo-entrada {
 input[type="date"].campo-entrada::-webkit-date-and-time-value { text-align: left; min-width: 0; }
 .campo-entrada:hover { border-color: var(--texto-suave); }
 .campo-entrada:focus { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-superficie); }
+/* Campo só de leitura (o nome da conta no formulário, spec 013): o mesmo tom dos controles
+   travados, sem o realce de quem espera digitação. */
+.campo-entrada[readonly] { background: var(--superficie); color: var(--texto-secundario); cursor: default; }
+.campo-entrada[readonly]:hover { border-color: var(--borda); }
 textarea.campo-entrada { min-height: 96px; resize: vertical; }
 select.campo-entrada { padding-right: 36px; }
 .campo-dica { font-size: 0.85em; color: var(--texto-secundario); }

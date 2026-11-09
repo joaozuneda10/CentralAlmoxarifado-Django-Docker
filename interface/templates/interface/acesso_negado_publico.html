@@ -1,0 +1,18 @@
+{% extends "interface/base_publico.html" %}
+{% comment %}
+Recusa de acesso para o solicitante (spec 013): a mesma do `acesso_negado.html` (spec 012), no layout
+público, com o caminho de volta para "Meus pedidos". O Sair é o do topo: um só formulário de saída
+por página. Nunca mostra dados de pedido.
+{% endcomment %}
+{% block title %}Sem acesso · Central Almoxarifado{% endblock %}
+{% block rotulo %}Acesso{% endblock %}
+{% block heading %}Esta página é da equipe do almoxarifado{% endblock %}
+{% block page %}
+<section class="cartao">
+  <div class="vazio">
+    {% include "interface/_icone.html" with nome="cadeado" %}
+    <p class="vazio-titulo">Sua conta serve para pedir material e acompanhar os seus pedidos.</p>
+    <a class="botao botao-secundario" href="{% url 'pedidos:meus_pedidos' %}">{% include "interface/_icone.html" with nome="recibo" %}Ver meus pedidos</a>
+  </div>
+</section>
+{% endblock %}

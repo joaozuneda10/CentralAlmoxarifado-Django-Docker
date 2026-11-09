@@ -22,6 +22,17 @@
 .publico-topo-interno, .publico-conteudo, .publico-rodape { width: 100%; max-width: 720px; margin-inline: auto; padding-inline: var(--esp-3); }
 .publico-topo-interno { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); min-height: 64px; }
 .publico-conteudo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--entre-blocos); padding-block: var(--esp-8) var(--esp-12); }
+/* Conta do solicitante no topo (spec 013): "Entrar", ou "Meus pedidos" e "Sair". */
+.publico-conta { display: flex; align-items: center; gap: var(--esp-1); }
+.publico-conta form { margin: 0; }
+.publico-conta .botao-suave { flex-shrink: 0; }
+/* No celular estreito, o Sair fica só com o ícone (o texto segue para o leitor de tela), para a
+   marca e "Meus pedidos" caberem sem cortar nada. */
+@media (max-width: 420px) {
+  .publico-conta-sair > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+  }
+}
 .publico-cabecalho { display: grid; gap: var(--esp-2); }
 .publico-sub { color: var(--texto-secundario); font-size: 1.05em; max-width: 36em; }
 .publico-sub:empty { display: none; }

@@ -40,6 +40,17 @@ class Pedido(models.Model):
         on_delete=models.PROTECT,
         related_name="saidas_registradas",
     )
+    # A conta do solicitante que fez o pedido logado (spec 013); vazia no pedido anônimo e no da
+    # equipe. Só `servicos.registrar_pedido` a grava, e nunca muda. `PROTECT`: a conta com pedidos
+    # se desativa, nunca se apaga (apagada, o pedido viraria anônimo e abriria na consulta pública).
+    conta = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="pedidos_feitos",
+        verbose_name="conta do solicitante",
+    )
     # Endereço de origem do envio público: base dos limites contra abuso.
     ip = models.GenericIPAddressField(null=True, blank=True, db_index=True)
     # Soma 1 a cada edição salva do atendimento: o formulário de edição a leva, e o salvar

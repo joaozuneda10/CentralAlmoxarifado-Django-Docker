@@ -124,7 +124,9 @@ O pytest usa `config.settings_test` (definido no `pyproject.toml`) e cria o banc
 `test_almoxarifado`. Testes rodam contra MySQL/MariaDB, nunca SQLite: `select_for_update` e
 transações precisam se comportar como no servidor. A migration `contas/0004_papeis` roda também no
 banco de teste: o usuário que loga numa rota interna precisa dos papéis (fixture `usuario_logado` e
-`tests/papeis.py`, `dar_papeis`/`usuario_com`), senão recebe 403.
+`tests/papeis.py`, `dar_papeis`/`usuario_com`), senão recebe 403. O solicitante dos testes vem de
+`tests/solicitantes.py` (`criar_solicitante`, `token`, `postar`). O `client.login` não funciona com o
+django-axes (exige o `request`): use `force_login` ou o POST no formulário de entrar.
 
 ## Servidor de desenvolvimento e verificação no navegador
 
@@ -192,6 +194,45 @@ banco de teste: o usuário que loga numa rota interna precisa dos papéis (fixtu
   `contas/0004_papeis` criou as permissões e os dois grupos e os deu a todo usuário ativo fora da
   Segurança do Trabalho, conferindo no fim (ninguém perdeu acesso no deploy); o administrador
   restringe pelo admin. O superusuário passa em toda permissão, menos na decisão de EPI.
+- **Contas de solicitante** (spec `specs/013-contas-solicitantes/`): o funcionário que pede material
+  pode ter uma conta, **criada só no admin** (sem cadastro aberto), no grupo `Solicitante`, sem
+  permissão nenhuma. Quem é solicitante é `contas.acesso.eh_solicitante`: o grupo **e** nada da equipe
+  (nem `is_staff`, `is_superuser`, permissão interna ou a Segurança do Trabalho); a conta misturada
+  vale como equipe. O `UsuarioAdmin` (`contas/admin.py`, formulários em `contas/forms.py`) recusa
+  Solicitante junto com papel da equipe, staff ou superusuário, e sem nome completo (o nome vai nos
+  pedidos). **Troca obrigatória da senha**: `Usuario.trocar_senha` (migration `contas/0005`, padrão
+  falso: ninguém que já existia é obrigado) é ligada ao criar o usuário e no "Alterar senha" do
+  admin, e o `contas.middleware.ExigirTrocaDeSenha` (depois do `ExigirPermissao`) prende o
+  solicitante com ela à `trocar_senha` (`/painel/senha/`, `contas.views.TrocarSenha`, de qualquer
+  usuário logado) e ao Sair; a equipe não é obrigada. Na tabela de rotas, duas categorias novas:
+  `SOLICITANTE` (`pedidos:meus_pedidos`, `pedidos:meu_pedido`: anônimo ao login, equipe ao
+  `ponto_de_partida`) e `LOGADO` (`trocar_senha`, também na lista da Segurança do Trabalho). O
+  solicitante numa rota interna recebe a recusa no layout público (`acesso_negado_publico.html`). O
+  login é `contas.views.Entrar`: o solicitante vai a "Meus pedidos", a equipe ao
+  `LOGIN_REDIRECT_URL`. O `base_publico.html` mostra "Entrar" a quem não está logado e "Meus pedidos"
+  e "Sair" ao solicitante (`solicitante_logado` do context processor; o único Sair da página).
+  **Pedido com conta**: `Pedido.conta` (migration `pedidos/0006`, `PROTECT`, nula no pedido anônimo e
+  no da equipe) só é gravado por `registrar_pedido(conta=...)`, e o reenvio confere também a conta. O
+  token do formulário (`protecao.emitir(conta_id=...)`) leva a conta com que a página abriu: com
+  conta, o nome é o da conta (`regras.nome_da_conta`, campo `readonly`, o enviado é ignorado), o
+  destino vem do último pedido da conta naquele formulário (`servicos.destino_sugerido`), o `<form>`
+  tem `data-com-conta` (o `pedidos.js` não usa o `localStorage` do aparelho) e a tela de sucesso leva
+  a "Meus pedidos". Aberto com uma conta e enviado sem ela (sessão que terminou) ou com outra:
+  recusa `MENSAGEM_SESSAO_TERMINOU`, nada gravado, carrinho mantido e "Entrar" numa aba nova; como o
+  login troca o segredo do CSRF, o `pedidos.js` copia o cookie `csrftoken` para o formulário com
+  conta antes de cada envio (sem isso a aba antiga daria 403). Aberto sem conta e enviado logado:
+  anônimo, com o aviso. "Meus pedidos" (`pedidos/views/solicitante.py`, `never_cache`, 20 por
+  página) filtra pela conta; o pedido de outra conta ou anônimo é 404, igual ao inexistente. O
+  template só recebe o dicionário de `pedidos.minhas` (situação pelo texto da consulta pública,
+  `situacao_para_solicitante`, que a consulta também usa; pedida, entregue e "trocado por"), nunca o
+  `Pedido`: nada de quem atendeu, recebedor, centro, placa, tipo, SCPI ou acrescentado. A consulta
+  pública (spec 011) não abre pedido com conta (`conta__isnull=True`). **Limite de tentativas** com o
+  django-axes nas duas portas de login: `AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]`
+  (matrícula e origem juntas), `LOGIN_TENTATIVAS` e `LOGIN_BLOQUEIO_MINUTOS` do `.env` (5 e 15),
+  `AXES_RESET_ON_SUCCESS`, `AXES_DISABLE_ACCESS_LOG` (não guarda todo login), a página
+  `contas/bloqueado.html` (429) e o desbloqueio apagando a tentativa no admin. Sem proxy, a origem é
+  o `REMOTE_ADDR` (falta conferir no servidor se é o do aparelho). O axes exige o `request` no
+  `authenticate`: nos testes, `client.login` falha; entre pelo formulário ou use `force_login`.
 - `interface` é só apresentação (sem modelos nem regras), no design system Clean (skill
   `.claude/skills/clean-design/`; regras e vocabulário de classes em `docs/DESIGN.md`):
   `clean.css` (tokens, fontes, tipografia e os ritmos `ritmo-publico`/`ritmo-almox`),

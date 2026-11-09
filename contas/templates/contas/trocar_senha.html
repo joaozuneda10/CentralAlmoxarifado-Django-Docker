@@ -1,0 +1,27 @@
+{% extends "interface/base_publico.html" %}
+{% comment %}
+Troca de senha pelo próprio usuário (spec 013). Obrigatória para o solicitante cuja senha foi
+definida pelo almoxarifado (`obrigatoria`): até trocar, só esta página e o Sair do topo abrem. Sem
+formulário de saída próprio (o do layout é o único da página). Cada erro fica embaixo do campo.
+{% endcomment %}
+{% block title %}{% if form.errors %}Erro: {% endif %}Trocar a senha · Central Almoxarifado{% endblock %}
+{% block rotulo %}Sua conta{% endblock %}
+{% block heading %}Trocar a senha{% endblock %}
+{% block sub %}{% if obrigatoria %}Antes de continuar, troque a senha que o almoxarifado entregou.{% else %}Escolha uma senha que só você saiba.{% endif %}{% endblock %}
+{% block page %}
+<form method="post" class="cartao pilha-larga" novalidate>
+  {% csrf_token %}
+  {% if form.non_field_errors %}
+  <div class="aviso aviso-erro" role="alert">{% include "interface/_icone.html" with nome="alerta" %}<div>{% for erro in form.non_field_errors %}<p>{{ erro }}</p>{% endfor %}</div></div>
+  {% endif %}
+  {% for campo in form %}
+  <div class="campo{% if campo.errors %} campo-com-erro{% endif %}">
+    <label class="campo-rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+    {{ campo }}
+    {% if campo.errors %}<p class="campo-erro" id="{{ campo.auto_id }}_error">{{ campo.errors.0 }}</p>{% endif %}
+    {% if campo.name == "new_password1" and campo.help_text %}<div class="texto-secundario texto-pequeno">{{ campo.help_text|safe }}</div>{% endif %}
+  </div>
+  {% endfor %}
+  <div class="acoes"><button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="cadeado" %}Trocar a senha</button></div>
+</form>
+{% endblock %}

@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-08
 
-**Status**: Draft
+**Status**: Implementada (aguarda o deploy, depois da spec 012)
 
 **Input**: User description: um papel novo para os funcionários que pedem material pelos formulários
 públicos: com uma conta, eles entram, pedem mais rápido e acompanham os próprios pedidos. Decisões do
