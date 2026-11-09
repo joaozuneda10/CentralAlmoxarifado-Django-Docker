@@ -12,6 +12,11 @@ Dois mecanismos, um para cada público:
   a participação no grupo, nunca `is_staff` nem permissão: o superusuário passa em qualquer
   `has_perm`, e quem decide um pedido de EPI precisa ser da Segurança do Trabalho.
 
+- **Solicitante (spec 013)**: o funcionário que pede material com conta é do grupo
+  `GRUPO_SOLICITANTE`, sem permissão interna. Como na Segurança do Trabalho, o que conta é a
+  participação no grupo (`eh_solicitante`): o superusuário passa em todo `has_perm` e não pode virar
+  solicitante por isso. Abre só as rotas `SOLICITANTE` ("Meus pedidos") e `LOGADO` (troca de senha).
+
 Toda recusa vira uma linha do logger `contas.acesso` (`registrar_recusa`).
 """
 
@@ -39,6 +44,7 @@ ROTAS_SEGURANCA_TRABALHO = frozenset(
         "pedidos:carrinho",
         "pedidos:consulta_epi",
         "pedidos:consulta",
+        "trocar_senha",
     }
 )
 
@@ -51,6 +57,7 @@ PERMISSOES_INTERNAS = (ATENDER, AUTOMACOES, CURVA, FORMULARIOS)
 
 GRUPO_ATENDIMENTO = "Atendimento"
 GRUPO_GESTAO = "Gestão"
+GRUPO_SOLICITANTE = "Solicitante"
 
 
 @dataclass(frozen=True)
@@ -73,6 +80,8 @@ class Regra:
 PUBLICA = "publica"  # qualquer pessoa
 ADMIN = "admin"  # o admin do Django (is_staff e permissões nativas)
 SEGURANCA = "seguranca"  # as views da spec 008 (participação no grupo)
+SOLICITANTE = "solicitante"  # só o solicitante; a equipe vai ao seu ponto de partida (spec 013)
+LOGADO = "logado"  # qualquer usuário autenticado (a troca de senha)
 
 _ATENDIMENTO = Regra((ATENDER,), "Esta página é de quem atende os pedidos.")
 _AUTOMACOES = Regra((AUTOMACOES,), "Esta página é de quem opera as automações.")
@@ -93,6 +102,9 @@ REGRAS_POR_ROTA: dict[str, Regra | str] = {
     "pedidos:carrinho": PUBLICA,
     "pedidos:consulta": PUBLICA,
     "pedidos:consulta_epi": PUBLICA,
+    "trocar_senha": LOGADO,
+    "pedidos:meus_pedidos": SOLICITANTE,
+    "pedidos:meu_pedido": SOLICITANTE,
     "pedidos:autorizacoes": SEGURANCA,
     "pedidos:autorizacao": SEGURANCA,
     "pedidos:decidir": SEGURANCA,
@@ -154,6 +166,10 @@ def pode_abrir(usuario, view_name: str) -> bool:
         return usuario.is_staff
     if regra == SEGURANCA:
         return da_seguranca_trabalho(usuario)
+    if regra == SOLICITANTE:
+        return eh_solicitante(usuario)
+    if regra == LOGADO:
+        return True
     if isinstance(regra, Regra):
         return pode(usuario, regra)
     return usuario.is_superuser
@@ -163,9 +179,38 @@ def sem_papel(usuario) -> bool:
     """Autenticado, sem nenhuma permissão da área interna e fora da Segurança do Trabalho."""
     if usuario is None or not usuario.is_authenticated:
         return False
-    if da_seguranca_trabalho(usuario):
+    if da_seguranca_trabalho(usuario) or eh_solicitante(usuario):
         return False
     return not any(usuario.has_perm(p) for p in PERMISSOES_INTERNAS)
+
+
+def eh_solicitante(usuario) -> bool:
+    """Se o usuário é um solicitante (spec 013): autenticado, ativo, do grupo `Solicitante` e sem
+    nada da equipe (nem `is_staff`, nem `is_superuser`, nem permissão interna, nem a Segurança do
+    Trabalho). Uma conta com as duas coisas cai do lado seguro: vale como equipe, pede anônimo e não
+    abre "Meus pedidos". Guardado no objeto, como `da_seguranca_trabalho`."""
+    if usuario is None or not usuario.is_authenticated or not usuario.is_active:
+        return False
+    if not hasattr(usuario, "_eh_solicitante"):
+        usuario._eh_solicitante = (
+            not usuario.is_staff
+            and not usuario.is_superuser
+            and usuario.groups.filter(name=GRUPO_SOLICITANTE).exists()
+            and not da_seguranca_trabalho(usuario)
+            and not any(usuario.has_perm(p) for p in PERMISSOES_INTERNAS)
+        )
+    return usuario._eh_solicitante
+
+
+def ponto_de_partida(usuario) -> str:
+    """O nome da rota para onde o usuário vai depois de entrar ou quando abre uma página que não é
+    dele: a fila de autorizações (Segurança do Trabalho), "Meus pedidos" (solicitante) ou o
+    painel."""
+    if da_seguranca_trabalho(usuario):
+        return "pedidos:autorizacoes"
+    if eh_solicitante(usuario):
+        return "pedidos:meus_pedidos"
+    return "pedidos:painel"
 
 
 def _campo_do_log(texto: str) -> str:

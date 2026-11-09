@@ -1,6 +1,6 @@
 {% load interface_extras %}
-{# data-lembrar-*: o pedidos.js guarda nome e destino neste aparelho para o próximo pedido. #}
-<section class="cartao sucesso-pedido" data-lembrar-solicitante="{{ resposta.pedido.solicitante }}" data-lembrar-destino="{{ resposta.pedido.destino }}">
+{# data-lembrar-*: o pedidos.js guarda nome e destino neste aparelho para o próximo pedido. Com a conta (spec 013), nada fica no aparelho, e o caminho é "Meus pedidos". #}
+<section class="cartao sucesso-pedido"{% if not com_conta %} data-lembrar-solicitante="{{ resposta.pedido.solicitante }}" data-lembrar-destino="{{ resposta.pedido.destino }}"{% endif %}>
   <span class="sucesso-icone">{% include "interface/_icone.html" with nome="check" %}</span>
   <p class="rotulo-secao">{% if resposta.reenvio %}Pedido já estava registrado{% else %}Pedido registrado{% endif %}</p>
   <p class="sucesso-numero mono">{{ resposta.numero }}</p>
@@ -17,13 +17,20 @@
   {% else %}
     <p>O almoxarifado vai conferir e separar os materiais; a saída só é registrada quando o atendimento for confirmado.</p>
   {% endif %}
+  {% if com_conta %}
+    <p>Acompanhe em Meus pedidos.</p>
+  {% else %}
+    {% if sem_conta_logado %}<p><strong>Este pedido foi feito sem entrar na conta e não aparece em Meus pedidos.</strong></p>{% endif %}
     {# Spec 011: a consulta pede o número e o primeiro nome, em qualquer aparelho. #}
     <p>Guarde o número. Para acompanhar o pedido, de qualquer aparelho, use <a href="{% url 'pedidos:consulta' %}">Consultar pedido</a> na página inicial com este número e o seu primeiro nome, como foi escrito no pedido.</p>
+  {% endif %}
   </div></div>
   <div class="acoes">
-    <a class="botao botao-primario" href="{% url 'pedidos:formulario' fluxo.nome %}">Fazer outro pedido</a>
+    {% if com_conta %}<a class="botao botao-primario" href="{% url 'pedidos:meu_pedido' resposta.numero %}">{% include "interface/_icone.html" with nome="recibo" %}Ver em Meus pedidos</a>{% endif %}
+    <a class="botao {% if com_conta %}botao-secundario{% else %}botao-primario{% endif %}" href="{% url 'pedidos:formulario' fluxo.nome %}">Fazer outro pedido</a>
     <a class="botao botao-secundario" href="{% url 'pedidos:inicio' %}">Voltar ao início</a>
   </div>
+  {% if not com_conta %}
   {# POST com o número e o nome escondidos: abre a situação sem pôr o número na URL (spec 011). #}
   <form method="post" action="{% url 'pedidos:consulta' %}#resultado" data-ver-situacao>
     {% csrf_token %}
@@ -31,4 +38,5 @@
     <input type="hidden" name="nome" value="{{ resposta.pedido.solicitante }}">
     <button type="submit" class="botao botao-suave">{% include "interface/_icone.html" with nome="busca" %}Ver a situação agora</button>
   </form>
+  {% endif %}
 </section>

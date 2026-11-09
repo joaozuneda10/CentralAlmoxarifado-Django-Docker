@@ -13,8 +13,9 @@ widget ao `<auto_id>_error` por `aria-describedby`/`aria-invalid` (o Django os p
   <a class="marca" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="caixa" %}<span>Central Almoxarifado</span></a>
   <div class="cartao entrada-cartao">
     <div class="pilha">
-      <p class="rotulo-secao">Acesso restrito</p>
-      <h1>Área do almoxarifado</h1>
+      {# Spec 013: a mesma porta serve à equipe e ao solicitante com conta. #}
+      <p class="rotulo-secao">Acesso com matrícula</p>
+      <h1>Entrar</h1>
     </div>
     {% if form.non_field_errors %}
     <div class="aviso aviso-erro" id="login-erro" role="alert">
@@ -34,7 +35,7 @@ widget ao `<auto_id>_error` por `aria-describedby`/`aria-invalid` (o Django os p
       {% endfor %}
       <button type="submit" class="botao botao-primario botao-bloco">Entrar</button>
     </form>
-    <p class="texto-suave texto-pequeno">Esqueceu a senha? Procure o responsável pelo almoxarifado.</p>
+    <p class="texto-suave texto-pequeno">Esqueceu a senha? Procure o almoxarifado.</p>
   </div>
 </main>
 {% endblock %}

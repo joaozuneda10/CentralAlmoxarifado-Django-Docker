@@ -5,11 +5,12 @@ sistema, que tem precedência). Com `DEBUG` desligado, valem as proteções de p
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-from config.env import carregar_dotenv, ler_bool, ler_lista
+from config.env import carregar_dotenv, ler_bool, ler_int, ler_lista
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -44,6 +45,7 @@ INSTALLED_APPS = [
     "automacoes",
     "implantacao",
     "conciliacao",
+    "axes",
 ]
 
 MIDDLEWARE = [
@@ -57,8 +59,12 @@ MIDDLEWARE = [
     "contas.middleware.RestringirSegurancaTrabalho",
     # Logo depois: a tabela de rotas da área interna, que nega por padrão (spec 012).
     "contas.middleware.ExigirPermissao",
+    # Depois: o solicitante com a senha a trocar só abre a troca e o Sair (spec 013).
+    "contas.middleware.ExigirTrocaDeSenha",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Por último, como pede o django-axes: mostra a página de bloqueio do login (spec 013).
+    "axes.middleware.AxesMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -101,6 +107,23 @@ AUTH_USER_MODEL = "contas.Usuario"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "pedidos:painel"
 LOGOUT_REDIRECT_URL = "login"
+
+# Limite de tentativas de login (spec 013, django-axes): bloqueia a combinação de matrícula e origem
+# (nunca só a origem, que pode ser a mesma para um setor inteiro) nas duas portas, a página de
+# entrar e o login do admin. Sem proxy, a origem é o REMOTE_ADDR (o axes sem o `ipware` não lê
+# cabeçalho nenhum). O acerto zera as tentativas; apagar a tentativa no admin desbloqueia.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_FAILURE_LIMIT = ler_int("LOGIN_TENTATIVAS", 5)
+AXES_COOLOFF_TIME = timedelta(minutes=ler_int("LOGIN_BLOQUEIO_MINUTOS", 15))
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = "contas/bloqueado.html"
+# Sem registro de todo login bem-sucedido (matrícula, endereço e navegador, guardados para sempre):
+# fica só a tentativa errada, que é o que o bloqueio usa.
+AXES_DISABLE_ACCESS_LOG = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},

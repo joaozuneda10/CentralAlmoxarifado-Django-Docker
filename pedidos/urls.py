@@ -1,6 +1,6 @@
 from django.urls import path
 
-from pedidos.views import almoxarifado, autorizacao, materiais, publico
+from pedidos.views import almoxarifado, autorizacao, materiais, publico, solicitante
 
 app_name = "pedidos"
 
@@ -11,6 +11,9 @@ urlpatterns = [
     path("pedido/consulta/", publico.consulta, name="consulta"),
     path("pedido/epis/consulta/", publico.consulta, name="consulta_epi"),
     path("pedido/<str:fluxo>/", publico.formulario, name="formulario"),
+    # Spec 013: os pedidos da conta do solicitante (categoria `SOLICITANTE` da tabela de rotas).
+    path("meus-pedidos/", solicitante.meus_pedidos, name="meus_pedidos"),
+    path("meus-pedidos/<str:numero>/", solicitante.meu_pedido, name="meu_pedido"),
     path("pedido/<str:fluxo>/materiais/", materiais.materiais, name="materiais"),
     path("pedido/<str:fluxo>/carrinho/", materiais.carrinho, name="carrinho"),
     path("painel/", almoxarifado.painel, name="painel"),

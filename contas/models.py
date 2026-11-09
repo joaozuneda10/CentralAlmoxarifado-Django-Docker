@@ -11,6 +11,14 @@ class Usuario(AbstractUser):
         unique=True,
         error_messages={"unique": "Já existe um usuário com esta matrícula."},
     )
+    # Ligada pelo admin ao criar a conta e ao definir a senha; o solicitante a desliga trocando a
+    # senha (spec 013). Só é exigida do solicitante (`contas.middleware.ExigirTrocaDeSenha`).
+    trocar_senha = models.BooleanField(
+        "trocar a senha no próximo acesso",
+        default=False,
+        help_text="Ligada sozinha ao criar a conta e ao definir a senha aqui. "
+        "O solicitante só usa o sistema depois de trocar.",
+    )
 
     class Meta:
         verbose_name = "usuário"

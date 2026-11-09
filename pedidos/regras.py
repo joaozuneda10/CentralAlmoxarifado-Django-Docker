@@ -766,6 +766,12 @@ def nome_confere(digitado: str, solicitante: str) -> bool:
     return bool(digitado_u and gravado_u) and digitado_u[0] == gravado_u[0]
 
 
+def nome_da_conta(nome: str, sobrenome: str) -> str:
+    """O nome completo da conta do solicitante (spec 013), como vai no pedido: o nome e o
+    sobrenome do cadastro, com um espaço só entre as palavras."""
+    return " ".join(f"{texto(nome)} {texto(sobrenome)}".split())
+
+
 @dataclass(frozen=True)
 class ConsultaPublica:
     """O que a consulta pública diz ao solicitante (spec 011, seção 3): o selo, a frase e, na

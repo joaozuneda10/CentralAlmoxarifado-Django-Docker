@@ -1,0 +1,36 @@
+{% extends "interface/base_publico.html" %}
+{% load static pedidos_extras %}
+{% comment %}
+"Meus pedidos" (spec 013): os pedidos feitos com a conta, do mais novo, 20 por página. Cada linha
+recebe só o dicionário de `pedidos.minhas.linha_da_lista` (número, formulário, data e situação). O
+selo tem texto (estado nunca só por cor); o número fica em mono.
+{% endcomment %}
+{% block title %}Meus pedidos · Central Almoxarifado{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'pedidos/css/pedidos.css' %}">{% endblock %}
+{% block rotulo %}Sua conta{% endblock %}
+{% block heading %}Meus pedidos{% endblock %}
+{% block sub %}Os pedidos que você fez com a conta, do mais novo para o mais antigo.{% endblock %}
+{% block page %}
+{% if linhas %}
+<ul class="meus-pedidos" aria-label="Seus pedidos">
+  {% for p in linhas %}
+  <li>
+    <a class="cartao meus-pedidos-linha" href="{% url 'pedidos:meu_pedido' p.numero %}">
+      <span class="meus-pedidos-cabeca"><span class="mono">{{ p.numero }}</span><span class="selo {{ p.consulta.chave|badge_situacao }}">{{ p.consulta.rotulo }}</span></span>
+      <span class="texto-secundario texto-pequeno">{{ p.formulario }} · Enviado em {{ p.enviado_em|date:"d/m/Y" }}</span>
+    </a>
+  </li>
+  {% endfor %}
+</ul>
+{% include "interface/_paginacao.html" with pagina=pagina parametro="pagina" rotulo="Páginas dos seus pedidos" rotulo_item="pedido" rotulo_item_plural="pedidos" %}
+{% else %}
+<section class="cartao">
+  <div class="vazio">
+    {% include "interface/_icone.html" with nome="recibo" %}
+    <p class="vazio-titulo">Você ainda não fez pedidos com a conta.</p>
+    <p>Os pedidos feitos depois de entrar aparecem aqui.</p>
+    <a class="botao botao-primario" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="mais" %}Fazer um pedido</a>
+  </div>
+</section>
+{% endif %}
+{% endblock %}

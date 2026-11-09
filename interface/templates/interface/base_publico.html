@@ -1,7 +1,10 @@
 {% extends "interface/base.html" %}
 {% comment %}
-Layout público (sem login), pensado primeiro para o celular: cabeçalho só com a marca (o link
+Layout público (sem login), pensado primeiro para o celular: cabeçalho com a marca (o link
 da área do almoxarifado fica no rodapé, para não chamar o funcionário), coluna central de 720px. Blocos: voltar (o link de volta, acima do rótulo), rotulo, heading, sub, page, rodape.
+Spec 013: no topo, "Entrar" para quem não está logado e "Meus pedidos" e "Sair" para o solicitante
+(`eh_solicitante`, do context processor `interface.navegacao.menu`); a equipe não vê nada novo. O Sair
+daqui é o único formulário de saída da página: as páginas do solicitante não têm outro.
 {% endcomment %}
 {% block body_class %}ritmo-publico{% endblock %}
 {% block content %}
@@ -9,6 +12,16 @@ da área do almoxarifado fica no rodapé, para não chamar o funcionário), colu
 <header class="publico-topo">
   <div class="publico-topo-interno">
     <a class="marca" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="caixa" %}<span>Central Almoxarifado</span></a>
+    {% if solicitante_logado %}
+    <nav class="publico-conta" aria-label="Sua conta">
+      <a class="botao-suave" href="{% url 'pedidos:meus_pedidos' %}">{% include "interface/_icone.html" with nome="recibo" %}<span>Meus pedidos</span></a>
+      <form method="post" action="{% url 'logout' %}">{% csrf_token %}<button type="submit" class="botao-suave publico-conta-sair">{% include "interface/_icone.html" with nome="sair" %}<span>Sair</span></button></form>
+    </nav>
+    {% elif not user.is_authenticated %}
+    <nav class="publico-conta" aria-label="Sua conta">
+      <a class="botao-suave" href="{% url 'login' %}?next={{ request.get_full_path|urlencode }}">{% include "interface/_icone.html" with nome="usuario" %}<span>Entrar</span></a>
+    </nav>
+    {% endif %}
   </div>
 </header>
 <main class="publico-conteudo" id="main">
