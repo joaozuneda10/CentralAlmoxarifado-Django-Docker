@@ -38,12 +38,11 @@ class TrocarSenha(PasswordChangeView):
         return contexto
 
     def form_valid(self, form):
-        # O `PasswordChangeView` grava a senha e mantém a sessão (`update_session_auth_hash`).
+        # A marca desligada antes do `form.save()` (no `super`), que grava o usuário inteiro: a
+        # senha nova e a marca saem na mesma gravação, e uma nunca fica sem a outra. O
+        # `PasswordChangeView` também mantém a sessão (`update_session_auth_hash`).
+        form.user.trocar_senha = False
         resposta = super().form_valid(form)
-        usuario = form.user
-        if usuario.trocar_senha:
-            usuario.trocar_senha = False
-            usuario.save(update_fields=["trocar_senha"])
         messages.success(self.request, "Senha trocada.")
         return resposta
 

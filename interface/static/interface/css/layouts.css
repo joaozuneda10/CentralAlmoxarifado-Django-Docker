@@ -30,7 +30,8 @@
    marca e "Meus pedidos" caberem sem cortar nada. */
 @media (max-width: 420px) {
   .publico-conta-sair > span {
-    position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap;
+    position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
   }
 }
 .publico-cabecalho { display: grid; gap: var(--esp-2); }
