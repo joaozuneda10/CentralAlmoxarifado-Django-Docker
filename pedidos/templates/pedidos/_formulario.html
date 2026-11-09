@@ -3,15 +3,21 @@ Formulário de pedido em três passos. O envio vai pelo HTMX e a resposta substi
 (`#formulario`). O `token` assinado leva o identificador do envio: reenviar o mesmo formulário
 nunca duplica. Os erros ficam num resumo no topo (o pedidos.js põe o foco nele), com link para o
 campo de cada erro de campo, e se repetem embaixo do próprio campo (`erros_por_campo`).
+Spec 013: aberto com a conta do solicitante (`com_conta`), o `<form>` leva `data-com-conta` (o
+pedidos.js não usa o `localStorage` do aparelho e manda o CSRF do cookie), e o nome é o da conta,
+sem edição. A sessão que terminou no meio (`sessao_terminou`) traz o "Entrar" numa aba nova, para o
+carrinho continuar nesta.
 {% endcomment %}
 {% load pedidos_extras %}
 {% if indisponivel or sem_destinos %}
 <div class="aviso aviso-atencao" role="alert">{% include "interface/_icone.html" with nome="alerta" %}<p>Este formulário está indisponível no momento. Avise o almoxarifado.</p></div>
 {% else %}
 <form method="post" action="{% url 'pedidos:formulario' fluxo.nome %}" class="pilha-larga formulario-pedido"
-      hx-post="{% url 'pedidos:formulario' fluxo.nome %}" hx-target="#formulario" hx-swap="innerHTML show:top" data-formulario-pedido>
+      hx-post="{% url 'pedidos:formulario' fluxo.nome %}" hx-target="#formulario" hx-swap="innerHTML show:top" data-formulario-pedido{% if com_conta %} data-com-conta{% endif %}>
   {% csrf_token %}
   <input type="hidden" name="token" value="{{ envio.token }}">
+  {# Spec 013: a página abriu com conta. Sem assinatura de propósito: só torna o envio mais exigente. #}
+  {% if com_conta %}<input type="hidden" name="com_conta" value="1">{% endif %}
   <div class="visually-hidden" aria-hidden="true">
     <label for="confirmacao-extra">Não preencha este campo</label>
     <input id="confirmacao-extra" type="text" name="confirmacao_extra" tabindex="-1" autocomplete="off">
@@ -21,7 +27,7 @@ campo de cada erro de campo, e se repetem embaixo do próprio campo (`erros_por_
   {% endif %}
   <div class="aviso" data-erro-envio role="alert"></div>
   {% if mensagem %}
-  <div class="aviso aviso-erro resumo-erros" role="alert" tabindex="-1" data-resumo-erros>{% include "interface/_icone.html" with nome="alerta" %}<div>{% if erros %}<p class="resumo-erros-titulo">{% if erros|length == 1 %}Falta 1 coisa para enviar{% else %}Faltam {{ erros|length }} coisas para enviar{% endif %}</p>{% endif %}<p>{{ mensagem }}</p>{% if erros %}<ul>{% for erro in erros %}<li>{% if erro.campo %}<a href="#{{ erro.campo }}">{{ erro.texto }}</a>{% else %}{{ erro.texto }}{% endif %}</li>{% endfor %}</ul>{% endif %}</div></div>
+  <div class="aviso aviso-erro resumo-erros" role="alert" tabindex="-1" data-resumo-erros>{% include "interface/_icone.html" with nome="alerta" %}<div>{% if erros %}<p class="resumo-erros-titulo">{% if erros|length == 1 %}Falta 1 coisa para enviar{% else %}Faltam {{ erros|length }} coisas para enviar{% endif %}</p>{% endif %}<p>{{ mensagem }}</p>{% if sessao_terminou %}<p><a href="{% url 'login' %}?next={% url 'pedidos:meus_pedidos' %}" target="_blank" rel="noopener">Entrar (abre em outra aba)</a></p>{% endif %}{% if erros %}<ul>{% for erro in erros %}<li>{% if erro.campo %}<a href="#{{ erro.campo }}">{{ erro.texto }}</a>{% else %}{{ erro.texto }}{% endif %}</li>{% endfor %}</ul>{% endif %}</div></div>
   {% endif %}
 
   <div class="pedido-layout">
@@ -29,15 +35,15 @@ campo de cada erro de campo, e se repetem embaixo do próprio campo (`erros_por_
   <div class="pedido-passos pilha-larga">
   <section class="passo">
     <span class="passo-numero" aria-hidden="true">01</span>
-    <div class="passo-cabecalho"><h2>Seus dados</h2><p id="solicitante-dica" class="texto-secundario">Ficam guardados no seu aparelho para o próximo pedido.</p></div>
+    <div class="passo-cabecalho"><h2>Seus dados</h2><p id="solicitante-dica" class="texto-secundario">{% if com_conta %}O nome é o da sua conta.{% else %}Ficam guardados no seu aparelho para o próximo pedido.{% endif %}</p></div>
     <div class="passo-corpo">
       {% with erros_nome=erros_por_campo|obter:"solicitante" %}
       <div class="campo{% if erros_nome %} campo-com-erro{% endif %}">
         <label class="campo-rotulo" for="solicitante">Nome completo</label>
         {# "Limpar" dentro do campo (pedidos.js): aparece com o campo preenchido e apaga o valor e o que ficou lembrado dele neste aparelho. #}
         <div class="com-acao">
-          <input id="solicitante" class="campo-entrada" type="text" name="solicitante" maxlength="200" autocomplete="off" value="{{ campos.solicitante }}" aria-describedby="solicitante-dica{% if erros_nome %} solicitante-erro{% endif %}"{% if erros_nome %} aria-invalid="true"{% endif %}>
-          <button type="button" class="botao-suave acao-campo acao-limpar" data-limpar-campo="solicitante" aria-label="Limpar o nome completo" hidden>{% include "interface/_icone.html" with nome="fechar" %}<span>Limpar</span></button>
+          <input id="solicitante" class="campo-entrada" type="text" name="solicitante" maxlength="200" autocomplete="off" value="{{ campos.solicitante }}" aria-describedby="solicitante-dica{% if erros_nome %} solicitante-erro{% endif %}"{% if erros_nome %} aria-invalid="true"{% endif %}{% if com_conta %} readonly{% endif %}>
+          {% if not com_conta %}<button type="button" class="botao-suave acao-campo acao-limpar" data-limpar-campo="solicitante" aria-label="Limpar o nome completo" hidden>{% include "interface/_icone.html" with nome="fechar" %}<span>Limpar</span></button>{% endif %}
         </div>
         {% include "pedidos/_erro_campo.html" with nome="solicitante" erros=erros_nome %}
       </div>

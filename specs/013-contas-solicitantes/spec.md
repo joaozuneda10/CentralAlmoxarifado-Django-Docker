@@ -1,10 +1,10 @@
 # Feature Specification: Contas de solicitante
 
-**Feature Branch**: `claude/papeis-de-acesso` (provisória; ver Dependências)
+**Feature Branch**: `claude/contas-solicitantes` (a partir de `develop` com a spec 012)
 
 **Created**: 2026-11-08
 
-**Status**: Draft
+**Status**: Implementada (aguarda o deploy, depois da spec 012)
 
 **Input**: User description: um papel novo para os funcionários que pedem material pelos formulários
 públicos: com uma conta, eles entram, pedem mais rápido e acompanham os próprios pedidos. Decisões do
@@ -35,7 +35,7 @@ Fatos do código em 2026-11-08 (branch `develop`, `16f317c`):
 
 - **A spec 012 precisa estar implantada antes.** Sem o "nega por padrão" da 012, uma conta de
   solicitante entraria na área interna inteira (F6). A implementação desta spec parte de `develop` com
-  a 012 já integrada, numa branch própria; a branch acima é só onde a spec foi escrita.
+  a 012 já integrada, na branch acima.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -138,8 +138,10 @@ materiais mantidos e que nada foi gravado.
 **Acceptance Scenarios**:
 
 1. **Given** um formulário aberto com a conta A, **When** ele é enviado sem sessão, **Then** o envio é
-   recusado com "Sua sessão terminou. Entre de novo para enviar; os materiais continuam aqui.", nada é
-   gravado e o carrinho é mantido.
+   recusado com "Sua sessão terminou. Entre de novo (abre em outra aba), volte aqui e toque em
+   Enviar; os materiais continuam aqui.", nada é gravado e o carrinho é mantido.
+1a. **Given** essa recusa, **When** a pessoa entra de novo pela outra aba, volta e toca em Enviar,
+   **Then** o pedido é registrado com a conta, com os materiais que estavam na tela.
 2. **Given** o mesmo formulário, **When** ele é enviado com a sessão de outra conta, **Then** é recusado
    do mesmo jeito.
 3. **Given** um formulário aberto sem conta, **When** ele é enviado por alguém que entrou depois,
@@ -249,7 +251,8 @@ outra matrícula entra normalmente e que a primeira volta a entrar depois do tem
   padrões documentados.
 - **FR-010**: O bloqueio DEVE ser mostrado numa página em português, no layout público; antes do limite,
   a recusa continua genérica e igual à de hoje.
-- **FR-011**: O login certo DEVE zerar as tentativas erradas da matrícula, e o administrador DEVE poder
+- **FR-011**: O login certo DEVE zerar as tentativas erradas da matrícula naquela origem (as de outra
+  origem seguem a própria contagem, como o bloqueio, FR-008), e o administrador DEVE poder
   desbloquear uma matrícula no admin.
 
 **Pedido com conta**
@@ -324,8 +327,9 @@ outra matrícula entra normalmente e que a primeira volta a entrar depois do tem
 - Sem envio de e-mail, a senha esquecida é redefinida pelo almoxarifado no admin.
 - O solicitante usa o celular ou um computador do setor, às vezes dividido com outras pessoas.
 - O servidor enxerga o endereço do aparelho, ou ao menos um endereço que não é o mesmo para todos; isso
-  é conferido no servidor real antes da implementação (F8). Se não enxergar, o bloqueio vale na prática
-  por matrícula, o que ainda atende ao SC-005.
+  é conferido no servidor real antes do deploy (F8), e o resultado vai no pull request; o código é o
+  mesmo nos dois casos. Se não enxergar, o bloqueio vale na prática por matrícula, o que ainda atende
+  ao SC-005.
 - A mudança de senha pelo próprio solicitante, fora da troca obrigatória, usa a mesma página de troca.
 - Os pedidos feitos com conta continuam aparecendo para a equipe no painel exatamente como hoje.
 

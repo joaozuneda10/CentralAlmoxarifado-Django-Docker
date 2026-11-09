@@ -8,7 +8,7 @@ from dataclasses import dataclass
 
 from django.urls import reverse
 
-from contas.acesso import da_seguranca_trabalho, pode_abrir
+from contas.acesso import da_seguranca_trabalho, eh_solicitante, pode_abrir, ponto_de_partida
 
 
 @dataclass(frozen=True)
@@ -54,5 +54,7 @@ def menu(request) -> dict:
             and (seguranca or pode_abrir(usuario, item.rota))
         ],
         # A marca do menu leva ao ponto de partida de cada um: o painel, ou a fila de autorização.
-        "menu_inicio": reverse("pedidos:autorizacoes" if seguranca else "pedidos:painel"),
+        "menu_inicio": reverse(ponto_de_partida(usuario)),
+        # O layout público mostra "Meus pedidos" e "Sair" ao solicitante (spec 013).
+        "solicitante_logado": eh_solicitante(usuario),
     }

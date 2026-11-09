@@ -63,6 +63,7 @@ from pedidos.regras import (
     qtd_br,
     registro_confere,
     requisicao_valida,
+    resolver_destino,
     somar_por_codigo,
     texto,
     truncar_qtd,
@@ -212,6 +213,18 @@ def _limite_atingido(ip: str | None, solicitante: str, agora: datetime) -> str:
     return ""
 
 
+def destino_sugerido(conta, origem: str, centros) -> str:
+    """O destino do último pedido da conta neste formulário, se ainda é uma opção de destino; senão
+    "" (spec 013, FR-014). Só lê."""
+    ultimo = (
+        Pedido.objects.filter(conta=conta, origem=origem)
+        .order_by("-criado_em")
+        .values_list("destino", flat=True)
+        .first()
+    )
+    return resolver_destino(ultimo, centros) if ultimo and centros else ""
+
+
 def registrar_pedido(
     origem: str,
     envio_id: uuid.UUID,
@@ -221,9 +234,12 @@ def registrar_pedido(
     url_painel: str = "",
     agora: datetime | None = None,
     catalogo=MONTAR,
+    conta=None,
 ) -> Resposta:
     """Pedido dos formulários públicos (`registrarPedido`). `catalogo` é o `catalogo_de(origem)`
-    que a view já montou (`MONTAR`, o padrão, o monta aqui)."""
+    que a view já montou (`MONTAR`, o padrão, o monta aqui). `conta` é o solicitante logado que
+    abriu e enviou o formulário (spec 013): o pedido fica ligado a ela, com o nome que a view já
+    pôs no envio."""
     agora = agora or timezone.now()
     # O catálogo (o do AB é uma conta pesada) e os centros são lidos antes de travar a numeração:
     # o estoque é só um teto, nada é reservado, e os outros envios não podem esperar essa conta.
@@ -239,8 +255,11 @@ def registrar_pedido(
         anterior = Pedido.objects.filter(pk=envio_id).first()
         if anterior is not None:
             gravado = (anterior.solicitante, anterior.destino, anterior.obs, anterior.ocorrencia)
-            if anterior.origem == origem and registro_confere(
-                origem, gravado, _itens_gravados(anterior), envio
+            # A conta faz parte do que se confere: o mesmo envio com outra conta é divergente.
+            if (
+                anterior.origem == origem
+                and anterior.conta_id == (conta.pk if conta else None)
+                and registro_confere(origem, gravado, _itens_gravados(anterior), envio)
             ):
                 return Resposta(ok=True, reenvio=True, numero=anterior.numero, pedido=anterior)
             logger.warning("Pedido %s: reenvio não confere com o registro gravado.", envio_id)
@@ -294,6 +313,7 @@ def registrar_pedido(
             destino=texto(envio.destino),
             obs=texto(envio.obs),
             ocorrencia=texto(envio.ocorrencia),
+            conta=conta,
         )
         _gravar_itens(pedido, v.validos)
         if fluxo.exige_autorizacao:

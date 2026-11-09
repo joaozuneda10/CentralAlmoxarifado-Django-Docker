@@ -28,6 +28,8 @@ PERMITIDAS = {
     "pedidos:carrinho",
     "pedidos:consulta_epi",
     "pedidos:consulta",
+    # Spec 013: a troca da própria senha é de qualquer usuário logado, também da Segurança.
+    "trocar_senha",
 }
 
 

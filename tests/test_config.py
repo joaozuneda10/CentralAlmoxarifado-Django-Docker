@@ -11,7 +11,7 @@ from django.core.exceptions import ImproperlyConfigured
 from django.db import connection
 from django.urls import reverse
 
-from config.env import carregar_dotenv, ler_bool, ler_lista
+from config.env import carregar_dotenv, ler_bool, ler_int, ler_lista
 
 RAIZ = Path(__file__).resolve().parent.parent
 SENHA = "senha-de-teste-bem-comprida-123"
@@ -175,7 +175,23 @@ def test_usuario_entra_por_matricula(client):
     modelo = get_user_model()
     assert modelo._meta.get_field("username").verbose_name == "matrícula"
     modelo.objects.create_user(username="12345", password=SENHA)
-    assert client.login(username="12345", password=SENHA)
+    # Pelo formulário, não pelo `client.login`: o django-axes (spec 013) exige o `request` no
+    # `authenticate`, e o `client.login` não o passa.
+    r = client.post(reverse("login"), {"username": "12345", "password": SENHA})
+    assert r.status_code == 302 and "_auth_user_id" in client.session
+
+
+@pytest.mark.parametrize(("valor", "esperado"), [("", 5), ("  ", 5), ("3", 3), ("30", 30)])
+def test_ler_int(monkeypatch, valor, esperado):
+    monkeypatch.setenv("TESTE_INTEIRO", valor)
+    assert ler_int("TESTE_INTEIRO", 5) == esperado
+
+
+@pytest.mark.parametrize("valor", ["0", "-1", "abc", "1.5"])
+def test_ler_int_recusa_o_que_nao_e_inteiro_positivo(monkeypatch, valor):
+    monkeypatch.setenv("TESTE_INTEIRO", valor)
+    with pytest.raises(ImproperlyConfigured, match="TESTE_INTEIRO"):
+        ler_int("TESTE_INTEIRO", 5)
 
 
 @pytest.mark.django_db
