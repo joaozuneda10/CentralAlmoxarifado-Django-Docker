@@ -246,3 +246,32 @@ def test_entrar_de_novo_e_reenviar_com_o_csrf_do_cookie_registra_com_a_conta():
     assert com_o_cookie.status_code == 200
     pedido = Pedido.objects.get()
     assert pedido.conta == u and pedido.solicitante == NOME
+
+
+# --- Token inválido numa página aberta com conta (revisão do PR) --------------------------------
+
+
+def test_pagina_com_conta_leva_a_marca_com_conta():
+    u = criar_solicitante()
+    assert 'name="com_conta" value="1"' in _abrir(cliente_de(u))
+    assert 'name="com_conta"' not in _abrir(Client())
+
+
+def test_token_invalido_numa_pagina_com_conta_e_sem_sessao_nao_vira_anonimo():
+    """O token quebrado leva junto a conta de origem; a marca `com_conta` garante que o pedido
+    não sai anônimo: recusa com a sessão terminada, nada gravado, a marca mantida."""
+    r = postar(Client(), "token-quebrado", extra={"com_conta": "1"})
+    assert MENSAGEM_SESSAO_TERMINOU in r.text
+    assert 'name="com_conta" value="1"' in r.text
+    assert not Pedido.objects.exists()
+    # O token novo (sem conta), reenviado ainda sem sessão depois do tempo mínimo, continua
+    # recusado pela marca.
+    assert MENSAGEM_SESSAO_TERMINOU in postar(Client(), token(), extra={"com_conta": "1"}).text
+    assert not Pedido.objects.exists()
+
+
+def test_marca_com_conta_e_token_sem_conta_com_solicitante_logado_grava_na_conta():
+    u = criar_solicitante()
+    postar(cliente_de(u), token(), solicitante="Outro Nome", extra={"com_conta": "1"})
+    pedido = Pedido.objects.get()
+    assert pedido.conta == u and pedido.solicitante == NOME

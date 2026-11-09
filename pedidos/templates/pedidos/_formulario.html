@@ -16,6 +16,8 @@ carrinho continuar nesta.
       hx-post="{% url 'pedidos:formulario' fluxo.nome %}" hx-target="#formulario" hx-swap="innerHTML show:top" data-formulario-pedido{% if com_conta %} data-com-conta{% endif %}>
   {% csrf_token %}
   <input type="hidden" name="token" value="{{ envio.token }}">
+  {# Spec 013: a página abriu com conta. Sem assinatura de propósito: só torna o envio mais exigente. #}
+  {% if com_conta %}<input type="hidden" name="com_conta" value="1">{% endif %}
   <div class="visually-hidden" aria-hidden="true">
     <label for="confirmacao-extra">Não preencha este campo</label>
     <input id="confirmacao-extra" type="text" name="confirmacao_extra" tabindex="-1" autocomplete="off">

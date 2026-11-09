@@ -220,8 +220,10 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   a "Meus pedidos". Aberto com uma conta e enviado sem ela (sessão que terminou) ou com outra:
   recusa `MENSAGEM_SESSAO_TERMINOU`, nada gravado, carrinho mantido e "Entrar" numa aba nova; como o
   login troca o segredo do CSRF, o `pedidos.js` copia o cookie `csrftoken` para o formulário com
-  conta antes de cada envio (sem isso a aba antiga daria 403). Aberto sem conta e enviado logado:
-  anônimo, com o aviso. "Meus pedidos" (`pedidos/views/solicitante.py`, `never_cache`, 20 por
+  conta antes de cada envio (sem isso a aba antiga daria 403). A página com conta leva também a
+  marca escondida `com_conta=1`, sem assinatura de propósito (só torna o envio mais exigente): com o
+  token inválido, a conta de origem se perde, e a marca impede o pedido anônimo sem solicitante
+  logado. Aberto sem conta e enviado logado: anônimo, com o aviso. "Meus pedidos" (`pedidos/views/solicitante.py`, `never_cache`, 20 por
   página) filtra pela conta; o pedido de outra conta ou anônimo é 404, igual ao inexistente. O
   template só recebe o dicionário de `pedidos.minhas` (situação pelo texto da consulta pública,
   `situacao_para_solicitante`, que a consulta também usa; pedida, entregue e "trocado por"), nunca o

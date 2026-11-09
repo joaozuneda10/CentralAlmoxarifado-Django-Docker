@@ -1,3 +1,5 @@
+from dataclasses import replace
+
 from django.conf import settings
 from django.core.cache import cache
 from django.shortcuts import render
@@ -119,8 +121,19 @@ def formulario(request, fluxo):
         modelo = "pedidos/_formulario.html" if parcial else "pedidos/formulario.html"
         return render(request, modelo, contexto)
 
+    # A página aberta com conta leva também a marca `com_conta` (sem assinatura): ela só deixa o
+    # servidor mais exigente, nunca menos, e cobre o token que chegou inválido (a conta de origem
+    # some com ele). Marcada e sem solicitante logado: recusa, nunca pedido anônimo.
+    marcado_com_conta = request.POST.get("com_conta") == "1"
     envio = ler(request.POST.get("token", ""))
     if envio is None:
+        if marcado_com_conta and conta is None:
+            return de_volta(
+                emitir(),
+                mensagem=MENSAGEM_SESSAO_TERMINOU,
+                sessao_terminou=True,
+                com_conta=True,
+            )
         return de_volta(emitir(conta_id=conta_id), mensagem=MENSAGEM_TOKEN_INVALIDO)
     if motivo := recusar(envio, request.POST.get(CAMPO_ISCA, "")):
         # Só a isca (que uma pessoa nunca preenche) recebe a mensagem genérica.
@@ -132,6 +145,15 @@ def formulario(request, fluxo):
     # quando a página abriu: o pedido nunca vira anônimo sem ela perceber.
     if envio.conta is not None and envio.conta != conta_id:
         return de_volta(envio, mensagem=MENSAGEM_SESSAO_TERMINOU, sessao_terminou=True)
+    if envio.conta is None and marcado_com_conta:
+        # O token sem conta veio de uma página aberta com conta (o token inválido foi trocado):
+        # sem solicitante logado, recusa; com ele, o pedido é dessa conta, como num formulário
+        # aberto agora.
+        if conta is None:
+            return de_volta(
+                envio, mensagem=MENSAGEM_SESSAO_TERMINOU, sessao_terminou=True, com_conta=True
+            )
+        envio = replace(envio, conta=conta_id)
     if envio.conta is not None:
         # O nome é o da conta; o enviado é ignorado (FR-013).
         campos["solicitante"] = nome_da_conta(conta.first_name, conta.last_name)
