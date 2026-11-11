@@ -271,11 +271,11 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   unidade.
 - **FR-009**: A data do recebimento NÃO DEVE ser futura nem anterior à data do pedido.
 - **FR-010**: A mesma NF do mesmo fornecedor, comparada sem os zeros à esquerda, NÃO DEVE estar em dois
-  recebimentos. O cancelamento só a libera se o recebimento nunca teve tentativa de lançamento.
+  recebimentos. O cancelamento só a libera se nenhuma tentativa do recebimento chegou ao Salvar.
 - **FR-011**: Gravar, editar e cancelar um recebimento DEVEM serializar o acesso aos itens do pedido, de
   modo que duas pessoas nunca reservem o mesmo saldo; o reenvio igual NÃO DEVE criar outro recebimento.
-- **FR-012**: Um recebimento DEVE poder ser editado ou cancelado até a primeira tentativa de lançamento;
-  depois dela, só pela resolução da conciliação.
+- **FR-012**: Um recebimento DEVE poder ser editado ou cancelado até a primeira tentativa que chegar ao
+  Salvar; depois dela, só pela resolução da conciliação.
 - **FR-013**: Um pedido travado NÃO DEVE aceitar recebimento novo nem lançamento até ser destravado por
   quem opera automações, com o motivo registrado e depois de uma atualização posterior à trava.
 
@@ -301,7 +301,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
 
 - **FR-021**: O sistema DEVE extrair o relatório de entradas antes de cada lançamento real (sem essa
   extração, nada é lançado), depois dele e todo dia. O período vai do dia anterior à data de recebimento
-  mais antiga envolvida até o dia seguinte a hoje.
+  mais antiga envolvida até o dia seguinte a hoje. Na extração diária, entram na conta os últimos 9 dias,
+  os recebimentos em verificação e os lançados nos últimos 9 dias, pela data de recebimento de cada um.
 - **FR-022**: Cada recebimento lançado DEVE ser ligado à requisição oficial por três vínculos (número,
   marca nas Observações e NF com fornecedor) que apontam para a mesma requisição.
 - **FR-023**: A comparação DEVE cobrir fornecedor, NF, pedido, data da entrada, códigos e quantidades
@@ -334,7 +335,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   (Gestão). As rotas novas DEVEM entrar na tabela de rotas da spec 012, e a Segurança do Trabalho
   continua sem acesso.
 - **FR-031**: A implantação NÃO DEVE mudar nada nas saídas: formulários, atendimento, robô e conciliação
-  de saídas seguem iguais.
+  de saídas seguem iguais. A única diferença é a recusa das ações das saídas enquanto o robô de entradas
+  ou uma importação nova está rodando, pela regra de um robô de lançamento por vez (FR-016).
 
 ### Key Entities
 
@@ -349,7 +351,9 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   - o número da requisição oficial, quando houver.
 - **Item do recebimento:** o item do pedido e a quantidade.
 - **Tentativa de lançamento:** cada vez que o robô tenta salvar um recebimento, com a ordem na execução e
-  a foto do que foi digitado.
+  a foto do que foi digitado. Para a NF (FR-010) e para a edição (FR-012), só conta a tentativa que chegou
+  ao Salvar, com o estado em lançamento gravado. A que parou antes, por erro ou porque o recebimento
+  mudou, não salvou nada e não conta.
 - **Extração de entradas:** cada leitura guardada do relatório de entradas, com o período e as
   requisições oficiais lidas.
 - **Requisição de entrada oficial:** número, data da entrada, fornecedor, NF, pedido, observações e
@@ -369,8 +373,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   atualização menos o reservado pelo Central.
 - **SC-004**: Todo recebimento lançado tem um veredito conclusivo na primeira extração que cobre a sua
   data, salvo quando o relatório ainda não mostra a requisição (Aguardando).
-- **SC-005**: Toda entrada por pedido feita fora do Central num pedido com saldo vira aviso e trava o
-  pedido até a próxima atualização diária.
+- **SC-005**: Toda entrada por pedido feita fora do Central num pedido com saldo é detectada até a
+  próxima atualização diária, gera um aviso e trava o pedido até alguém destravar.
 - **SC-006**: 0 recebimento em verificação liberado sem uma extração posterior à tentativa.
 - **SC-007**: No dia da implantação, 0 mudança no comportamento das saídas, do atendimento e da
   conciliação de saídas.
