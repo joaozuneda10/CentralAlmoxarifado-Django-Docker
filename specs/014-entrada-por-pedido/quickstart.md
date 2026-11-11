@@ -150,6 +150,12 @@ Anote como o SCPI mostrou a NF digitada sem os zeros e a hora da entrada.
 - um passo que falha não desfaz os outros;
 - a limpeza esvazia o bruto e as requisições sem ligação com mais de 60 dias.
 
+## 7b. Confirmações do `--dry-run` real para a reconferência (manual, a pedido do usuário)
+
+No `--dry-run` do PR 4, anotar: (1) depois do preenchimento, a grade ainda mostra os itens
+desmarcados e o "Já Entrou" deles? (2) o 07.04.01 aceita o filtro só por NF? (3) quanto leva o
+relatório. As respostas decidem o desenho da reconferência descrito no contrato do robô.
+
 ## 8. Primeiro lançamento real (só depois do PR 5 em produção, manual, a pedido do usuário)
 
 **Pré-requisito**: os PRs 3, 4 e 5 em produção. Antes do PR 5 não há resolução segura de um
