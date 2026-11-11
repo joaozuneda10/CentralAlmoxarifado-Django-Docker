@@ -364,7 +364,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - **Falhas**: `falha_antes={"abrir"|"preencher"}`, `salva_e_falha`, `tela_mudou={item: ja_entrou}`, `perde_observacoes`, `nf_errada`, `entrada_manual(...)` (uma requisição à mão, sem marca) e `falhas_relatorio`.
   - **Relatórios**: `relatorio_entradas(de, ate) -> bytes` pela T043, e `relatorio_pedidos() -> bytes` pela T009.
   - **Efeito do Salvar**: `salvar` soma o `ja_entrou` como o SCPI faria.
-- [ ] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
+- [ ] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela (do recebimento ou de outro item do pedido que ainda devia ter saldo); o item esgotado por lançamento conhecido ausente sem divergir; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
 - [ ] T059 [US2] Implementar em `compras/regras.py`:
   - as dataclasses `LinhaTela`, `TelaItens`, `EsperadoItem` e `RecebimentoParaLancar` ([contracts/robo-entradas.md](contracts/robo-entradas.md#o-recebimento-que-o-robô-recebe-recebimentoparalancar));
   - `conferir_tela(esperado, tela) -> list[str]`, com as mensagens "O SCPI mudou: item 13, Já Entrou 2 na tela, esperado 1";

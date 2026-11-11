@@ -286,6 +286,15 @@ escondida na navegação, que não tem teste; separada, ela é uma função pura
   - o "Já Entrou" igual ao esperado;
   - a "Qtd. Saldo" igual à esperada;
   - um saldo que comporte a quantidade.
+
+  **Os demais itens do pedido** também entram na conferência, porque uma entrada manual pode ter
+  esgotado **outro** item, e a tela só lista item com saldo:
+  - o item que, pelo esperado, ainda tem saldo (última importação menos os lançados do Central ainda
+    não refletidos) **tem de estar na tela**, com o mesmo "Já Entrou". Item esperado e ausente é
+    divergência ("O SCPI mudou: item 7 não está mais na tela, esperado com saldo"), e nada é salvo;
+  - o item cujo saldo esperado já é zero (saldo zero na importação, ou esgotado por um lançamento
+    conhecido do Central) **pode** não estar na tela, e a ausência não é divergência; se estiver, com
+    "Já Entrou" maior que o esperado, é divergência.
 - **O esperado** é o valor da última importação mais os lançados do Central ainda não refletidos
   naquele item (R5).
 - **Com divergência**: o recebimento fica com erro ("O SCPI mudou: item 13, Já Entrou 2 na tela,
