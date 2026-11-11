@@ -42,7 +42,11 @@ Dado puro, montado pela seleção. Tem:
 2. **Seleção.** Dos recebimentos escolhidos, entram os que estão `PREPARADO`, com pedido
    disponível (não travado, presente na última importação, do exercício atual) e sem outro
    recebimento do pedido `EM_LANCAMENTO` ou `VERIFICAR`. Os demais entram no resumo como `ignorada`,
-   com o motivo, e não mudam.
+   com o motivo, e não mudam. **A seleção não substitui a revalidação**: o `_travar` refaz a
+   condição de cada recebimento dentro da sua transação, com `select_for_update` no pedido, antes de
+   cada lançamento. Se um recebimento anterior desta execução (ou de qualquer outra) deixou o pedido
+   com outro recebimento `EM_LANCAMENTO` ou `VERIFICAR`, ou travado, o seguinte vira `ignorada`, e
+   nada é salvo.
 3. **Extração de antes** (só no real). Período: do dia anterior à data de recebimento mais antiga,
    entre os escolhidos e os recebimentos em verificação abertos, até amanhã. Até 3 tentativas. Sem
    nenhuma bem-sucedida, `ExtracaoAntesFalhou`: a execução termina `FALHA` e nada muda. O piso é o
@@ -50,7 +54,11 @@ Dado puro, montado pela seleção. Tem:
 4. **Para cada recebimento, em ordem**:
    1. `abrir_pedido`. Uma falha leva o recebimento a `ERRO`, cria a tentativa `ERRO` e chama
       `descartar`.
-   2. `conferir_tela(esperado, tela)`, que é pura. Com divergência:
+   2. `conferir_tela(esperado, tela)`, que é pura. O `esperado` é calculado **no momento de cada
+      recebimento**, não na seleção: o "Já Entrou" da última importação mais as quantidades que o
+      robô acabou de lançar (`LANCADO`, ainda não refletidos) no mesmo pedido e item. Assim, dois
+      recebimentos do mesmo pedido com o mesmo item na mesma execução não fazem o segundo falhar por
+      um esperado desatualizado. Com divergência:
       - o recebimento vai a `ERRO`, com a mensagem "O SCPI mudou: …";
       - `compras.servicos.travar_pedido(TELA)`;
       - a tentativa é criada como `ERRO`, e o robô chama `descartar`.

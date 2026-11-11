@@ -450,7 +450,13 @@ saídas e os testes dela.
 exercício, sem a marca do Central, ainda não ligada e com o número **acima do marco**:
 - **Com um recebimento aberto do mesmo pedido, com a mesma NF e o mesmo fornecedor** (preparado, com
   erro ou em verificação): ele é ligado à requisição como lançado à mão. Fica com `via = MANUAL`, o
-  número e o `visivel_desde`, que é o início da extração. Sai da fila, e o robô nunca o lança. Um
+  número e o `visivel_desde`, que é o início da extração. Sai da fila, e o robô nunca o lança.
+  **Antes de ligar, compara os itens e as quantidades** do recebimento com os da requisição oficial
+  (por código, `norm_u`, soma exata). Se coincidem, liga como acima. Se divergem, **não liga como
+  lançado**: trava o pedido (`FORA_DO_CENTRAL`, com a diferença no detalhe) e cria a
+  `EntradaForaDoCentral` com as quantidades **oficiais**, que reservam o saldo até a próxima
+  importação. O recebimento aberto continua aberto e bloqueado pela trava, para a pessoa decidir.
+  Assim o Central nunca reserva menos do que o SCPI recebeu. Um
   recebimento em lançamento não é ligado: a conciliação não roda com lançamento em andamento.
 - **Sem esse recebimento**: vira uma `EntradaForaDoCentral`, única por (ano, número) da requisição.
   Ela reserva o saldo até ser refletida (R5) e trava o pedido, com o motivo `FORA_DO_CENTRAL`.
@@ -484,9 +490,14 @@ os itens presentes nesta importação e na anterior.
     da anterior, porque a hora real da entrada é desconhecida.
 - **Sem explicação**: aviso de saúde e trava do pedido (motivo `JA_ENTROU`), com o Δ e o explicado no
   detalhe. Um Δ negativo, de entrada excluída ou corrigida no SCPI, também trava.
+- **Item que some do 07.13** (saldo zero): a entrada que o zerou pode ser anterior à janela diária e
+  então a extração de entradas não a traz. Reconciliação: o item que sumiu entre duas importações, sem
+  um recebimento do Central (`LANCADO` ou ligado) ou uma entrada fora do Central que o explique,
+  **trava o pedido** (`JA_ENTROU`, com "item N saiu do saldo sem entrada conhecida: pode ser entrada
+  retroativa, anulação ou exclusão") e gera aviso de saúde. O destravamento segue a R20, e a pessoa
+  pode ampliar a janela do `conciliar_entradas --desde` para achar a entrada. Fica de fora só o que o
+  Central não consegue distinguir: a primeira importação.
 - **Fora da conferência**:
-  - os itens ausentes na importação nova, com saldo zero, cuja entrada que os zerou só a extração de
-    entradas vê;
   - a primeira importação de um pedido ou de um exercício, que é a base.
 
 **Motivo**: toda entrada feita fora do Central já trava o pedido por R18, então um falso alarme de
