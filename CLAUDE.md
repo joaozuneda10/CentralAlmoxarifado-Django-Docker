@@ -810,6 +810,24 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   Automações (`catalogo.forms.RoboPedidosCompraForm`, com a caixa "Gravar mesmo que muitos itens
   sumam") a rodam; o admin de `PedidoCompra` é só leitura e `compras.saude` avisa importação com
   falha ou sem sucesso há mais de um dia útil.
+  **Recebimento da NF (PR 2)**: a permissão `contas.receber_compras` (constante `RECEBER`, migration
+  `contas/0007`, dada aos grupos Atendimento e Gestão e conferida no fim) abre a área Compras
+  (`/painel/compras/`, item "Compras" do menu: `compras:pedidos`, `pedido`, `receber`,
+  `recebimento`, `editar_recebimento` e `cancelar_recebimento`, todas em `REGRAS_POR_ROTA`).
+  `Recebimento` é uma NF de um pedido (estados `PREPARADO`, `ERRO`, `EM_LANCAMENTO`, `VERIFICAR`,
+  `LANCADO`, `CANCELADO`; rótulo `RC-0001`), com `ItemRecebimento` (até 3 casas, > 0) e `TravaPedido`.
+  A NF é única por fornecedor pela `chave_nf` (`"<codif>:<nf>"`, única e **nula** no cancelamento sem
+  tentativa: o MySQL/MariaDB não têm índice único parcial); o número é guardado sem zeros à
+  esquerda. O **saldo livre** é o saldo do SCPI menos o reservado (`regras.saldo_livre`, `reserva_de`:
+  preparado, com erro, em lançamento e em verificação reservam; o lançado reserva até uma importação
+  de pedidos começada depois do `visivel_desde`), nunca negativo; reservado maior que o saldo do SCPI
+  é "precisa de conferência". **`compras/servicos.py` é a porta única** (Princípio II): cada
+  operação trava o `PedidoCompra` (`select_for_update`) e refaz o saldo livre dentro da trava
+  (`preparar_recebimento`, `editar_recebimento`, `cancelar_recebimento`, `travar_pedido`,
+  `destravar_pedido`). O `envio` (UUID gerado quando o formulário abre) decide o reenvio: igual
+  devolve o mesmo recebimento, diferente é "divergente"; a edição confere a `versao` (concorrência
+  otimista) e recria os itens; edição e cancelamento recusam o recebimento com tentativa do robô.
+  Destravar exige motivo e uma importação de pedidos começada depois da trava.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela
