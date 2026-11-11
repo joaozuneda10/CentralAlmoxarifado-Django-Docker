@@ -22,6 +22,14 @@ def avisos(agora: datetime) -> list[ItemSaude]:
                 f"{_quando(ultima.fim or ultima.inicio)}: {resumo_do_erro(ultima.erro)}",
             )
         )
+    elif ultima.esta_interrompida(agora):
+        saude.append(
+            ItemSaude(
+                "aviso",
+                "Pedidos de compra: a importação iniciada em "
+                f"{_quando(ultima.inicio)} não terminou (interrompida).",
+            )
+        )
     sucesso = (
         Importacao.objects.filter(tipo=tipo, situacao=Importacao.Situacao.SUCESSO)
         .order_by("-inicio")

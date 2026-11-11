@@ -37,8 +37,11 @@ Regras:
 - Os registros quebrados em várias linhas são recolados (`scpi.normalizadores`). Se a contagem de
   campos não fechar, o relatório está cortado: `ErroImportacao`.
 - Nos itens `Q`, `QTDFALTA = QTD − QTDANU − QTDENT − QTDPEDIDA`; diferença é `ErroImportacao`.
-- Relatório sem nenhum item é `ErroImportacao`. "Nada a exibir" também, porque sempre há pedido com
-  saldo no exercício.
+- Relatório sem nenhum item é `ErroImportacao`. "Nada a exibir" levanta `scpi.leitura.NadaAExibir`,
+  que a importação trata como relatório vazio confirmado (todos os itens presentes somem, sob o corte
+  de [comandos.md](comandos.md)).
+- `CODIF` e `CADPRO` vazios, e `DATPED` ou `NOME` diferentes entre os itens do mesmo pedido, são
+  `ErroImportacao`.
 - A leitura é **tudo ou nada**.
 
 ## 07.04.01 "Relação de Requisições", Requisições de Entrada

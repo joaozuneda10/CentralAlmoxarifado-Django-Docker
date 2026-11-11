@@ -74,6 +74,28 @@ def test_dois_fornecedores_no_mesmo_pedido_e_erro():
         ler_pedidos_compra(conteudo)
 
 
+def test_data_diferente_no_mesmo_pedido_e_erro():
+    conteudo = csv_pedidos([_item(1), _item(2, "023.003.004", data=date(2026, 3, 9))])
+    with pytest.raises(ErroImportacao, match="data ou nome"):
+        ler_pedidos_compra(conteudo)
+
+
+def test_nome_diferente_no_mesmo_fornecedor_e_erro():
+    conteudo = csv_pedidos([_item(1), _item(2, "023.003.004", nome="OUTRO NOME")])
+    with pytest.raises(ErroImportacao, match="data ou nome"):
+        ler_pedidos_compra(conteudo)
+
+
+@pytest.mark.parametrize(
+    ("campos", "coluna"),
+    [({"fornecedor": ""}, "CODIF"), ({"codigo": ""}, "CADPRO"), ({"codigo": "  "}, "CADPRO")],
+)
+def test_codigo_obrigatorio_vazio_e_erro(campos, coluna):
+    codigo = campos.pop("codigo", "006.011.020")
+    with pytest.raises(ErroImportacao, match=f"{coluna} vazio"):
+        ler_pedidos_compra(csv_pedidos([_item(codigo=codigo, **campos)]))
+
+
 def test_controle_desconhecido_e_erro():
     with pytest.raises(ErroImportacao, match="TPCONTROLE_SALDO"):
         ler_pedidos_compra(csv_pedidos([_item(controle="X")]))

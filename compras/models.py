@@ -10,6 +10,8 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from compras.regras import CONTROLE_QUANTIDADE, CONTROLE_VALOR, rotulo_pedido
+
 
 class PedidoCompra(models.Model):
     """Um pedido de compra do SCPI num exercício."""
@@ -53,15 +55,15 @@ class PedidoCompra(models.Model):
     @property
     def rotulo(self) -> str:
         """`00514/26`: o número em 5 dígitos e o ano em 2."""
-        return f"{self.numero:05d}/{self.ano % 100:02d}"
+        return rotulo_pedido(self.ano, self.numero)
 
 
 class ItemPedidoCompra(models.Model):
     """Um item de um pedido de compra, com o saldo que o SCPI tinha na última importação."""
 
     class Controle(models.TextChoices):
-        QUANTIDADE = "Q", "Quantidade"
-        VALOR = "T", "Valor"
+        QUANTIDADE = CONTROLE_QUANTIDADE, "Quantidade"
+        VALOR = CONTROLE_VALOR, "Valor"
 
     pedido = models.ForeignKey(PedidoCompra, on_delete=models.PROTECT, related_name="itens")
     item = models.PositiveSmallIntegerField(help_text="O número do item no pedido.")

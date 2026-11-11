@@ -55,6 +55,25 @@ def test_sexta_com_sucesso_vale_ate_a_segunda():
     assert saude.avisos(sexta + timedelta(days=3, hours=1))
 
 
+def test_importacao_interrompida_avisa(monkeypatch):
+    _imp(Importacao.Situacao.SUCESSO, QUARTA - timedelta(hours=5))
+    Importacao.objects.create(
+        tipo=TIPO, situacao=Importacao.Situacao.ANDAMENTO, inicio=QUARTA - timedelta(hours=2)
+    )
+    monkeypatch.setattr(Importacao, "trava_ocupada", classmethod(lambda cls, tipo: False))
+    (aviso,) = saude.avisos(QUARTA)
+    assert aviso.nivel == "aviso" and "não terminou" in aviso.texto
+
+
+def test_importacao_em_andamento_de_verdade_nao_avisa(monkeypatch):
+    _imp(Importacao.Situacao.SUCESSO, QUARTA - timedelta(hours=5))
+    Importacao.objects.create(
+        tipo=TIPO, situacao=Importacao.Situacao.ANDAMENTO, inicio=QUARTA - timedelta(hours=2)
+    )
+    monkeypatch.setattr(Importacao, "trava_ocupada", classmethod(lambda cls, tipo: True))
+    assert saude.avisos(QUARTA) == []
+
+
 def test_so_falhas_avisa_a_falha_e_a_falta_de_sucesso():
     _imp(Importacao.Situacao.FALHA, QUARTA - timedelta(hours=1), "x")
     textos = [a.texto for a in saude.avisos(QUARTA)]

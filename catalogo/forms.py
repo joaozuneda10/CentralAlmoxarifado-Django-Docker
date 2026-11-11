@@ -169,8 +169,7 @@ ROBOS = [
         "pedidos_compra",
         "Pedidos de compra",
         "Traz do SCPI os pedidos de compra com saldo a entregar (relatório 07.13) e os itens. "
-        "O que "
-        "some do relatório fica como ausente, nunca é apagado.",
+        "O que some do relatório fica como ausente, nunca é apagado.",
         RoboPedidosCompraForm,
         "Importar pedidos de compra",
     ),

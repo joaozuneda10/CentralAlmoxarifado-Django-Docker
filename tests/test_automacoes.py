@@ -230,12 +230,20 @@ def test_post_com_csv_inicia_o_comando_de_pedidos_de_compra(
 
 
 def test_historico_mostra_pedidos_de_compra_com_o_rotulo_e_o_filtro(client, usuario_logado):
+    import re
+
     from catalogo.models import Importacao
 
     Importacao.objects.create(
         tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO, linhas=12
     )
-    texto = client.get(URL, {"aba": "visao-geral"}).text
-    assert "Pedidos de compra" in texto
-    filtrado = client.get(URL, {"aba": "visao-geral", "robo": "pedidos_compra"}).text
-    assert "Pedidos de compra" in filtrado
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.ESTOQUE, situacao=Importacao.Situacao.SUCESSO, linhas=34
+    )
+
+    def robos_do_historico(**filtro):
+        texto = client.get(URL, filtro, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="div#historico").text
+        return re.findall(r'<td class="historico-tipo">([^<]+)', texto)
+
+    assert sorted(robos_do_historico()) == ["Estoque", "Pedidos de compra"]
+    assert robos_do_historico(robo="pedidos_compra") == ["Pedidos de compra"]
