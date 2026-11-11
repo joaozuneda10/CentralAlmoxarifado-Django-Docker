@@ -378,7 +378,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   (leitura oficial da NF na extração de antes e "Já Entrou" de todos os itens na tela). A
   entrada manual feita **entre** a reconferência e o Salvar não é impedida pelo Central: vale a regra
   operacional da aba (não lançar à mão os pedidos em execução) e, se ocorrer, a duplicidade é
-  detectada e trava o pedido (cenário 7 da US2), nunca passa em silêncio.
+  detectada e trava o pedido (cenário 7 da US2), nunca passa em silêncio. O mesmo vale para a entrada
+  manual num item que a grade não mostra depois do preenchimento (plano B do contrato do robô).
 - **SC-002**: O almoxarifado prepara o recebimento total de uma NF de até 30 itens em menos de 2 minutos,
   sem digitar quantidade.
 - **SC-003**: Em 100% dos itens disponíveis, o saldo livre mostrado é igual ao saldo do SCPI da última
