@@ -34,6 +34,7 @@ INICIO_CADASTRO = date(2000, 1, 1)
 ESPERA_GERACAO_CADASTRO_MS = 20 * 60 * 1000
 ESPERA_GERACAO_ESTOQUE_MS = 5 * 60 * 1000
 ESPERA_GERACAO_SAIDAS_MS = 5 * 60 * 1000
+ESPERA_GERACAO_PEDIDOS_MS = 5 * 60 * 1000
 
 # Tipos de produto pedidos ao SCPI no cadastro, um relatório para cada: ficam de fora Serviços e
 # Combustíveis. As linhas dos relatórios são juntadas antes da gravação (`leitura.ler_cadastro`).
@@ -316,4 +317,43 @@ def _relacao_de_requisicoes(
         if not conteudo:
             raise ErroImportacao(f"{rotulo}: o SCPI entregou um CSV vazio.")
         _fechar_relatorio(frame)
+        return conteudo
+
+
+TITULO_PEDIDOS = "Relação de Pedidos (Condição da Entrega)"
+
+
+def baixar_pedidos_compra() -> bytes:
+    """07.13 "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar".
+
+    NUNCA o 01.08.03 Imprimir Pedidos: ele grava a Data Emissão e um contador no pedido (F10 do
+    registro da spec 014). O 07.13 só lê (conferido pelo Log do pedido em 10/11/2026). Pedido,
+    fornecedor e período ficam vazios: vêm todos os pedidos do exercício da sessão.
+
+    Os campos são achados pelo rótulo na tela, nunca pelo ID; o relatório termina como começou
+    ("Fechar relatório" e "Sair"). Sem teste de navegação (Princípio V): só o passo 2 do quickstart
+    da spec 014, à mão, a exercita.
+    """
+    rotulo = "Pedidos de compra"
+    with _sessao("pedidos_compra") as sessao:
+        frame = sessao.frame
+
+        frame.get_by_role("button", name="Relatórios").click()
+        frame.get_by_role("menuitem", name=TITULO_PEDIDOS).click()
+
+        dialog = frame.get_by_label(TITULO_PEDIDOS)
+        dialog.get_by_role("button", name="Imprimir").wait_for(state="visible")
+        dialog.get_by_role("radio", name="Analítico").check()
+        dialog.get_by_role("checkbox", name="Apenas com saldo a entregar").check()
+
+        dialog.get_by_role("button", name="Imprimir").click()
+        if not _gerar(frame, timeout=ESPERA_GERACAO_PEDIDOS_MS):
+            raise ErroImportacao(f"{rotulo}: o SCPI não tem nenhum pedido com saldo a entregar.")
+        conteudo = interceptar_csv(sessao.page, frame, "pedidos_compra")
+        if not conteudo:
+            raise ErroImportacao(f"{rotulo}: o SCPI entregou um CSV vazio.")
+        _fechar_relatorio(frame)
+
+        dialog.get_by_role("button", name="Sair").click()
+        dialog.wait_for(state="hidden")
         return conteudo

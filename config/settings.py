@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "automacoes",
     "implantacao",
     "conciliacao",
+    "compras",
     "axes",
 ]
 

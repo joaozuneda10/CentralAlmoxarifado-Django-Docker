@@ -10,6 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
+from compras.regras import chave_pedido
 from conciliacao.regras import chave
 from pedidos.regras import norm_u
 from scpi.normalizadores import registros_produtos, registros_saidas
@@ -404,3 +405,122 @@ def ler_requisicoes(conteudo: bytes) -> Leitura:
             )
         )
     return Leitura(requisicoes, [])
+
+
+@dataclass(frozen=True)
+class LinhaPedidoCompra:
+    """Um item de um pedido de compra, como o 07.13 o traz (spec 014)."""
+
+    ano: int
+    numero: int
+    data: date
+    fornecedor_codigo: str
+    fornecedor_nome: str
+    item: int
+    codigo: str
+    unidade: str
+    controle: str
+    quantidade: Decimal
+    anulado: Decimal
+    ja_entrou: Decimal
+    pedida: Decimal
+    saldo: Decimal
+    preco: Decimal
+
+
+def ler_pedidos_compra(conteudo: bytes) -> Leitura:
+    """07.13 "Relação de Pedidos (Condição da Entrega)" → `LinhaPedidoCompra`, uma por item.
+
+    Tudo ou nada (contrato `specs/014-entrada-por-pedido/contracts/relatorios-scpi.md`): relatório
+    cortado, número ilegível, item repetido, mais de um fornecedor por pedido, controle de saldo
+    desconhecido ou `QTDFALTA` fora da conta num item de quantidade é `ErroImportacao`, e nada da
+    leitura é aproveitado."""
+    rotulo = "Pedidos de compra do SCPI"
+    obrigatorias = [
+        "NUMPED",
+        "DATPED",
+        "CODIF",
+        "NOME",
+        "ITEM",
+        "CADPRO",
+        "UNID1",
+        "TPCONTROLE_SALDO",
+        "QTD",
+        "PRCUNT",
+        "QTDANU",
+        "QTDENT",
+        "QTDFALTA",
+        "QTDPEDIDA",
+    ]
+    tabela = _tabela(conteudo, rotulo, registros_saidas, "GRUPO", obrigatorias, completos=True)
+    if not tabela:
+        raise ErroImportacao(f"{rotulo}: o relatório não tem nenhum item; nada foi gravado.")
+
+    linhas: list[LinhaPedidoCompra] = []
+    vistos: set[tuple[int, int, int]] = set()
+    fornecedor_do_pedido: dict[tuple[int, int], str] = {}
+    for posicao, r in enumerate(tabela, start=1):
+        try:
+            ano, numero = chave_pedido(r["NUMPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: número de pedido inválido na linha {posicao} ('{r['NUMPED']}')."
+            ) from None
+        try:
+            item = int(r["ITEM"])
+            data = data_br(r["DATPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: item ou data inválidos no pedido {r['NUMPED']} (linha {posicao})."
+            ) from None
+        if (ano, numero, item) in vistos:
+            raise ErroImportacao(
+                f"{rotulo}: o item {item} do pedido {r['NUMPED']} está repetido no relatório."
+            )
+        vistos.add((ano, numero, item))
+        if fornecedor_do_pedido.setdefault((ano, numero), r["CODIF"]) != r["CODIF"]:
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem mais de um fornecedor no relatório."
+            )
+        controle = r["TPCONTROLE_SALDO"]
+        if controle not in ("Q", "T"):
+            raise ErroImportacao(
+                f"{rotulo}: TPCONTROLE_SALDO desconhecido ('{controle}') no item {item} do "
+                f"pedido {r['NUMPED']}; esperado Q ou T."
+            )
+        try:
+            quantidade, anulado, ja_entrou, pedida, saldo, preco = (
+                _quantidade_que_cabe(decimal_br(r[c]))
+                for c in ("QTD", "QTDANU", "QTDENT", "QTDPEDIDA", "QTDFALTA", "PRCUNT")
+            )
+        except ValueError as exc:
+            raise ErroImportacao(
+                f"{rotulo}: quantidade inválida no item {item} do pedido {r['NUMPED']} ({exc})."
+            ) from None
+        if controle == "Q" and saldo != quantidade - anulado - ja_entrou - pedida:
+            raise ErroImportacao(
+                f"{rotulo}: QTDFALTA do item {item} do pedido {r['NUMPED']} é {saldo}, mas "
+                f"QTD − QTDANU − QTDENT − QTDPEDIDA dá "
+                f"{quantidade - anulado - ja_entrou - pedida}; "
+                "nada foi gravado."
+            )
+        linhas.append(
+            LinhaPedidoCompra(
+                ano=ano,
+                numero=numero,
+                data=data,
+                fornecedor_codigo=r["CODIF"],
+                fornecedor_nome=r["NOME"],
+                item=item,
+                codigo=r["CADPRO"],
+                unidade=r["UNID1"],
+                controle=controle,
+                quantidade=quantidade,
+                anulado=anulado,
+                ja_entrou=ja_entrou,
+                pedida=pedida,
+                saldo=saldo,
+                preco=preco,
+            )
+        )
+    return Leitura(linhas, [])

@@ -18,6 +18,8 @@ NOMES = {
     Importacao.Tipo.ESTOQUE: "estoque",
     Importacao.Tipo.SAIDAS: "saídas do SCPI",
     Importacao.Tipo.REQUISICOES: "requisições do SCPI",
+    Importacao.Tipo.PEDIDOS_COMPRA: "pedidos de compra",
+    Importacao.Tipo.ENTRADAS: "entradas do SCPI",
 }
 
 

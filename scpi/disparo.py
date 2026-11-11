@@ -38,6 +38,7 @@ COMANDOS_IMPORTACAO = {
     "cadastro": "importar_cadastro",
     "estoque": "importar_estoque",
     "saidas": "importar_saidas_scpi",
+    "pedidos_compra": "importar_pedidos_compra",
 }
 
 
@@ -64,7 +65,8 @@ def iniciar_importacao(
 ) -> bool:
     """Inicia `manage.py importar_<tipo>` num processo separado, com os parâmetros escolhidos.
 
-    `tipo` é "cadastro", "estoque" ou "saidas". `completo` e `forcar` valem só para o cadastro
+    `tipo` é "cadastro", "estoque", "saidas" ou "pedidos_compra". `completo` e `forcar` valem para o
+    cadastro (o `forcar` também para os pedidos de compra, que não têm `completo`)
     (e não com período); `desde` e `ate` valem para o cadastro (importação parcial) e para as
     saídas. Com
     `arquivo` (CSV já baixado), o navegador não é aberto e o arquivo é apagado ao fim. Devolve
@@ -78,6 +80,8 @@ def iniciar_importacao(
             argumentos.append("--completo")
         if forcar:
             argumentos.append("--forcar")
+    elif tipo == "pedidos_compra" and forcar:
+        argumentos.append("--forcar")
     if tipo in ("cadastro", "saidas"):
         if desde:
             argumentos += ["--desde", f"{desde:%d/%m/%Y}"]
