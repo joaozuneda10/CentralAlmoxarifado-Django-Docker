@@ -64,8 +64,8 @@ Dado puro, montado pela seleção. Tem:
    por Salvar: o relatório leva dezenas de segundos (latência L8, ainda não medida), então repeti-la
    antes de cada Salvar alargaria a janela em vez de fechá-la. A proteção do instante do Salvar é a
    reconferência da tela (do pedido); uma entrada manual da mesma NF em **outro pedido**, feita depois
-   desta leitura, não é impedida e é detectada pela extração de depois (Duplicado pela NF, com o
-   pedido travado), o risco residual do SC-001. Se existe, o recebimento é `ignorada`
+   desta leitura, não é impedida e é detectada na conciliação da extração de depois (Duplicado pela
+   NF, com o pedido travado, do PR 6), o risco residual do SC-001. Se existe, o recebimento é `ignorada`
    ("a NF já entrou no SCPI: requisição <número>") e o pedido é travado (`FORA_DO_CENTRAL`), para a
    conciliação ligar ou tratar (R18). Isso cobre a entrada manual da mesma NF em **outro item**, que a
    tela de itens não mostra.
@@ -103,23 +103,23 @@ Dado puro, montado pela seleção. Tem:
       campo alterado, então o formulário preenchido e os dados do recebimento ficam intactos). A
       leitura traz todas as linhas da grade, inclusive as dos itens desmarcados, e o robô roda o
       `conferir_tela` outra vez com o mesmo `esperado`; a ausência de uma linha só é divergência
-      pelo critério do R11 (item que ainda devia ter saldo), nunca por ela mesma. **Ponto a confirmar
-      no `--dry-run` real (R25)**: se a grade ainda mostra os itens desmarcados depois do
-      preenchimento. Se **não** mostrar, a leitura de todos os itens do pedido passa a ser a de
-      `abrir_pedido` (tela "Escolha os Itens", antes de desmarcar), e esta reconferência cobre só os
-      itens marcados; nenhum clique é dado para recuperar os desmarcados, para não perder o
-      formulário. **Limite do plano B**: uma entrada manual em um item desmarcado, feita depois do
-      `abrir_pedido`, não é vista pela reconferência; é detectada pela extração de depois ("Já
-      Entrou" não explicado, com o pedido travado), não impedida. É o mesmo risco residual do SC-001.
-      **Quem detecta e quando**: o "Já Entrou" não explicado é achado na **próxima importação de
-      pedidos** (R19, `importar_pedidos_compra` ou a rotina diária), e o Duplicado pela NF, na
-      **conciliação** da extração de depois; as duas são do PR 6. Entre o PR 5 e o PR 6 não há
-      detecção automática: vale a regra operacional da aba e a conferência manual do quickstart. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
-      tentativa `ERRO` e `descartar`) no lançamento real, e nada é salvo. Na simulação, o modo é
-      verificado primeiro: a divergência é registrada no resumo e no log da execução, o robô chama `descartar` e segue para
-      o próximo recebimento, sem mudar estado, trava nem tentativa. Reduz a janela para uma entrada manual feita
-      no meio do preenchimento; o que ainda escapar entre esta leitura e o Salvar é detectado pela
-      extração de depois (Duplicado ou "Já Entrou" não explicado), não impedido.
+      pelo critério do R11 (item que ainda devia ter saldo), nunca por ela mesma.
+      - **Com divergência**, no lançamento real: o tratamento é o do passo 2 (`ERRO`,
+        `travar_pedido(TELA)`, tentativa `ERRO` e `descartar`), e nada é salvo.
+      - **Na simulação**: o modo é verificado primeiro; a divergência é registrada no resumo e no
+        log da execução, o robô chama `descartar` e segue para o próximo recebimento, sem mudar
+        estado, trava nem tentativa.
+      - **Ponto a confirmar no `--dry-run` real (R25)**: se a grade ainda mostra os itens
+        desmarcados depois do preenchimento. Se **não** mostrar, a leitura de todos os itens do
+        pedido passa a ser a de `abrir_pedido` (tela "Escolha os Itens", antes de desmarcar), e esta
+        reconferência cobre só os itens marcados; nenhum clique é dado para recuperar os
+        desmarcados, para não perder o formulário.
+      - **Limite (também no plano B)**: uma entrada manual feita depois da leitura, em qualquer
+        item, não é impedida. Reduz-se a janela, mas o que escapar é o risco residual do SC-001.
+      - **Quem detecta e quando**: o "Já Entrou" não explicado é achado na **próxima importação de
+        pedidos** (R19, `importar_pedidos_compra` ou a rotina diária), e o Duplicado pela NF, na
+        **conciliação** da extração de depois. As duas são do PR 6. Entre o PR 5 e o PR 6 não há
+        detecção automática: vale a regra operacional da aba e a conferência manual do quickstart.
    4. Na simulação: `encerrar_simulacao` e o resultado `simulada`. Nada é gravado no Central.
    5. `_travar`, numa transação com `select_for_update` no recebimento e no pedido. Ela só passa se o
       recebimento está `PREPARADO`, na mesma versão, o pedido não está travado **e nenhum outro
