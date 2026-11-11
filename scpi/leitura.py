@@ -10,7 +10,7 @@ from dataclasses import dataclass, field
 from datetime import date, datetime
 from decimal import Decimal, InvalidOperation
 
-from compras.regras import chave_pedido
+from compras.regras import CONTROLE_QUANTIDADE, CONTROLES, chave_pedido
 from conciliacao.regras import chave
 from pedidos.regras import norm_u
 from scpi.normalizadores import registros_produtos, registros_saidas
@@ -458,7 +458,7 @@ def ler_pedidos_compra(conteudo: bytes) -> Leitura:
 
     linhas: list[LinhaPedidoCompra] = []
     vistos: set[tuple[int, int, int]] = set()
-    fornecedor_do_pedido: dict[tuple[int, int], str] = {}
+    cabecalho_do_pedido: dict[tuple[int, int], tuple[str, date, str]] = {}
     for posicao, r in enumerate(tabela, start=1):
         try:
             ano, numero = chave_pedido(r["NUMPED"])
@@ -478,12 +478,24 @@ def ler_pedidos_compra(conteudo: bytes) -> Leitura:
                 f"{rotulo}: o item {item} do pedido {r['NUMPED']} está repetido no relatório."
             )
         vistos.add((ano, numero, item))
-        if fornecedor_do_pedido.setdefault((ano, numero), r["CODIF"]) != r["CODIF"]:
+        for coluna in ("CODIF", "CADPRO"):
+            if not r[coluna].strip():
+                raise ErroImportacao(
+                    f"{rotulo}: {coluna} vazio no item {item} do pedido {r['NUMPED']}; "
+                    "nada foi gravado."
+                )
+        primeiro = cabecalho_do_pedido.setdefault((ano, numero), (r["CODIF"], data, r["NOME"]))
+        if primeiro[0] != r["CODIF"]:
             raise ErroImportacao(
                 f"{rotulo}: o pedido {r['NUMPED']} tem mais de um fornecedor no relatório."
             )
+        if primeiro[1:] != (data, r["NOME"]):
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem data ou nome de fornecedor diferentes "
+                f"entre os itens (item {item}); nada foi gravado."
+            )
         controle = r["TPCONTROLE_SALDO"]
-        if controle not in ("Q", "T"):
+        if controle not in CONTROLES:
             raise ErroImportacao(
                 f"{rotulo}: TPCONTROLE_SALDO desconhecido ('{controle}') no item {item} do "
                 f"pedido {r['NUMPED']}; esperado Q ou T."
@@ -497,7 +509,7 @@ def ler_pedidos_compra(conteudo: bytes) -> Leitura:
             raise ErroImportacao(
                 f"{rotulo}: quantidade inválida no item {item} do pedido {r['NUMPED']} ({exc})."
             ) from None
-        if controle == "Q" and saldo != quantidade - anulado - ja_entrou - pedida:
+        if controle == CONTROLE_QUANTIDADE and saldo != quantidade - anulado - ja_entrou - pedida:
             raise ErroImportacao(
                 f"{rotulo}: QTDFALTA do item {item} do pedido {r['NUMPED']} é {saldo}, mas "
                 f"QTD − QTDANU − QTDENT − QTDPEDIDA dá "

@@ -330,6 +330,9 @@ def baixar_pedidos_compra() -> bytes:
     registro da spec 014). O 07.13 só lê (conferido pelo Log do pedido em 10/11/2026). Pedido,
     fornecedor e período ficam vazios: vêm todos os pedidos do exercício da sessão.
 
+    Sem nenhum pedido com saldo, o SCPI avisa "Nada a exibir" e sobe `NadaAExibir`: é um relatório
+    vazio confirmado, que `compras.importacao.importar` trata como todos os itens sumidos.
+
     Os campos são achados pelo rótulo na tela, nunca pelo ID; o relatório termina como começou
     ("Fechar relatório" e "Sair"). Sem teste de navegação (Princípio V): só o passo 2 do quickstart
     da spec 014, à mão, a exercita.
@@ -348,7 +351,7 @@ def baixar_pedidos_compra() -> bytes:
 
         dialog.get_by_role("button", name="Imprimir").click()
         if not _gerar(frame, timeout=ESPERA_GERACAO_PEDIDOS_MS):
-            raise ErroImportacao(f"{rotulo}: o SCPI não tem nenhum pedido com saldo a entregar.")
+            raise NadaAExibir(f"{rotulo}: o SCPI não tem nenhum pedido com saldo a entregar.")
         conteudo = interceptar_csv(sessao.page, frame, "pedidos_compra")
         if not conteudo:
             raise ErroImportacao(f"{rotulo}: o SCPI entregou um CSV vazio.")

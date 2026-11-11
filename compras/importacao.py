@@ -11,12 +11,17 @@ from django.utils import timezone
 
 from catalogo.models import Importacao
 from compras.models import ItemPedidoCompra, PedidoCompra
+from compras.regras import rotulo_pedido
 from scpi.execucao import Resultado, executar
-from scpi.leitura import ErroImportacao, LinhaPedidoCompra, ler_pedidos_compra
+from scpi.leitura import ErroImportacao, LinhaPedidoCompra, NadaAExibir, ler_pedidos_compra
 
 # Fração máxima dos itens presentes na importação anterior que pode sumir de uma vez; acima disso o
 # relatório provavelmente veio cortado e a importação aborta (salvo `forcar`), como o cadastro.
 LIMITE_SUMIDOS = 0.2
+# O 07.13 só traz itens com saldo: o item recebido por completo some do relatório, e isso é o fluxo
+# normal. Com poucos itens presentes, uma fração alta é só um dia comum; o corte só vale a partir
+# deste número de itens sumidos.
+MINIMO_SUMIDOS = 10
 LOTE = 1000
 
 CAMPOS_ITEM = (
@@ -39,6 +44,17 @@ def _max(modelo, campo: str) -> int:
     return modelo._meta.get_field(campo).max_length
 
 
+def _exigir_que_cabe(texto: str, limite: int, descricao: str) -> str:
+    """Identificador (código de fornecedor ou de material) nunca é cortado: dois identificadores
+    diferentes passariam a ter o mesmo valor gravado."""
+    if len(texto) > limite:
+        raise ErroImportacao(
+            f"Pedidos de compra: {descricao} '{texto}' passa de {limite} caracteres; "
+            "nada foi gravado."
+        )
+    return texto
+
+
 def _cortar(texto: str, limite: int, descricao: str, avisos: list[str]) -> str:
     if len(texto) > limite:
         avisos.append(f"Texto cortado em {descricao} ({limite} caracteres): {texto[:30]}…")
@@ -54,8 +70,16 @@ def gravar(
     forcar: bool = False,
 ) -> Resultado:
     """Cria os pedidos e itens novos, atualiza os presentes (guardando o `ja_entrou_anterior`) e
-    marca `ausente_desde` nos que sumiram. Só mexe nos pedidos do `exercicio`."""
+    marca `ausente_desde` nos que sumiram. Só mexe nos pedidos do `exercicio`. Sem linhas (o SCPI
+    confirmou que nenhum pedido tem saldo), todos os presentes sumiram e o corte se aplica."""
     avisos: list[str] = []
+    for linha in linhas:
+        if linha.data.year > exercicio or linha.ano > exercicio:
+            raise ErroImportacao(
+                f"Pedidos de compra: o pedido {rotulo_pedido(linha.ano, linha.numero)} é de "
+                f"{linha.data:%d/%m/%Y}, depois do exercício {exercicio}; confira o arquivo. "
+                "Nada foi gravado."
+            )
     existentes = {(p.ano, p.numero): p for p in PedidoCompra.objects.filter(exercicio=exercicio)}
     itens_antes = {
         (i.pedido_id, i.item): i
@@ -67,7 +91,8 @@ def gravar(
     sumiram = [
         i for i in presentes_antes if (*mapa_pedido[i.pedido_id], i.item) not in chaves_novas
     ]
-    if presentes_antes and len(sumiram) > LIMITE_SUMIDOS * len(presentes_antes) and not forcar:
+    corte = len(sumiram) >= MINIMO_SUMIDOS and len(sumiram) > LIMITE_SUMIDOS * len(presentes_antes)
+    if corte and not forcar:
         raise ErroImportacao(
             f"Pedidos de compra: o relatório não traz {len(sumiram)} dos {len(presentes_antes)} "
             "itens presentes na importação anterior (mais de 20%). Nada foi alterado; confira "
@@ -83,11 +108,10 @@ def gravar(
     for chave_pedido, linha in por_pedido.items():
         valores = {
             "data": linha.data,
-            "fornecedor_codigo": _cortar(
+            "fornecedor_codigo": _exigir_que_cabe(
                 linha.fornecedor_codigo,
                 _max(PedidoCompra, "fornecedor_codigo"),
-                "o fornecedor",
-                avisos,
+                "o código do fornecedor",
             ),
             "fornecedor_nome": _cortar(
                 linha.fornecedor_nome,
@@ -124,7 +148,9 @@ def gravar(
     for linha in linhas:
         pedido = pedidos[(linha.ano, linha.numero)]
         valores = {
-            "codigo": _cortar(linha.codigo, _max(ItemPedidoCompra, "codigo"), "o código", avisos),
+            "codigo": _exigir_que_cabe(
+                linha.codigo, _max(ItemPedidoCompra, "codigo"), "o código do material"
+            ),
             "unidade": _cortar(
                 linha.unidade, _max(ItemPedidoCompra, "unidade"), "a unidade", avisos
             ),
@@ -160,14 +186,37 @@ def gravar(
     return Resultado(len(linhas), avisos)
 
 
-def importar(obter_csv: Callable[[], bytes], *, forcar: bool = False) -> Importacao:
+def importar(
+    obter_csv: Callable[[], bytes], *, forcar: bool = False, exercicio: int | None = None
+) -> Importacao:
     """Baixa (ou lê) o relatório e o grava numa `Importacao` do tipo `PEDIDOS_COMPRA`, com a trava
-    do tipo. O exercício é o ano corrente."""
-    exercicio = timezone.localdate().year
+    do tipo.
+
+    O exercício é o ano corrente, tomado uma vez aqui: o login do SCPI abre a sessão no ano de
+    hoje, e se o ano virar no meio da importação ela é recusada, para não gravar um exercício no
+    outro. Com `exercicio` explícito (CSV de outro ano, que o comando só aceita com `--arquivo`),
+    nada disso se confere. O aviso "Nada a exibir" do SCPI é um relatório vazio confirmado: nenhum
+    pedido tem saldo, e o que estava presente some, sob o mesmo corte."""
+    automatico = exercicio is None
+    exercicio = timezone.localdate().year if automatico else exercicio
     criada: list[Importacao] = []
+    vazio: list[bool] = []
+
+    def obter() -> bytes:
+        try:
+            conteudo = obter_csv()
+        except NadaAExibir:
+            vazio.append(True)
+            conteudo = b""
+        if automatico and timezone.localdate().year != exercicio:
+            raise ErroImportacao(
+                "Pedidos de compra: o ano virou durante a importação; rode de novo para o novo "
+                "exercício. Nada foi gravado."
+            )
+        return conteudo
 
     def gravar_csv(conteudo: bytes) -> Resultado:
-        leitura = ler_pedidos_compra(conteudo)
-        return gravar(leitura.linhas, criada[0], exercicio=exercicio, forcar=forcar)
+        linhas = [] if vazio else ler_pedidos_compra(conteudo).linhas
+        return gravar(linhas, criada[0], exercicio=exercicio, forcar=forcar)
 
-    return executar(Importacao.Tipo.PEDIDOS_COMPRA, obter_csv, gravar_csv, ao_criar=criada.append)
+    return executar(Importacao.Tipo.PEDIDOS_COMPRA, obter, gravar_csv, ao_criar=criada.append)

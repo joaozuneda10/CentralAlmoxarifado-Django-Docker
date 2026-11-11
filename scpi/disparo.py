@@ -65,10 +65,9 @@ def iniciar_importacao(
 ) -> bool:
     """Inicia `manage.py importar_<tipo>` num processo separado, com os parâmetros escolhidos.
 
-    `tipo` é "cadastro", "estoque", "saidas" ou "pedidos_compra". `completo` e `forcar` valem para o
-    cadastro (o `forcar` também para os pedidos de compra, que não têm `completo`)
-    (e não com período); `desde` e `ate` valem para o cadastro (importação parcial) e para as
-    saídas. Com
+    `tipo` é "cadastro", "estoque", "saidas" ou "pedidos_compra". `completo` e `forcar` valem para
+    o cadastro (e não com período); o `forcar` vale também para os pedidos de compra, que não têm
+    `completo`. `desde` e `ate` valem para o cadastro (importação parcial) e para as saídas. Com
     `arquivo` (CSV já baixado), o navegador não é aberto e o arquivo é apagado ao fim. Devolve
     False, sem iniciar nada, se já houver importação em andamento.
     """

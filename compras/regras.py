@@ -10,6 +10,9 @@ from decimal import Decimal
 
 RE_PEDIDO = re.compile(r"^(\d{5})/(\d{2})$")  # número visível do pedido no SCPI: 00514/26
 TRES_CASAS = Decimal("0.001")
+CONTROLE_QUANTIDADE = "Q"  # TPCONTROLE_SALDO do 07.13: o saldo do item é em quantidade
+CONTROLE_VALOR = "T"  # ... ou em valor (não se recebe por quantidade)
+CONTROLES = (CONTROLE_QUANTIDADE, CONTROLE_VALOR)
 
 
 def chave_pedido(numped: str) -> tuple[int, int]:
@@ -37,7 +40,7 @@ def disponibilidade(item, *, material_visivel: bool | None, exercicio_atual: int
     `ja_entrou`, `pedida`, `saldo_scpi`, `ausente_desde_id` e o `pedido` (com `exercicio` e
     `ausente_desde_id`).
     """
-    if item.controle != "Q":
+    if item.controle != CONTROLE_QUANTIDADE:
         return "o saldo deste item é controlado por valor, não por quantidade"
     if material_visivel is None:
         return "o código não está no cadastro de materiais"

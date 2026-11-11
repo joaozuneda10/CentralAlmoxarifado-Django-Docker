@@ -21,16 +21,28 @@ class Command(BaseCommand):
             help="Apaga o CSV de --arquivo ao terminar (usado pelo upload da tela).",
         )
         parser.add_argument(
+            "--exercicio",
+            type=int,
+            help="Exercício do CSV de --arquivo (padrão: o ano corrente). Só com --arquivo: o "
+            "SCPI baixado sempre vem do exercício de hoje.",
+        )
+        parser.add_argument(
             "--forcar",
             action="store_true",
             help="Grava mesmo que mais de 20%% dos itens presentes sumam do relatório.",
         )
 
-    def handle(self, *args, arquivo=None, apagar_arquivo=False, forcar=False, **opcoes):
+    def handle(
+        self, *args, arquivo=None, apagar_arquivo=False, forcar=False, exercicio=None, **opcoes
+    ):
         with descartar_arquivo(arquivo, apagar_arquivo):
+            if exercicio and not arquivo:
+                raise CommandError("--exercicio só vale com --arquivo.")
             try:
                 imp = importacao.importar(
-                    obter_csv(arquivo, relatorios.baixar_pedidos_compra), forcar=forcar
+                    obter_csv(arquivo, relatorios.baixar_pedidos_compra),
+                    forcar=forcar,
+                    exercicio=exercicio,
                 )
             except execucao.ImportacaoEmAndamento:
                 raise CommandError(
@@ -39,8 +51,12 @@ class Command(BaseCommand):
         if imp.situacao == Importacao.Situacao.FALHA:
             raise CommandError(imp.erro)
         pedidos = PedidoCompra.objects.filter(atualizado_por=imp).count()
+        # Itens criados nesta importação: sem base anterior e presentes (o que sumiu também a tem
+        # nula, mas fica ausente). Num só filtro, para a condição valer para o mesmo item.
         novos = PedidoCompra.objects.filter(
-            atualizado_por=imp, itens__ja_entrou_anterior__isnull=True
+            atualizado_por=imp,
+            itens__ja_entrou_anterior__isnull=True,
+            itens__ausente_desde__isnull=True,
         )
         ausentes_itens = ItemPedidoCompra.objects.filter(ausente_desde=imp).count()
         ausentes_pedidos = PedidoCompra.objects.filter(ausente_desde=imp).count()

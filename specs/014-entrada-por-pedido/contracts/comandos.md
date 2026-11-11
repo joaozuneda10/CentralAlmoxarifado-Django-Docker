@@ -7,16 +7,23 @@ produção, só a pedido do usuário.
 ## `importar_pedidos_compra` (PR 1)
 
 ```text
-importar_pedidos_compra [--arquivo <csv>] [--apagar-arquivo] [--forcar]
+importar_pedidos_compra [--arquivo <csv> [--exercicio <ano>]] [--apagar-arquivo] [--forcar]
 ```
 
 - Baixa o 07.13 ([relatorios-scpi.md](relatorios-scpi.md)) ou lê o CSV enviado e grava numa
   transação, como uma `Importacao` do tipo `PEDIDOS_COMPRA`, com a trava do tipo.
-- O exercício é o ano corrente.
+- O exercício é o ano corrente, tomado uma vez no começo; se o ano virar durante o download, a
+  importação é recusada. `--exercicio` (só com `--arquivo`) grava um CSV de outro exercício. Pedido
+  com data depois do exercício é recusado.
 - Cria os pedidos e itens novos e atualiza os presentes, guardando o `ja_entrou_anterior`. Marca
   `ausente_desde` nos que sumiram e limpa o dos que voltaram.
 - Aborta sem `--forcar` se marcaria ausentes mais de 20% dos itens presentes na importação
-  anterior.
+  anterior **e ao menos 10 itens**: o 07.13 só traz item com saldo, então o item recebido por
+  completo some do relatório, e com poucos itens isso é o fluxo normal.
+- "Nada a exibir" do SCPI é um relatório vazio confirmado: todos os presentes somem, sob o mesmo
+  corte. Um CSV sem itens, sem esse aviso, é falha.
+- Código de fornecedor ou de material maior que o campo, ou vazio, é `ErroImportacao` (nunca é
+  cortado); só o nome e a unidade são cortados, com aviso.
 - Depois da gravação, a partir do PR 6, roda a explicação do "Já Entrou" ([R19](../research.md#r19-já-entrou-que-o-central-não-explica-fr-029)):
   um aviso por pedido não explicado e uma trava `JA_ENTROU`.
 - Antes de começar, recusa com "Um lançamento de entradas está em andamento: a importação de pedidos
