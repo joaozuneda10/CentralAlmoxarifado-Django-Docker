@@ -108,7 +108,9 @@ Dado puro, montado pela seleção. Tem:
       preenchimento. Se **não** mostrar, a leitura de todos os itens do pedido passa a ser a de
       `abrir_pedido` (tela "Escolha os Itens", antes de desmarcar), e esta reconferência cobre só os
       itens marcados; nenhum clique é dado para recuperar os desmarcados, para não perder o
-      formulário. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
+      formulário. **Limite do plano B**: uma entrada manual em um item desmarcado, feita depois do
+      `abrir_pedido`, não é vista pela reconferência; é detectada pela extração de depois ("Já
+      Entrou" não explicado, com o pedido travado), não impedida. É o mesmo risco residual do SC-001. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
       tentativa `ERRO` e `descartar`) no lançamento real, e nada é salvo. Na simulação, o modo é
       verificado primeiro: a divergência é registrada no resumo e no log da execução, o robô chama `descartar` e segue para
       o próximo recebimento, sem mudar estado, trava nem tentativa. Reduz a janela para uma entrada manual feita
