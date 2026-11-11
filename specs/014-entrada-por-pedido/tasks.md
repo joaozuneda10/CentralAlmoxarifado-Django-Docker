@@ -76,14 +76,14 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Purpose**: a documentação e a emenda da constituição, antes de qualquer código.
 
-- [ ] T001 Confirmar a branch `claude/entrada-por-pedido` (de `develop`, com o commit `47423cc` da spec) e o `git status` limpo; rodar `uv run pytest` para registrar a suíte verde de partida
-- [ ] T002 Emendar `.specify/memory/constitution.md` para a 2.1.0 com o texto de [research R23](research.md#r23-emenda-da-constituição-minor-200--210):
+- [X] T001 Confirmar a branch `claude/entrada-por-pedido` (de `develop`, com o commit `47423cc` da spec) e o `git status` limpo; rodar `uv run pytest` para registrar a suíte verde de partida
+- [X] T002 Emendar `.specify/memory/constitution.md` para a 2.1.0 com o texto de [research R23](research.md#r23-emenda-da-constituição-minor-200--210):
   - **Princípio I**: `compras/regras.py` entra na lista de regras puras;
   - **Princípio II**: `compras/servicos.py` é a porta única dos recebimentos e das travas, com transação e `select_for_update` no pedido de compra; o robô de entradas grava só os seis campos de lançamento; o reenvio igual não duplica;
   - **Princípio III**: "lote ou recebimento", journal próprio por robô, "uma execução de lançamento por vez, de saídas ou de entradas, com a mesma trava", e a conferência da tela antes do Salvar;
   - o Sync Impact Report no topo (2.0.0 → 2.1.0, MINOR) e `Last Amended: 2026-11-11`.
-- [ ] T003 [P] Atualizar as notas de `specs/014-entrada-por-pedido/checklists/requirements.md`: a emenda está na T002, e o filtro sem período do 07.04.01 foi dispensado pela terceira prova ([R16](research.md#r16-liberação-para-relançar-as-três-provas))
-- [ ] T004 Commit do PR 0 (spec, plano, pesquisa, modelo, contratos, quickstart, tarefas e constituição) na `claude/entrada-por-pedido`. O PR 0, com a constituição 2.1.0, entra em `develop` antes de qualquer PR com código: os PRs 1 a 7 dependem dele para estar em conformidade
+- [X] T003 [P] Atualizar as notas de `specs/014-entrada-por-pedido/checklists/requirements.md`: a emenda está na T002, e o filtro sem período do 07.04.01 foi dispensado pela terceira prova ([R16](research.md#r16-liberação-para-relançar-as-três-provas))
+- [X] T004 Commit do PR 0 (spec, plano, pesquisa, modelo, contratos, quickstart, tarefas e constituição) na `claude/entrada-por-pedido`. O PR 0, com a constituição 2.1.0, entra em `develop` antes de qualquer PR com código: os PRs 1 a 7 dependem dele para estar em conformidade
 
 **Checkpoint**: a constituição 2.1.0 cobre as entradas, e a documentação está pronta para revisão.
 

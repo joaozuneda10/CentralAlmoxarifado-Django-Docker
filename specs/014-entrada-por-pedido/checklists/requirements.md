@@ -40,8 +40,9 @@
 - **Termos que são do domínio, não de implementação:** os nomes do SCPI (07.13, Observações, "Já
   Entrou") e o "diário fora do banco" da FR-019, que repete o Princípio III. A seção Contexto cita
   arquivos de propósito, como nas specs 009 a 013.
-- **Pendência para o plano, não para a spec:** a emenda MINOR da constituição, que estende os Princípios
-  II e III às entradas (L9), e conferir se o relatório de entradas aceita filtro só por pedido ou por
-  observação, sem período, como prova independente da data.
+- **Pendências do plano resolvidas:** a emenda MINOR da constituição (2.1.0), que estende os Princípios
+  I, II e III às entradas (L9), está em `.specify/memory/constitution.md` (T002). O filtro do 07.04.01
+  só por pedido ou por observação, sem período, foi dispensado pela terceira prova da liberação para
+  relançar ([R16](../research.md#r16-liberação-para-relançar-as-três-provas)).
 - **Correção na validação:** a FR-013 e a User Story 5 deixavam vago quem destrava um pedido. Passou a
   ser quem opera automações, com motivo e com uma atualização posterior à trava.
