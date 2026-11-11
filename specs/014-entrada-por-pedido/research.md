@@ -628,7 +628,9 @@ lançar de verdade, e nenhum muda a ordem das gravações:
 - a latência até o relatório (L8 do registro);
 - a ordem da grade com código repetido (R10);
 - o rádio "Requisições de Entrada" e os campos de data do relatório (R13);
-- os campos do 07.13 pelo rótulo (R3).
+- os campos do 07.13 pelo rótulo (R3);
+- se a grade ainda mostra os itens desmarcados depois do preenchimento (R11 e o contrato do robô);
+- se o 07.04.01 aceita o filtro só por NF, sem período, e a latência do relatório (L8).
 
 ## R26. Interface
 
