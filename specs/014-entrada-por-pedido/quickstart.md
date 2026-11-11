@@ -150,18 +150,7 @@ Anote como o SCPI mostrou a NF digitada sem os zeros e a hora da entrada.
 - um passo que falha não desfaz os outros;
 - a limpeza esvazia o bruto e as requisições sem ligação com mais de 60 dias.
 
-## 7b. Confirmações do `--dry-run` real para a reconferência (manual, a pedido do usuário)
-
-No `--dry-run` do PR 4, anotar: (1) depois do preenchimento, a grade ainda mostra os itens
-desmarcados e o "Já Entrou" deles? (2) o 07.04.01 aceita o filtro só por NF? (3) quanto leva o
-relatório. As respostas decidem o desenho da reconferência descrito no contrato do robô.
-
-## 8. Primeiro lançamento real (só depois do PR 5 em produção, manual, a pedido do usuário)
-
-**Pré-requisito**: os PRs 3, 4 e 5 em produção. Antes do PR 5 não há resolução segura de um
-recebimento em verificação, então o lançamento real não é liberado. As validações dos PRs 6 e 7 (o
-veredito Comprovado e a rotina das 07:15) só valem depois deles; até lá, o veredito fica sem ser
-conferido.
+## 8. Primeiro lançamento real (depois do PR 4 em produção, manual, a pedido do usuário)
 
 Com um recebimento real conferido (NF e material na mão), na aba Automações › Entradas no SCPI:
 1. "Simular" o recebimento e acompanhar o cartão até `simulada`.
@@ -170,12 +159,11 @@ Com um recebimento real conferido (NF e material na mão), na aba Automações �
 Esperado:
 - o recebimento fica lançado com o número;
 - no SCPI, a requisição tem a marca nas Observações, a data do recebimento e a NF;
-- a extração de depois a registra (PR 4); o veredito Comprovado ou Aguardando só aparece a partir do
-  PR 6.
+- a extração de depois a liga, e o veredito sai Comprovado ou Aguardando.
 
 Anote também:
 - qualquer janela depois do Salvar (L3);
 - o tempo até a requisição aparecer no relatório (L8).
 
-**Só depois do PR 7**: no dia seguinte, depois da rotina das 07:15, o pedido não está travado e o saldo
-livre do item é o saldo do SCPI menos os outros recebimentos abertos (SC-003).
+No dia seguinte, depois da rotina das 07:15, o pedido não está travado e o saldo livre do item é o
+saldo do SCPI menos os outros recebimentos abertos (SC-003).
