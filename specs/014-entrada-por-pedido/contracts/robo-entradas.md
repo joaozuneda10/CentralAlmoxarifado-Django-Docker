@@ -52,6 +52,12 @@ Dado puro, montado pela seleção. Tem:
    nenhuma bem-sucedida, `ExtracaoAntesFalhou`: a execução termina `FALHA` e nada muda. O piso é o
    `maior_requisicao` dela.
 4. **Para cada recebimento, em ordem**:
+   0. **Revalida o pedido antes de abrir o SCPI.** Lê, no banco, se o recebimento ainda está
+      `PREPARADO` e se o pedido segue sem trava e sem outro recebimento `EM_LANCAMENTO` ou
+      `VERIFICAR` (o que o recebimento anterior desta execução pode ter deixado). Se não, o
+      resultado é `ignorada` com o motivo, e o SCPI nem é aberto: a tela de um pedido que o
+      recebimento anterior já mudou nunca é conferida contra um esperado que não vale mais. É uma
+      leitura rápida; quem decide de verdade é o `_travar`.
    1. `abrir_pedido`. Uma falha leva o recebimento a `ERRO`, cria a tentativa `ERRO` e chama
       `descartar`.
    2. `conferir_tela(esperado, tela)`, que é pura. O `esperado` é calculado **no momento de cada
@@ -65,9 +71,17 @@ Dado puro, montado pela seleção. Tem:
 
       **Não salva.**
    3. `preencher`. Uma falha leva a `ERRO`, cria a tentativa `ERRO` e chama `descartar`.
+      **Reconferência imediatamente antes do Salvar**: depois de preencher, o robô lê de novo a
+      tela do item (o "Já Entrou" e o saldo) e roda o `conferir_tela` outra vez com o mesmo
+      `esperado`. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
+      tentativa `ERRO`, `descartar`), e nada é salvo. Reduz a janela para uma entrada manual feita
+      no meio do preenchimento; o que ainda escapar entre esta leitura e o Salvar é detectado pela
+      extração de depois (Duplicado ou "Já Entrou" não explicado), não impedido.
    4. Na simulação: `encerrar_simulacao` e o resultado `simulada`. Nada é gravado no Central.
    5. `_travar`, numa transação com `select_for_update` no recebimento e no pedido. Ela só passa se o
-      recebimento está `PREPARADO`, na mesma versão, e o pedido não está travado. Grava o
+      recebimento está `PREPARADO`, na mesma versão, o pedido não está travado **e nenhum outro
+      recebimento do pedido está `EM_LANCAMENTO` ou `VERIFICAR`** (a revalidação definitiva, que a
+      leitura do passo 0 apenas antecipa). Grava o
       `EM_LANCAMENTO` e a `TentativaEntrada` `VERIFICAR`, com a foto e a tela lida, e **fecha a
       transação antes do clique**. Se não passa, o resultado é `ignorada` ("o recebimento mudou"),
       com a tentativa `IGNORADA` e `descartar`. Erro de banco é `FalhaCritica`.
