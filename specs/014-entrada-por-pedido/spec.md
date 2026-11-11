@@ -385,8 +385,15 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   observados em 10/11/2026.
 - Se aparecer alguma janela depois do Salvar da entrada (impressão, etiquetas), ela é fechada como nas
   saídas; isso se confirma na primeira simulação real.
-- Se o SCPI confere o saldo de novo no Salvar quando duas telas foram abertas antes é desconhecido. A
-  spec não depende disso: o Central serializa, e o robô confere antes do Salvar.
+- Se o SCPI confere o saldo de novo no Salvar quando duas telas foram abertas antes é desconhecido. O
+  Central serializa só o que passa por ele (a trava do pedido e a execução única); **não impede** um
+  operador de salvar uma entrada manual do mesmo pedido entre a conferência da tela e o Salvar do
+  robô, e o SCPI aceita parciais repetidos que caibam no saldo (F3). A garantia, portanto, é em duas
+  camadas: o robô reconfere o "Já Entrou" na tela imediatamente antes do Salvar (a janela fica de
+  segundos), e a extração de depois acusa a duplicidade (Duplicado pela NF, ou "Já Entrou" não
+  explicado, que trava o pedido). Como regra de operação, durante uma execução ninguém lança entrada
+  manual dos pedidos que ela processa, e a aba avisa isso. O risco que sobra é detectado, não
+  impedido, e vale só para o operador que ignora o aviso.
 - A latência entre o Salvar e o relatório é curta, como nas saídas, e não foi medida. Enquanto não
   aparece, o veredito é Aguardando.
 - Pedido "não empenhado" não tem tratamento especial. Se o SCPI recusar a entrada, a falha acontece
