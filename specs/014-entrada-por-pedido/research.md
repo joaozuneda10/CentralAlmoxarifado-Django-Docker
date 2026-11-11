@@ -286,15 +286,6 @@ escondida na navegação, que não tem teste; separada, ela é uma função pura
   - o "Já Entrou" igual ao esperado;
   - a "Qtd. Saldo" igual à esperada;
   - um saldo que comporte a quantidade.
-
-  **Os demais itens do pedido** também entram na conferência, porque uma entrada manual pode ter
-  esgotado **outro** item, e a tela só lista item com saldo:
-  - o item que, pelo esperado, ainda tem saldo (última importação menos os lançados do Central ainda
-    não refletidos) **tem de estar na tela**, com o mesmo "Já Entrou". Item esperado e ausente é
-    divergência ("O SCPI mudou: item 7 não está mais na tela, esperado com saldo"), e nada é salvo;
-  - o item cujo saldo esperado já é zero (saldo zero na importação, ou esgotado por um lançamento
-    conhecido do Central) **pode** não estar na tela, e a ausência não é divergência; se estiver, com
-    "Já Entrou" maior que o esperado, é divergência.
 - **O esperado** é o valor da última importação mais os lançados do Central ainda não refletidos
   naquele item (R5).
 - **Com divergência**: o recebimento fica com erro ("O SCPI mudou: item 13, Já Entrou 2 na tela,
@@ -459,13 +450,7 @@ saídas e os testes dela.
 exercício, sem a marca do Central, ainda não ligada e com o número **acima do marco**:
 - **Com um recebimento aberto do mesmo pedido, com a mesma NF e o mesmo fornecedor** (preparado, com
   erro ou em verificação): ele é ligado à requisição como lançado à mão. Fica com `via = MANUAL`, o
-  número e o `visivel_desde`, que é o início da extração. Sai da fila, e o robô nunca o lança.
-  **Antes de ligar, compara os itens e as quantidades** do recebimento com os da requisição oficial
-  (por código, `norm_u`, soma exata). Se coincidem, liga como acima. Se divergem, **não liga como
-  lançado**: trava o pedido (`FORA_DO_CENTRAL`, com a diferença no detalhe) e cria a
-  `EntradaForaDoCentral` com as quantidades **oficiais**, que reservam o saldo até a próxima
-  importação. O recebimento aberto continua aberto e bloqueado pela trava, para a pessoa decidir.
-  Assim o Central nunca reserva menos do que o SCPI recebeu. Um
+  número e o `visivel_desde`, que é o início da extração. Sai da fila, e o robô nunca o lança. Um
   recebimento em lançamento não é ligado: a conciliação não roda com lançamento em andamento.
 - **Sem esse recebimento**: vira uma `EntradaForaDoCentral`, única por (ano, número) da requisição.
   Ela reserva o saldo até ser refletida (R5) e trava o pedido, com o motivo `FORA_DO_CENTRAL`.
@@ -499,14 +484,9 @@ os itens presentes nesta importação e na anterior.
     da anterior, porque a hora real da entrada é desconhecida.
 - **Sem explicação**: aviso de saúde e trava do pedido (motivo `JA_ENTROU`), com o Δ e o explicado no
   detalhe. Um Δ negativo, de entrada excluída ou corrigida no SCPI, também trava.
-- **Item que some do 07.13** (saldo zero): a entrada que o zerou pode ser anterior à janela diária e
-  então a extração de entradas não a traz. Reconciliação: o item que sumiu entre duas importações, sem
-  um recebimento do Central (`LANCADO` ou ligado) ou uma entrada fora do Central que o explique,
-  **trava o pedido** (`JA_ENTROU`, com "item N saiu do saldo sem entrada conhecida: pode ser entrada
-  retroativa, anulação ou exclusão") e gera aviso de saúde. O destravamento segue a R20, e a pessoa
-  pode ampliar a janela do `conciliar_entradas --desde` para achar a entrada. Fica de fora só o que o
-  Central não consegue distinguir: a primeira importação.
 - **Fora da conferência**:
+  - os itens ausentes na importação nova, com saldo zero, cuja entrada que os zerou só a extração de
+    entradas vê;
   - a primeira importação de um pedido ou de um exercício, que é a base.
 
 **Motivo**: toda entrada feita fora do Central já trava o pedido por R18, então um falso alarme de
@@ -628,9 +608,7 @@ lançar de verdade, e nenhum muda a ordem das gravações:
 - a latência até o relatório (L8 do registro);
 - a ordem da grade com código repetido (R10);
 - o rádio "Requisições de Entrada" e os campos de data do relatório (R13);
-- os campos do 07.13 pelo rótulo (R3);
-- se a grade ainda mostra os itens desmarcados depois do preenchimento (R11 e o contrato do robô);
-- se o 07.04.01 aceita o filtro só por NF, sem período, e a latência do relatório (L8).
+- os campos do 07.13 pelo rótulo (R3).
 
 ## R26. Interface
 

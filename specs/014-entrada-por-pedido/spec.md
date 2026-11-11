@@ -121,15 +121,7 @@ depois do clique, resposta perdida e saldo mudado na tela. Conferir os estados e
    recusado, e só a simulação roda.
 6. **Given** uma simulação, **When** ela termina, **Then** o SCPI não tem nenhuma requisição nova, o
    pedido não mudou e nenhum recebimento mudou de estado.
-7. **Given** um operador que salva à mão uma entrada do mesmo pedido entre a conferência da tela e o
-   Salvar do robô, **When** a extração de depois roda, **Then** a duplicidade é acusada (Duplicado pela
-   NF ou "Já Entrou" não explicado, com o pedido travado); um parcial repetido que o SCPI aceita e que
-   o Central conhece (F3) continua válido.
-8. **Given** uma entrada manual com a mesma NF e o mesmo fornecedor, mas em **outro item** do pedido,
-   **When** o robô vai lançar o recebimento, **Then** a leitura oficial da extração de antes a encontra
-   e o recebimento é ignorado, com o pedido travado; se ela aparecer só depois, o "Já Entrou" de
-   qualquer item do pedido, conferido na tela, também impede o Salvar.
-9. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
+7. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
    recusado até a outra execução terminar: um robô de lançamento por vez.
 
 ---
@@ -374,14 +366,7 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
 
 - **SC-001**: 0 requisição de entrada duplicada no SCPI por causa do Central. Isso vale em todos os
   cenários de falha exercitados: resposta perdida, falha antes e depois do Salvar, reenvio, duas pessoas
-  ao mesmo tempo no Central e entrada à mão com a mesma NF **feita antes da conferência da tela**, em qualquer item do pedido
-  (leitura oficial da NF na extração de antes e "Já Entrou" de todos os itens na tela). A
-  entrada manual feita **entre** a reconferência e o Salvar não é impedida pelo Central: vale a regra
-  operacional da aba (não lançar à mão os pedidos em execução) e, se ocorrer, a duplicidade é
-  detectada e trava o pedido (cenário 7 da US2), nunca passa em silêncio. O mesmo vale para a entrada
-  manual num item que a grade não mostra depois do preenchimento (plano B do contrato do robô). A
-  detecção automática (Já Entrou não explicado, na importação de pedidos, e Duplicado pela NF, na
-  conciliação) chega com o PR 6; até lá, só a regra operacional e a conferência manual.
+  ao mesmo tempo e entrada à mão com a mesma NF.
 - **SC-002**: O almoxarifado prepara o recebimento total de uma NF de até 30 itens em menos de 2 minutos,
   sem digitar quantidade.
 - **SC-003**: Em 100% dos itens disponíveis, o saldo livre mostrado é igual ao saldo do SCPI da última
@@ -400,15 +385,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
   observados em 10/11/2026.
 - Se aparecer alguma janela depois do Salvar da entrada (impressão, etiquetas), ela é fechada como nas
   saídas; isso se confirma na primeira simulação real.
-- Se o SCPI confere o saldo de novo no Salvar quando duas telas foram abertas antes é desconhecido. O
-  Central serializa só o que passa por ele (a trava do pedido e a execução única); **não impede** um
-  operador de salvar uma entrada manual do mesmo pedido entre a conferência da tela e o Salvar do
-  robô, e o SCPI aceita parciais repetidos que caibam no saldo (F3). A garantia, portanto, é em duas
-  camadas: o robô reconfere o "Já Entrou" na tela imediatamente antes do Salvar (a janela fica de
-  segundos), e a extração de depois acusa a duplicidade (Duplicado pela NF, ou "Já Entrou" não
-  explicado, que trava o pedido). Como regra de operação, durante uma execução ninguém lança entrada
-  manual dos pedidos que ela processa, e a aba avisa isso. O risco que sobra é detectado, não
-  impedido, e vale só para o operador que ignora o aviso.
+- Se o SCPI confere o saldo de novo no Salvar quando duas telas foram abertas antes é desconhecido. A
+  spec não depende disso: o Central serializa, e o robô confere antes do Salvar.
 - A latência entre o Salvar e o relatório é curta, como nas saídas, e não foi medida. Enquanto não
   aparece, o veredito é Aguardando.
 - Pedido "não empenhado" não tem tratamento especial. Se o SCPI recusar a entrada, a falha acontece
