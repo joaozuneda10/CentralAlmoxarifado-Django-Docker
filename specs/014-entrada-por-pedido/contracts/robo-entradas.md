@@ -57,7 +57,15 @@ Dado puro, montado pela seleção. Tem:
    do **1º de janeiro do exercício até amanhã**, feita uma vez por execução real, porque a NF pode
    ter entrado à mão numa data anterior ao período e em outro pedido do mesmo fornecedor. Se o
    07.04.01 aceitar o filtro só por NF, sem período, a leitura passa a usá-lo (R25); até lá, vale
-   a janela do exercício. Se existe, o recebimento é `ignorada`
+   a janela do exercício. **Limites assumidos**: (1) o Central só
+   trabalha com pedidos do exercício atual e com a NF de um fornecedor nesse exercício; uma NF igual
+   de exercício anterior é outra nota (o fornecedor não repete o número) e fica fora desta leitura; se
+   ocorrer, a conciliação acusa "Duplicado pela NF". (2) A leitura é **uma por execução**, não uma
+   por Salvar: o relatório leva dezenas de segundos (latência L8, ainda não medida), então repeti-la
+   antes de cada Salvar alargaria a janela em vez de fechá-la. A proteção do instante do Salvar é a
+   reconferência da tela (do pedido); uma entrada manual da mesma NF em **outro pedido**, feita depois
+   desta leitura, não é impedida e é detectada pela extração de depois (Duplicado pela NF, com o
+   pedido travado), o risco residual do SC-001. Se existe, o recebimento é `ignorada`
    ("a NF já entrou no SCPI: requisição <número>") e o pedido é travado (`FORA_DO_CENTRAL`), para a
    conciliação ligar ou tratar (R18). Isso cobre a entrada manual da mesma NF em **outro item**, que a
    tela de itens não mostra.
@@ -95,7 +103,12 @@ Dado puro, montado pela seleção. Tem:
       campo alterado, então o formulário preenchido e os dados do recebimento ficam intactos). A
       leitura traz todas as linhas da grade, inclusive as dos itens desmarcados, e o robô roda o
       `conferir_tela` outra vez com o mesmo `esperado`; a ausência de uma linha só é divergência
-      pelo critério do R11 (item que ainda devia ter saldo), nunca por ela mesma. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
+      pelo critério do R11 (item que ainda devia ter saldo), nunca por ela mesma. **Ponto a confirmar
+      no `--dry-run` real (R25)**: se a grade ainda mostra os itens desmarcados depois do
+      preenchimento. Se **não** mostrar, a leitura de todos os itens do pedido passa a ser a de
+      `abrir_pedido` (tela "Escolha os Itens", antes de desmarcar), e esta reconferência cobre só os
+      itens marcados; nenhum clique é dado para recuperar os desmarcados, para não perder o
+      formulário. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
       tentativa `ERRO` e `descartar`) no lançamento real, e nada é salvo. Na simulação, o modo é
       verificado primeiro: a divergência é registrada no resumo e no log da execução, o robô chama `descartar` e segue para
       o próximo recebimento, sem mudar estado, trava nem tentativa. Reduz a janela para uma entrada manual feita
