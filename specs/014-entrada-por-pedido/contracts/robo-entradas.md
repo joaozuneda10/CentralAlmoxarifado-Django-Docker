@@ -59,7 +59,11 @@ Dado puro, montado pela seleção. Tem:
       recebimento anterior já mudou nunca é conferida contra um esperado que não vale mais. É uma
       leitura rápida; quem decide de verdade é o `_travar`.
    1. `abrir_pedido`. Uma falha leva o recebimento a `ERRO`, cria a tentativa `ERRO` e chama
-      `descartar`.
+      `descartar`. **Toda gravação de `ERRO` (aqui, no `conferir_tela` e no `preencher`) é
+      condicional e atômica**: um `UPDATE` que só vale se o recebimento ainda está `PREPARADO` e na
+      `versao` selecionada. Se mudou (editado, cancelado ou ligado à mão no meio do caminho), o
+      estado atual é preservado, o resultado é `ignorada` ("o recebimento mudou") e a operação é
+      descartada. Na simulação nenhum estado do Central muda.
    2. `conferir_tela(esperado, tela)`, que é pura. O `esperado` é calculado **no momento de cada
       recebimento**, não na seleção: o "Já Entrou" da última importação mais as quantidades que o
       robô acabou de lançar (`LANCADO`, ainda não refletidos) no mesmo pedido e item. Assim, dois
