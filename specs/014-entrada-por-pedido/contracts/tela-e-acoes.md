@@ -61,6 +61,7 @@ A aba nova `?aba=entradas` fica na página `automacoes:pagina`. As regiões que 
 | Região | Conteúdo |
 |---|---|
 | Fila (`div#fila-entradas`) | os recebimentos preparados, com caixa de marcar, "marcar todas", a contagem e os botões "Simular" e "Lançar no SCPI" (este com a confirmação e o cadeado quando o lançamento real está bloqueado); os bloqueados aparecem sem caixa, com o motivo (pedido travado, ausente, fora do exercício, ou com recebimento em verificação) |
+| Aviso de execução | enquanto uma execução `ENTRADAS` roda, uma faixa em texto: "Lançando os pedidos <números>. Não lance entrada manual desses pedidos no SCPI até terminar." (os pedidos dos recebimentos escolhidos, lidos da execução). É o canal para o operador do SCPI saber o que não tocar |
 | Andamento | o cartão de `pedidos.andamento` da última execução `ENTRADAS`, no topo enquanto roda e nos 10 minutos depois |
 | Em verificação e com erro | por recebimento: a mensagem, as candidatas com "É esta", "Liberar para relançar" (com "Conferi no SCPI") e "Cancelar" (dois passos) |
 | Pedidos travados | por pedido: as travas abertas com o detalhe, a data da última importação e "Destravar" (com o motivo) |
