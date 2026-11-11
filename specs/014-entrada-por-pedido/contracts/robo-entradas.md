@@ -75,7 +75,9 @@ Dado puro, montado pela seleção. Tem:
       recebimentos do mesmo pedido com o mesmo item na mesma execução não fazem o segundo falhar por
       um esperado desatualizado. A tela é conferida em **todos os itens do pedido**, não só nos do
       recebimento: um "Já Entrou" maior em qualquer item é divergência, mesmo que a entrada manual
-      tenha sido de outro item. Com divergência:
+      tenha sido de outro item. Como a tela só lista item com saldo, o item que ainda devia ter saldo
+      e **não aparece** também é divergência (a entrada manual o esgotou); o item cujo saldo esperado
+      já é zero pode faltar sem divergir (R11). Com divergência:
       - o recebimento vai a `ERRO`, com a mensagem "O SCPI mudou: …";
       - `compras.servicos.travar_pedido(TELA)`;
       - a tentativa é criada como `ERRO`, e o robô chama `descartar`.
