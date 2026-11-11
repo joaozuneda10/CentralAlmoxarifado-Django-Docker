@@ -80,7 +80,8 @@ Dado puro, montado pela seleção. Tem:
       tela do item (o "Já Entrou" e o saldo) e roda o `conferir_tela` outra vez com o mesmo
       `esperado`. Com divergência, o tratamento é o do passo 2 (`ERRO`, `travar_pedido(TELA)`,
       tentativa `ERRO` e `descartar`) no lançamento real, e nada é salvo. Na simulação, o modo é
-      verificado primeiro: a divergência só vai ao resumo, sem mudar estado, trava nem tentativa. Reduz a janela para uma entrada manual feita
+      verificado primeiro: a divergência é registrada no resumo e no log da execução, o robô chama `descartar` e segue para
+      o próximo recebimento, sem mudar estado, trava nem tentativa. Reduz a janela para uma entrada manual feita
       no meio do preenchimento; o que ainda escapar entre esta leitura e o Salvar é detectado pela
       extração de depois (Duplicado ou "Já Entrou" não explicado), não impedido.
    4. Na simulação: `encerrar_simulacao` e o resultado `simulada`. Nada é gravado no Central.
