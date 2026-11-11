@@ -121,7 +121,11 @@ depois do clique, resposta perdida e saldo mudado na tela. Conferir os estados e
    recusado, e só a simulação roda.
 6. **Given** uma simulação, **When** ela termina, **Then** o SCPI não tem nenhuma requisição nova, o
    pedido não mudou e nenhum recebimento mudou de estado.
-7. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
+7. **Given** um operador que salva à mão uma entrada do mesmo pedido entre a conferência da tela e o
+   Salvar do robô, **When** a extração de depois roda, **Then** a duplicidade é acusada (Duplicado pela
+   NF ou "Já Entrou" não explicado, com o pedido travado); um parcial repetido que o SCPI aceita e que
+   o Central conhece (F3) continua válido.
+8. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
    recusado até a outra execução terminar: um robô de lançamento por vez.
 
 ---
@@ -366,7 +370,10 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
 
 - **SC-001**: 0 requisição de entrada duplicada no SCPI por causa do Central. Isso vale em todos os
   cenários de falha exercitados: resposta perdida, falha antes e depois do Salvar, reenvio, duas pessoas
-  ao mesmo tempo e entrada à mão com a mesma NF.
+  ao mesmo tempo no Central e entrada à mão com a mesma NF **feita antes da conferência da tela**. A
+  entrada manual feita **entre** a reconferência e o Salvar não é impedida pelo Central: vale a regra
+  operacional da aba (não lançar à mão os pedidos em execução) e, se ocorrer, a duplicidade é
+  detectada e trava o pedido (cenário 7 da US2), nunca passa em silêncio.
 - **SC-002**: O almoxarifado prepara o recebimento total de uma NF de até 30 itens em menos de 2 minutos,
   sem digitar quantidade.
 - **SC-003**: Em 100% dos itens disponíveis, o saldo livre mostrado é igual ao saldo do SCPI da última
