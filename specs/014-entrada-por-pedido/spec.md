@@ -125,7 +125,11 @@ depois do clique, resposta perdida e saldo mudado na tela. Conferir os estados e
    Salvar do robô, **When** a extração de depois roda, **Then** a duplicidade é acusada (Duplicado pela
    NF ou "Já Entrou" não explicado, com o pedido travado); um parcial repetido que o SCPI aceita e que
    o Central conhece (F3) continua válido.
-8. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
+8. **Given** uma entrada manual com a mesma NF e o mesmo fornecedor, mas em **outro item** do pedido,
+   **When** o robô vai lançar o recebimento, **Then** a leitura oficial da extração de antes a encontra
+   e o recebimento é ignorado, com o pedido travado; se ela aparecer só depois, o "Já Entrou" de
+   qualquer item do pedido, conferido na tela, também impede o Salvar.
+9. **Given** o robô de saídas em execução, **When** se pede o lançamento de entradas, **Then** ele é
    recusado até a outra execução terminar: um robô de lançamento por vez.
 
 ---
@@ -370,7 +374,8 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
 
 - **SC-001**: 0 requisição de entrada duplicada no SCPI por causa do Central. Isso vale em todos os
   cenários de falha exercitados: resposta perdida, falha antes e depois do Salvar, reenvio, duas pessoas
-  ao mesmo tempo no Central e entrada à mão com a mesma NF **feita antes da conferência da tela**. A
+  ao mesmo tempo no Central e entrada à mão com a mesma NF **feita antes da conferência da tela**, em qualquer item do pedido
+  (leitura oficial da NF na extração de antes e "Já Entrou" de todos os itens na tela). A
   entrada manual feita **entre** a reconferência e o Salvar não é impedida pelo Central: vale a regra
   operacional da aba (não lançar à mão os pedidos em execução) e, se ocorrer, a duplicidade é
   detectada e trava o pedido (cenário 7 da US2), nunca passa em silêncio.
