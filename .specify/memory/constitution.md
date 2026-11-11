@@ -1,10 +1,22 @@
+<!--
+Sync Impact Report
+- Versão: 2.0.0 → 2.1.0 (MINOR: princípios ampliados para cobrir as entradas por pedido de compra, spec 014).
+- Princípio I: `compras/regras.py` entra na lista de regras puras.
+- Princípio II: `compras/servicos.py` é a porta única dos recebimentos e das travas de pedido; o robô
+  de entradas grava só seis campos; o reenvio igual não duplica.
+- Princípio III: "lote ou recebimento", journal próprio por robô, uma execução de lançamento por vez
+  (saídas ou entradas, com a mesma trava) e a conferência da tela antes do Salvar.
+- Nenhum princípio removido ou redefinido de forma incompatível.
+- Documentos conferidos: specs/014-entrada-por-pedido (plan, research R23, tasks).
+-->
+
 # Central Almoxarifado (Django) Constitution
 
 ## Core Principles
 
 ### I. Regras de negócio puras, com o próprio sistema como referência
 
-- Regras de negócio ficam em funções puras, sem ORM (`pedidos/regras.py`, `scpi/leitura.py`,
+- Regras de negócio ficam em funções puras, sem ORM (`pedidos/regras.py`, `compras/regras.py`, `scpi/leitura.py`,
   `scpi/requisicoes.py`), testáveis sem banco.
 - O Central Almoxarifado é a referência das próprias regras: valem o código, os testes e as
   specs vigentes. O Apps Script e as planilhas de onde vieram são histórico, não requisito: não
@@ -24,6 +36,11 @@ antigo, então reproduzi-lo só limitaria a evolução.
 - Envio repetido NÃO PODE duplicar: o identificador do envio decide se é o mesmo pedido.
 - Fora de `servicos.py`, só o robô de lançamento grava em `pedidos`, e só nos campos `status`,
   `requisicao_scpi`, `lancado_em` e `mensagem` das `LinhaSaida`.
+- `compras/servicos.py` é o único lugar que grava recebimentos (entradas por pedido de compra) e
+  travas de pedido, com transação e `select_for_update` no pedido de compra. Fora dele, só o robô de
+  entradas grava em recebimentos, e só nos campos `status`, `requisicao_scpi`, `lancado_em`,
+  `mensagem`, `via` e `visivel_desde`; a trava do pedido ele grava pela função do serviço. O reenvio
+  igual de um recebimento não duplica: o identificador do envio decide.
 - Efeito externo (como o aviso no Telegram) sai depois do commit e nunca desfaz a gravação.
 
 Motivo: com uma porta só, as garantias de concorrência e de idempotência valem em todo lugar.
@@ -31,11 +48,12 @@ Motivo: com uma porta só, as garantias de concorrência e de idempotência vale
 ### III. Nunca lançar duas vezes no SCPI (INEGOCIÁVEL)
 
 - O estado `EM_LANCAMENTO` DEVE estar confirmado no banco antes do clique em Salvar.
-- Qualquer falha depois do clique vira `VERIFICAR`, nunca `PENDENTE`. Na dúvida, a linha fica
-  travada.
-- O número da requisição vai para o journal antes de ir para o banco; se o banco recusar, a
-  execução para com o lote travado.
-- Uma execução de cada robô por vez (`GET_LOCK`).
+- Qualquer falha depois do clique vira `VERIFICAR`, nunca `PENDENTE`. Na dúvida, a linha (ou o
+  recebimento) fica travada.
+- O número da requisição vai para o journal antes de ir para o banco; cada robô tem o seu journal.
+  Se o banco recusar, a execução para com o lote ou o recebimento travado.
+- Uma execução de lançamento por vez, de saídas ou de entradas, com a mesma trava (`GET_LOCK`).
+- Nas entradas, a tela do SCPI é conferida contra o esperado antes do Salvar; se mudou, nada é salvo.
 - O lançamento real só roda com `LANCAMENTO_REAL` ligado; o padrão é desligado.
 
 Motivo: uma requisição duplicada no SCPI é um erro contábil que o sistema não consegue desfazer.
@@ -108,4 +126,4 @@ Motivo: o público é o almoxarifado e os funcionários da operação, e o servi
 - Todo plano tem uma verificação de conformidade com estes princípios. Exceção a um princípio
   só com justificativa escrita no plano; o Princípio III não admite exceção.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-10-22
+**Version**: 2.1.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-11-11
