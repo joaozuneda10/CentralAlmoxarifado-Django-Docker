@@ -219,3 +219,10 @@ def test_data_do_formulario_tem_o_intervalo_do_pedido_a_hoje(client, pedido):
     assert f'min="{DATA_DO_PEDIDO:%Y-%m-%d}"' in texto
     assert f'max="{timezone.localdate():%Y-%m-%d}"' in texto
     assert timezone.localdate() - timedelta(days=0) == timezone.localdate()
+
+
+def test_lista_so_traz_pedido_com_item_disponivel_ou_recebimento_aberto(client, pedido):
+    from catalogo.models import Material
+
+    Material.objects.update(oculto=True)  # nenhum item pode ser recebido
+    assert _link(pedido) not in client.get(reverse("compras:pedidos")).text

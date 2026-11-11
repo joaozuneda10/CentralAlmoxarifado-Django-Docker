@@ -682,3 +682,12 @@ Esse corte já tem valor em produção: o saldo livre e a NF única, sem o robô
 - **[P]**: arquivos diferentes, sem dependência de tarefa incompleta.
 - **Commits**: um ao fim de cada fase, na branch do PR. Push, PR e merge só a pedido do usuário. O merge
   é de baixo para cima, um de cada vez, nunca pelo botão de stack nem pelo `merge-async`.
+
+---
+
+## Phase 9: Convergence
+
+- [X] T102 Alinhar o filtro SQL da lista de pedidos (`compras/views.py`) à `regras.disponibilidade`: só entra o pedido com item de código no cadastro e visível, ou com recebimento aberto, per contracts/tela-e-acoes.md `compras:pedidos` (partial)
+- [ ] T103 Trocar `compras.servicos.tem_tentativa` (hoje pelo `status`) pela existência de uma `TentativaEntrada` real que chegou ao `EM_LANCAMENTO`, sem contar a que parou antes do Salvar nem a simulação, quando o modelo existir no PR 4, per R6 (partial)
+- [ ] T104 Registrar no PR 1 o resultado do passo 2 do quickstart e fazer a conferência visual da T039 (375 px, teclado, sem depender de cor) com o usuário, per US1/AC1 e SC-002 (missing)
+

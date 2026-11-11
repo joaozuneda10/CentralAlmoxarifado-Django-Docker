@@ -16,6 +16,7 @@ from django.utils import timezone
 from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
+from catalogo.models import Material
 from compras import consultas, servicos
 from compras.forms import FormularioCancelamento, FormularioRecebimento
 from compras.models import ItemPedidoCompra, PedidoCompra, Recebimento, TravaPedido
@@ -44,12 +45,14 @@ def _busca(consulta, texto: str):
 def pedidos(request):
     """Os pedidos do exercício com item com saldo ou recebimento aberto."""
     abertos = Recebimento.objects.filter(pedido=OuterRef("pk"), status__in=ABERTOS)
+    # Item disponível, como a `regras.disponibilidade` (as 3 casas ficam para o detalhe): controle
+    # por quantidade, saldo > 0, presente e com o código no cadastro, visível.
     com_saldo = ItemPedidoCompra.objects.filter(
         pedido=OuterRef("pk"),
         controle="Q",
         saldo_scpi__gt=0,
         ausente_desde__isnull=True,
-    )
+    ).filter(Exists(Material.objects.filter(codigo=OuterRef("codigo"), oculto=False)))
     travas = TravaPedido.objects.filter(pedido=OuterRef("pk"), destravada_em__isnull=True)
     consulta = (
         PedidoCompra.objects.filter(exercicio=timezone.localdate().year)
