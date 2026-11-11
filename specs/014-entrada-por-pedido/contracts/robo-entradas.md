@@ -50,7 +50,12 @@ Dado puro, montado pela seleção. Tem:
 3. **Extração de antes** (só no real). Período: do dia anterior à data de recebimento mais antiga,
    entre os escolhidos e os recebimentos em verificação abertos, até amanhã. Até 3 tentativas. Sem
    nenhuma bem-sucedida, `ExtracaoAntesFalhou`: a execução termina `FALHA` e nada muda. O piso é o
-   `maior_requisicao` dela.
+   `maior_requisicao` dela. **Leitura oficial da NF**: com a extração de antes em mãos, o robô procura,
+   para cada recebimento escolhido, uma requisição de entrada oficial do mesmo fornecedor e da mesma NF
+   (qualquer item, qualquer pedido, sem a marca do Central). Se existe, o recebimento é `ignorada`
+   ("a NF já entrou no SCPI: requisição <número>") e o pedido é travado (`FORA_DO_CENTRAL`), para a
+   conciliação ligar ou tratar (R18). Isso cobre a entrada manual da mesma NF em **outro item**, que a
+   tela de itens não mostra.
 4. **Para cada recebimento, em ordem**:
    0. **Revalida o pedido antes de abrir o SCPI.** Lê, no banco, se o recebimento ainda está
       `PREPARADO` e se o pedido segue sem trava e sem outro recebimento `EM_LANCAMENTO` ou
@@ -68,7 +73,9 @@ Dado puro, montado pela seleção. Tem:
       recebimento**, não na seleção: o "Já Entrou" da última importação mais as quantidades que o
       robô acabou de lançar (`LANCADO`, ainda não refletidos) no mesmo pedido e item. Assim, dois
       recebimentos do mesmo pedido com o mesmo item na mesma execução não fazem o segundo falhar por
-      um esperado desatualizado. Com divergência:
+      um esperado desatualizado. A tela é conferida em **todos os itens do pedido**, não só nos do
+      recebimento: um "Já Entrou" maior em qualquer item é divergência, mesmo que a entrada manual
+      tenha sido de outro item. Com divergência:
       - o recebimento vai a `ERRO`, com a mensagem "O SCPI mudou: …";
       - `compras.servicos.travar_pedido(TELA)`;
       - a tentativa é criada como `ERRO`, e o robô chama `descartar`.
