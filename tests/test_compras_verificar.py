@@ -330,3 +330,33 @@ def test_o_ja_entrou_que_mudou_depois_da_tentativa_bloqueia_a_liberacao(pedido, 
         "O 'Já Entrou' do item 1 mudou de 50 para 60 depois da tentativa: "
         "a requisição pode existir."
     )
+
+
+def test_csv_de_pedidos_ja_baixado_nao_e_a_prova_do_ja_entrou(pedido, usuario, scpi):
+    """O SCPI salvou e a requisição ficou fora do que foi extraído. Um CSV de pedidos exportado
+    antes da tentativa, importado depois, traria de volta o "Já Entrou" antigo: não prova nada."""
+    antigo = scpi.relatorio_pedidos()  # exportado antes da tentativa: item 1 com 50
+    r = _em_verificacao(pedido, usuario, scpi, salvou=True)
+    CandidataEntrada.objects.all().delete()  # (a requisição ficou fora do período extraído)
+    ConferenciaRecebimento.objects.all().update(veredito="INTERVALO_VAZIO")
+    imp = importacao.importar(lambda: antigo, forcar=True, de_arquivo=True)
+    assert imp.situacao == "SUCESSO" and imp.de_arquivo
+    assert consultas.liberacao(r) == [
+        "O 'Já Entrou' do item 1 não foi conferido depois da tentativa: atualize os pedidos."
+    ]
+    resposta = servicos.resolver_recebimento(r.pk, usuario, acao="liberar", conferi=True)
+    assert not resposta.ok and resposta.motivo == "provas"
+    _importar_pedidos(scpi)  # a leitura do SCPI na hora mostra os 60
+    assert "mudou de 50 para 60" in consultas.liberacao(r)[0]
+
+
+def test_cancelar_depois_de_liberado_nao_libera_a_nf(pedido, usuario, scpi):
+    r = _em_verificacao(pedido, usuario, scpi, salvou=False)
+    _importar_pedidos(scpi)
+    assert servicos.resolver_recebimento(r.pk, usuario, acao="liberar", conferi=True).ok
+    r.refresh_from_db()
+    chave = r.chave_nf
+    resposta = servicos.cancelar_recebimento(r.pk, usuario, motivo="NF devolvida")
+    assert resposta.ok and "continua reservada" in resposta.mensagem
+    r.refresh_from_db()
+    assert (r.status, r.chave_nf) == ("CANCELADO", chave) and chave

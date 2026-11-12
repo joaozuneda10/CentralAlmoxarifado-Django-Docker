@@ -227,6 +227,98 @@ def test_banco_que_recusa_o_numero_interrompe_e_o_journal_tem_o_numero(
     assert eventos[-1]["evento"] == "falha_banco" and eventos[-1]["execucao"] == execucao.pk
 
 
+def test_nf_que_a_extracao_de_antes_ja_achou_no_scpi_nao_e_lancada(pedido, usuario, scpi):
+    """Alguém lançou a mesma NF à mão por outro item do pedido: o "Já Entrou" do item do
+    recebimento não muda e a tela confere, mas a extração de antes já tem a NF."""
+    r = preparar(pedido, usuario, {1: "10"})
+    manual = scpi.entrada_manual(
+        (pedido.ano, pedido.numero), {2: "10"}, data=r.data_recebimento, nf="501"
+    )
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.situacao == "ATENCAO"
+    assert (execucao.resumo["lancadas"], execucao.resumo["falhas"]) == (0, 1)
+    assert execucao.resumo["lotes"][0]["resultado"] == "erro"
+    r.refresh_from_db()
+    assert r.status == "ERRO" and manual in r.mensagem
+    assert [s.requisicao for s in scpi.salvas] == [manual]  # nada salvo pelo robô
+    assert not _chamadas(scpi, "abrir_pedido")
+    assert TentativaEntrada.objects.get().resultado == "ERRO"
+
+
+def test_journal_que_falha_antes_do_salvar_interrompe_sem_salvar(
+    pedido, usuario, scpi, monkeypatch
+):
+    r = preparar(pedido, usuario, {1: "10"})
+
+    def sem_disco(*args, **kwargs):
+        raise OSError("disco cheio")
+
+    monkeypatch.setattr(lancamento_entradas, "open", sem_disco, raising=False)
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    with pytest.raises(FalhaCritica):
+        executar_lancamento_entradas(
+            execucao, scpi.abrir, recebimentos=[r.rotulo], extrair=scpi.relatorio_entradas
+        )
+    execucao.refresh_from_db()
+    assert execucao.situacao == "FALHA" and "disco cheio" in execucao.erro
+    assert not scpi.salvas
+    r.refresh_from_db()
+    assert r.status == "EM_LANCAMENTO"  # travado para conferência
+    assert TentativaEntrada.objects.get().resultado == "VERIFICAR"
+
+
+def test_journal_que_falha_com_o_numero_obtido_grava_no_banco_e_interrompe(
+    pedido, usuario, scpi, monkeypatch
+):
+    um = preparar(pedido, usuario, {1: "10"}, nf="501")
+    dois = preparar(pedido, usuario, {1: "5"}, nf="502")
+    chamadas = []
+
+    def falha_na_segunda(*args, **kwargs):
+        chamadas.append(args)
+        if len(chamadas) == 2:  # a primeira é o em_lancamento; a segunda, o número
+            raise OSError("disco cheio")
+        return open(*args, **kwargs)
+
+    monkeypatch.setattr(lancamento_entradas, "open", falha_na_segunda, raising=False)
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    with pytest.raises(FalhaCritica):
+        executar_lancamento_entradas(
+            execucao,
+            scpi.abrir,
+            recebimentos=[um.rotulo, dois.rotulo],
+            extrair=scpi.relatorio_entradas,
+        )
+    execucao.refresh_from_db()
+    assert execucao.situacao == "FALHA"
+    um.refresh_from_db()
+    dois.refresh_from_db()
+    assert (um.status, um.requisicao_scpi) == ("LANCADO", "003492/26")
+    assert dois.status == "PREPARADO" and len(scpi.salvas) == 1  # a execução parou
+
+
+def test_falha_antes_do_salvar_nao_desfaz_o_que_mudou_durante_o_preenchimento(
+    pedido, usuario, scpi, monkeypatch
+):
+    """Enquanto o robô preenche, o recebimento é ligado a uma entrada feita à mão (lançado): a
+    falha do preenchimento não o devolve a erro."""
+    r = preparar(pedido, usuario, {1: "10"})
+
+    def preencher(rec):
+        Recebimento.objects.filter(pk=r.pk).update(
+            status="LANCADO", requisicao_scpi="003400/26", versao=F("versao") + 1
+        )
+        raise RuntimeError("a grade não respondeu")
+
+    monkeypatch.setattr(scpi, "preencher", preencher)
+    execucao = _rodar([r.rotulo], scpi)
+    assert (execucao.resumo["falhas"], execucao.resumo["ignoradas"]) == (0, 1)
+    r.refresh_from_db()
+    assert (r.status, r.requisicao_scpi) == ("LANCADO", "003400/26")
+    assert TentativaEntrada.objects.get().resultado == "IGNORADA"
+    assert not scpi.salvas
+
+
 # --- simulação ---------------------------------------------------------------------------------
 
 

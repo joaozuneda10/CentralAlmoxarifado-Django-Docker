@@ -480,3 +480,18 @@ def test_o_pedido_mostra_as_entradas_feitas_fora_do_central(client, logado, pedi
     )
     texto = client.get(reverse("compras:pedido", args=[pedido.pk])).text
     assert "Entradas feitas direto no SCPI, sem o Central" in texto and "003493/26" in texto
+
+
+def test_a_recarga_da_regiao_mantem_os_pedidos_travados_e_a_conferencia(client, logado, pedido):
+    from compras import servicos
+
+    servicos.travar_pedido(pedido.pk, "FORA_DO_CENTRAL", "A requisição 003493/26 foi feita à mão.")
+    resposta = client.get(
+        PAGINA + "?veredito_entradas=todos",
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="section#entradas-no-scpi",
+    )
+    texto = resposta.text
+    assert 'id="pedidos-travados"' in texto and "003493/26 foi feita à mão" in texto
+    assert resposta.context["filtro_veredito"] == "todos"
+    assert resposta.context["pagina_vereditos"] is not None

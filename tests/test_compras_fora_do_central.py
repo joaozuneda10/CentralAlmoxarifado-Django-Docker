@@ -219,3 +219,61 @@ def test_destravar_recalcula_o_saldo_depois_de_uma_importacao_posterior(pedido, 
     assert ok.ok
     assert consultas.estado_do_pedido(pedido) == "disponivel"
     assert _livre(pedido, 1) == 43  # saldo do SCPI de agora (50 − 7), sem reservas
+
+
+# --- correções da revisão ---------------------------------------------------------------------
+
+
+def test_primeira_extracao_vazia_fixa_o_marco(pedido, scpi):
+    """A primeira extração sem nenhuma entrada já é o marco: a entrada feita à mão depois dela é
+    de fora do Central, e não história."""
+    call_command("conciliar_entradas")
+    assert consultas.marco() == consultas.MARCO_VAZIO
+    _importar_pedidos(scpi)
+    scpi.entrada_manual((pedido.ano, pedido.numero), {1: "8"}, data=timezone.localdate(), nf="900")
+    call_command("conciliar_entradas")
+    assert consultas.marco() == consultas.MARCO_VAZIO
+    assert EntradaForaDoCentral.objects.count() == 1
+    assert TravaPedido.objects.filter(motivo="FORA_DO_CENTRAL").count() == 1
+
+
+def test_entrada_de_fora_sem_a_trava_nao_fica_gravada(pedido, scpi, com_marco, monkeypatch):
+    """Se a trava do pedido falha, o registro da entrada também não fica: a conferência seguinte
+    refaz os dois."""
+    scpi.entrada_manual((pedido.ano, pedido.numero), {1: "8"}, data=timezone.localdate(), nf="900")
+    original = servicos.travar_pedido
+
+    def falha(*args, **kwargs):
+        raise RuntimeError("o banco caiu")
+
+    monkeypatch.setattr(servicos, "travar_pedido", falha)
+    with pytest.raises(Exception):  # noqa: B017, PT011 (o comando sai com erro)
+        call_command("conciliar_entradas")
+    assert not EntradaForaDoCentral.objects.exists()
+    monkeypatch.setattr(servicos, "travar_pedido", original)
+    call_command("conciliar_entradas")
+    assert EntradaForaDoCentral.objects.count() == 1
+    assert TravaPedido.objects.filter(motivo="FORA_DO_CENTRAL").count() == 1
+
+
+def test_e_esta_de_uma_entrada_ja_refletida_nao_trava_o_pedido(pedido, usuario, scpi, com_marco):
+    """Salvar incerto de 10; a importação seguinte já reflete os 10; depois o "É esta" liga a
+    requisição. A importação de depois não vê mudança, e o Central não a conta de novo."""
+    from compras.models import CandidataEntrada
+
+    _importar_pedidos(scpi)
+    r = preparar(pedido, usuario, {1: "10"}, nf="501")
+    scpi.salva_e_falha.add(r.rotulo)
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    executar_lancamento_entradas(
+        execucao, scpi.abrir, recebimentos=[r.rotulo], extrair=scpi.relatorio_entradas
+    )
+    _importar_pedidos(scpi)  # já reflete os 10
+    assert not TravaPedido.objects.filter(motivo="JA_ENTROU").exists()
+    candidata = CandidataEntrada.objects.filter(conferencia__recebimento=r).first()
+    resposta = servicos.resolver_recebimento(
+        r.pk, usuario, acao="e_esta", requisicao_id=candidata.requisicao_id
+    )
+    assert resposta.ok, resposta.mensagem
+    _importar_pedidos(scpi)  # nada mudou no SCPI
+    assert not TravaPedido.objects.filter(motivo="JA_ENTROU").exists()
