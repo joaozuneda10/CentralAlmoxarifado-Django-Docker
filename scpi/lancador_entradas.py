@@ -48,7 +48,7 @@ log = logging.getLogger("scpi.lancamento_entradas").info
 ESPERA_ESCOLHA_MS = 30000  # a janela "Escolha os Itens" e as linhas dela
 
 # Colunas de "Escolha os Itens", pelo texto do cabeçalho (SCPI, 12/11/2026): `exato` para os nomes
-# que são prefixo de outros ("Qtd." também começa "Qtd. Já Entrou"). R25: confirmar "Qtd. Saldo".
+# que são prefixo de outros ("Qtd." também comeca "Qtd. Já Entrou"). R25: confirmar "Qtd. Saldo".
 COLUNAS_TELA = (
     ("item", "Item", True),
     ("codigo", "Código", True),
@@ -64,10 +64,10 @@ JS_LER_ESCOLHA_DOS_ITENS = """
     const vis = e => e.offsetParent !== null;
     for (const grade of [...document.querySelectorAll('.x-grid')].filter(vis)) {
         const cabecalhos = [...grade.querySelectorAll('.x-column-header')]
-            .filter(vis).map(h => h.textContent.trim());
+            .map(h => h.innerText.trim());
         if (!cabecalhos.includes('Item') || !cabecalhos.includes('Código')) continue;
         const linhas = [...grade.querySelectorAll('.x-grid-row')].filter(vis).map(linha =>
-            [...linha.querySelectorAll('.x-grid-cell')].map(c => c.textContent.trim()));
+            [...linha.querySelectorAll('.x-grid-cell')].map(c => c.innerText.trim()));
         return {cabecalhos, linhas};
     }
     return null;
@@ -82,6 +82,37 @@ JS_LINHA_MARCADA = """
 ) || linha.classList.contains('x-grid-item-selected')
     || linha.classList.contains('x-grid-row-selected')
 """
+
+
+JS_GRADE_POR_CABECALHOS = """
+(nomes) => {
+    const vis = e => e.offsetParent !== null;
+    for (const grade of [...document.querySelectorAll('.x-grid')].filter(vis)) {
+        const cabecalhos = [...grade.querySelectorAll('.x-column-header')]
+            .map(h => h.innerText.trim());
+        if (nomes.every(n => cabecalhos.includes(n))) return grade.id;
+    }
+    return null;
+}
+"""
+
+
+def _respirar(frame) -> None:
+    """Dá um respiro ao SCPI depois de cada ação: espera o "Carregando…" sumir e a pausa de
+    sempre (`pausar`). Cada edição de célula faz o servidor recarregar a grade; a ação seguinte
+    sobre a grade em recarga se perde ou fica sem alvo (como no lançamento das saídas)."""
+    aguardar_mascara(frame)
+    pausar(frame)
+
+
+def _clicar(botao, *, espera_ms: int = 4000) -> None:
+    """Clica no botão; se o Playwright não consegue alcançá-lo (a janela do SCPI passa da altura
+    do navegador e o botão fica abaixo da área visível, sem rolagem), dispara o clique pelo DOM,
+    que o ExtJS trata como o de um mouse (SCPI, 12/11/2026)."""
+    try:
+        botao.click(timeout=espera_ms)
+    except Exception:
+        botao.dispatch_event("click")
 
 
 def _qtd_br(quantidade) -> str:
@@ -233,7 +264,7 @@ class NavegadorEntradas(Sessao):
             aguardar_mascara(frame)
             # A linha do pedido e o botão Selecionar (SCPI, 12/11/2026): carrega "Escolha os Itens".
             pesquisa.locator(".x-grid-row").filter(visible=True).first.click()
-            pesquisa.get_by_role("button", name=re.compile(r"^\s*Selecionar\s*$", re.I)).click()
+            _clicar(pesquisa.get_by_role("button", name=re.compile(r"^\s*Selecionar\s*$", re.I)))
             # Depois do duplo clique o SCPI mostra "Aguarde…" e só então abre "Escolha os Itens":
             # espera a janela e a grade carregarem (as linhas chegam depois da janela).
             frame.get_by_text("Escolha os Itens", exact=True).filter(visible=True).first.wait_for(
@@ -261,14 +292,16 @@ class NavegadorEntradas(Sessao):
         try:
             log("  etapa: preencher a entrada")
             self._marcar_itens(rec)
-            frame.get_by_role("button", name=re.compile(r"^\s*Confirmar\s*$", re.I)).filter(
-                visible=True
-            ).first.click()
+            _clicar(
+                frame.get_by_role("button", name=re.compile(r"^\s*Confirmar\s*$", re.I))
+                .filter(visible=True)
+                .first
+            )
             aguardar_mascara(frame)
             self._confirmar_empenhos()
             checar_mensagem(frame, "confirmar os itens")
-            self._digitar("Data e Hora da Entrada", f"{rec.data:%d/%m/%Y}")
-            self._digitar("Nota Fiscal", rec.nf)  # sem zeros à esquerda
+            self._digitar("Data e Hora da Entrada", f"{rec.data:%d/%m/%Y}", comeca=True)
+            self._digitar("Nota Fiscal", rec.nf, sem_zeros=True)  # o SCPI a completa com zeros
             self._preencher_itens(rec)
             self._conferir_itens(rec)
             checar_mensagem(frame, "preencher a entrada")
@@ -280,15 +313,11 @@ class NavegadorEntradas(Sessao):
 
     def _grade(self, *cabecalhos: str):
         """A grade visível que tem estes cabeçalhos (a de "Escolha os Itens" ou a de "Itens da
-        Entrada")."""
-        grade = self.frame.locator(".x-grid").filter(visible=True)
-        for cabecalho in cabecalhos:
-            grade = grade.filter(
-                has=self.frame.locator(".x-column-header").filter(
-                    has_text=re.compile(rf"^\s*{re.escape(cabecalho)}\s*$")
-                )
-            )
-        return grade.first
+        Entrada"), achada pelo texto dos cabeçalhos: os IDs do ExtJS mudam a cada sessão."""
+        id_grade = self.frame.evaluate(JS_GRADE_POR_CABECALHOS, list(cabecalhos))
+        if not id_grade:
+            raise ErroSCPI(f"nenhuma grade visível com as colunas {', '.join(cabecalhos)}")
+        return self.frame.locator(f"#{id_grade}")
 
     def _marcar_itens(self, rec: RecebimentoParaLancar) -> None:
         """Em "Escolha os Itens", os itens do recebimento ficam marcados e os outros, não. O
@@ -303,7 +332,7 @@ class NavegadorEntradas(Sessao):
             marcada = linha.evaluate(JS_LINHA_MARCADA)
             if (numero in no_recebimento) != marcada:
                 celulas.first.click()
-                pausar(self.frame)
+                _respirar(self.frame)
 
     def _confirmar_empenhos(self) -> None:
         """A janela de empenhos, se abrir, é confirmada sem escolher nada (D7). Na entrada vista em
@@ -313,21 +342,34 @@ class NavegadorEntradas(Sessao):
             janela.first.get_by_role("button", name=re.compile("OK|Confirmar", re.I)).click()
             aguardar_mascara(self.frame)
 
-    def _digitar(self, rotulo: str, valor: str) -> None:
-        """Escreve no campo que tem este rótulo e sai dele (a máscara de data aceita os dígitos)."""
+    def _digitar(
+        self, rotulo: str, valor: str, *, comeca: bool = False, sem_zeros: bool = False
+    ) -> None:
+        """Escreve no campo que tem este rótulo, sai dele (a máscara de data aceita os dígitos) e
+        lê de volta: o que ficou na tela tem de ser o digitado (`comeca`: só o começo, para a data
+        que o SCPI completa com a hora; `sem_zeros`: ignora os zeros à esquerda, que a máscara da
+        NF acrescenta)."""
         entrada = campo(self.frame, rotulo)
         entrada.click()
+        _respirar(self.frame)
         self.page.keyboard.press("ControlOrMeta+A")
-        self.page.keyboard.type(valor, delay=30)
+        self.page.keyboard.type(valor, delay=60)
         self.page.keyboard.press("Tab")
-        pausar(self.frame)
+        _respirar(self.frame)
+        lido = entrada.input_value().strip()
+        if sem_zeros:
+            lido, esperado = lido.lstrip("0"), valor.lstrip("0")
+        else:
+            esperado = valor
+        if not (lido.startswith(esperado) if comeca else lido == esperado):
+            raise ErroSCPI(f"o campo {rotulo} ficou com '{lido}', e o robô digitou '{valor}'")
 
     def _abrir_itens_da_entrada(self):
         """A aba "Itens da Entrada" e a grade dela, com os índices das colunas pelos cabeçalhos."""
         self.frame.locator(".x-tab").filter(
             has_text=re.compile(r"^\s*Itens da Entrada\s*$")
         ).first.click()
-        pausar(self.frame)
+        _respirar(self.frame)
         grade = self._grade("Item", "QTD", "Observação")
         cabecalhos = [
             t.strip() for t in grade.locator(".x-column-header").all_inner_texts() if t.strip()
@@ -338,11 +380,15 @@ class NavegadorEntradas(Sessao):
         }
 
     def _editar_celula(self, celula, texto: str) -> None:
+        """Abre o editor da célula, digita tecla a tecla e confirma com Enter, dando respiro ao
+        SCPI antes e depois (a grade recarrega do servidor a cada edição)."""
+        _respirar(self.frame)
         celula.dblclick()
+        _respirar(self.frame)
         self.page.keyboard.press("ControlOrMeta+A")
-        self.page.keyboard.type(texto, delay=30)
+        self.page.keyboard.type(texto, delay=60)
         self.page.keyboard.press("Enter")
-        pausar(self.frame)
+        _respirar(self.frame)
 
     def _preencher_itens(self, rec: RecebimentoParaLancar) -> None:
         """A QTD (o padrão é o saldo inteiro) e a Observação de cada item da grade, achados pelo
@@ -357,6 +403,7 @@ class NavegadorEntradas(Sessao):
                 continue
             self._editar_celula(celulas.nth(onde["QTD"]), _qtd_br(item.quantidade))
             self._editar_celula(celulas.nth(onde["Observação"]), rec.observacoes)
+            _respirar(self.frame)
 
     def _conferir_itens(self, rec: RecebimentoParaLancar) -> None:
         """A conferência final de "Itens da Entrada", antes do Salvar: só os itens do recebimento,
@@ -427,7 +474,7 @@ class NavegadorEntradas(Sessao):
         self.reabrir_modulo()
 
     def _recomecar(self) -> None:
-        """Depois de um recebimento não salvo, o próximo começa num módulo reaberto, como depois
+        """Depois de um recebimento não salvo, o próximo comeca num módulo reaberto, como depois
         de um lançamento (o mesmo cuidado do lançamento das saídas)."""
         self.limpar()
         try:
@@ -436,18 +483,22 @@ class NavegadorEntradas(Sessao):
             log(f"  reabertura do módulo falhou ({resumo_erro(exc)}); tentando o próximo passo")
             self.reiniciar()
 
-    def encerrar_simulacao(self) -> None:
-        log("  [DRY-RUN] entrada preenchida e conferida — NÃO clicado em Salvar")
-        self._recomecar()
-
-    def descartar(self, rec: RecebimentoParaLancar) -> None:
+    def _guardar_print(self, nome: str) -> None:
         momento = timezone.localtime()
-        caminho = Path(settings.LOG_DIR) / f"scpi-entradas-{rec.rotulo}-{momento:%Y%m%d_%H%M%S}.png"
+        caminho = Path(settings.LOG_DIR) / f"scpi-entradas-{nome}-{momento:%Y%m%d_%H%M%S}.png"
         try:
             self.page.screenshot(path=str(caminho))
             log(f"  print da tela: {caminho}")
         except Exception:
             log(f"  não foi possível salvar o print da tela em {caminho}")
+
+    def encerrar_simulacao(self) -> None:
+        log("  [DRY-RUN] entrada preenchida e conferida — NÃO clicado em Salvar")
+        self._guardar_print("simulacao")
+        self._recomecar()
+
+    def descartar(self, rec: RecebimentoParaLancar) -> None:
+        self._guardar_print(rec.rotulo)
         self._recomecar()
 
 
