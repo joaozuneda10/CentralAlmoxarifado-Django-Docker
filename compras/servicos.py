@@ -318,8 +318,22 @@ def editar_recebimento(
     return Resposta(True, f"{recebimento.rotulo} salvo.", recebimento=recebimento)
 
 
+def _ja_foi_ao_salvar(recebimento: Recebimento) -> bool:
+    """Se alguma tentativa do recebimento chegou ao `EM_LANCAMENTO` e depois foi liberada para
+    relançar. A liberação tira a trava da edição (as três provas dizem que nada foi salvo), mas
+    o fato fica na foto da tentativa, e a NF de quem passou por ele nunca volta a ficar livre."""
+    return any(
+        "liberada" in (foto or {})
+        for foto in TentativaEntrada.objects.filter(recebimento=recebimento).values_list(
+            "foto", flat=True
+        )
+    )
+
+
 def cancelar_recebimento(recebimento_id: int, usuario, *, motivo: str) -> Resposta:
-    """Cancela um recebimento sem tentativa do robô e libera a NF (`chave_nf` nula)."""
+    """Cancela um recebimento sem tentativa do robô e libera a NF (`chave_nf` nula). O que já foi
+    ao Salvar e foi liberado para relançar também se cancela aqui, mas a NF continua reservada,
+    como no cancelamento da verificação."""
     motivo = (motivo or "").strip()
     with transaction.atomic():
         travados = _travar_recebimento(recebimento_id)
@@ -341,14 +355,18 @@ def cancelar_recebimento(recebimento_id: int, usuario, *, motivo: str) -> Respos
                 False, "Informe o motivo do cancelamento.", recebimento=recebimento, motivo="motivo"
             )
         limite = Recebimento._meta.get_field("motivo_cancelamento").max_length
+        reservada = _ja_foi_ao_salvar(recebimento)
         recebimento.status = Recebimento.Status.CANCELADO
-        recebimento.chave_nf = None
+        if not reservada:
+            recebimento.chave_nf = None
         recebimento.motivo_cancelamento = motivo[:limite]
         recebimento.versao += 1
         recebimento.alterado_por = usuario
         recebimento.alterado_em = timezone.now()
         recebimento.save()
-    return Resposta(True, f"{recebimento.rotulo} cancelado.", recebimento=recebimento)
+    final = f"{recebimento.rotulo} cancelado"
+    final += "; a NF continua reservada (o robô já tentou lançá-lo)." if reservada else "."
+    return Resposta(True, final, recebimento=recebimento)
 
 
 def travar_pedido(pedido_id: int, motivo: str, detalhe: str = "", **origem) -> TravaPedido:

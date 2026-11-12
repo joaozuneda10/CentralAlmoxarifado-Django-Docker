@@ -187,7 +187,11 @@ def gravar(
 
 
 def importar(
-    obter_csv: Callable[[], bytes], *, forcar: bool = False, exercicio: int | None = None
+    obter_csv: Callable[[], bytes],
+    *,
+    forcar: bool = False,
+    exercicio: int | None = None,
+    de_arquivo: bool = False,
 ) -> Importacao:
     """Baixa (ou lê) o relatório e o grava numa `Importacao` do tipo `PEDIDOS_COMPRA`, com a trava
     do tipo.
@@ -196,7 +200,10 @@ def importar(
     hoje, e se o ano virar no meio da importação ela é recusada, para não gravar um exercício no
     outro. Com `exercicio` explícito (CSV de outro ano, que o comando só aceita com `--arquivo`),
     nada disso se confere. O aviso "Nada a exibir" do SCPI é um relatório vazio confirmado: nenhum
-    pedido tem saldo, e o que estava presente some, sob o mesmo corte."""
+    pedido tem saldo, e o que estava presente some, sob o mesmo corte.
+
+    `de_arquivo` marca a importação de um CSV já baixado: não se sabe quando ele foi exportado,
+    e ela não serve de prova do "Já Entrou" de depois de uma tentativa (`consultas.liberacao`)."""
     automatico = exercicio is None
     exercicio = timezone.localdate().year if automatico else exercicio
     criada: list[Importacao] = []
@@ -204,7 +211,8 @@ def importar(
 
     def registrar(importacao: Importacao) -> None:
         importacao.exercicio = exercicio
-        importacao.save(update_fields=["exercicio"])
+        importacao.de_arquivo = de_arquivo
+        importacao.save(update_fields=["exercicio", "de_arquivo"])
         criada.append(importacao)
 
     def obter() -> bytes:
