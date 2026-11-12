@@ -239,3 +239,32 @@ def test_pedido_que_nao_aceita_recebimento():
 def test_os_erros_sao_juntados():
     erros = _validar(nf="", data_recebimento=HOJE + timedelta(days=2), itens={1: "999"})
     assert {e.campo for e in erros} == {"nf", "data_recebimento", "item-1"}
+
+
+# --- A marca do recebimento nas Observações ------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("texto", "esperado"),
+    [
+        ("Central Almoxarifado RC-0042", "RC-0042"),
+        ("central   almoxarifado rc-0042\nObs.: x", "RC-0042"),
+        ("Central Almoxarifado RC-123456789 extra", "RC-123456789"),
+        ("Central Almoxarifado P-000123", ""),  # a marca das saídas não é a deste
+        ("RC-0042 sem a frase do robô", ""),
+        ("Central Almoxarifado RC-1234567890", ""),  # mais de 9 dígitos: não é marca
+        ("", ""),
+    ],
+)
+def test_recebimento_observado(texto, esperado):
+    assert regras.recebimento_observado(texto) == esperado
+
+
+def test_texto_observacoes_com_e_sem_observacao():
+    assert regras.texto_observacoes("RC-0042") == "Central Almoxarifado RC-0042"
+    assert (
+        regras.texto_observacoes("RC-0042", "  portaria;  volume 3 ")
+        == "Central Almoxarifado RC-0042\nObs.: portaria, volume 3"
+    )
+    # a marca que o robô escreve é a que a leitura reconhece
+    assert regras.recebimento_observado(regras.texto_observacoes("RC-0042", "x")) == "RC-0042"

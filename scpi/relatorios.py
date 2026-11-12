@@ -320,6 +320,40 @@ def _relacao_de_requisicoes(
         return conteudo
 
 
+def baixar_entradas(de: date, ate: date) -> bytes:
+    """Relatórios › Requisições › Relação de Requisições, "Requisições de Entrada", no período
+    (filtra a data da entrada, DATAE). Só lê o SCPI. Sem nenhuma entrada no período o SCPI avisa
+    "Nada a exibir" e a função levanta `NadaAExibir`: quem extrai decide se isso vale.
+
+    Os campos são achados como na `_relacao_de_requisicoes` das saídas, que não muda; o relatório
+    termina como começou ("Fechar relatório"). Sem teste de navegação (Princípio V): só o passo 4
+    do quickstart da spec 014, à mão, a exercita."""
+    rotulo = "Entradas do SCPI"
+    with _sessao("entradas_relatorio") as sessao:
+        frame = sessao.frame
+
+        frame.get_by_role("button", name="Relatórios").click()
+        frame.get_by_role("menuitem", name="Requisições").hover()
+        frame.get_by_role("menuitem", name="Relação de Requisições").click()
+
+        frame.get_by_role("radio", name="Requisições de Entrada").check()
+
+        ids = frame.evaluate(JS_IDS_SAIDAS)
+        frame.locator(f"#{ids['datas'][0]}").fill(_br(de))
+        frame.locator(f"#{ids['datas'][0]}").press("Tab")
+        frame.locator(f"#{ids['datas'][1]}").fill(_br(ate))
+        frame.locator(f"#{ids['datas'][1]}").press("Tab")
+
+        frame.get_by_role("button", name="Imprimir").click()
+        if not _gerar(frame, timeout=ESPERA_GERACAO_SAIDAS_MS):
+            raise NadaAExibir(f"{rotulo}: nada a exibir de {_br(de)} a {_br(ate)}.")
+        conteudo = interceptar_csv(sessao.page, frame, "entradas_relatorio")
+        if not conteudo:
+            raise ErroImportacao(f"{rotulo}: o SCPI entregou um CSV vazio.")
+        _fechar_relatorio(frame)
+        return conteudo
+
+
 # No menu Relatórios o item é "07.13. Relação de Pedidos Entregues e Não Entregues" (conferido na
 # tela em 12/11/2026); a janela do relatório pode levar esse nome ou o título "Relação de Pedidos
 # (Condição da Entrega)". Os dois são casados sem depender de acento nem de maiúscula.

@@ -10,6 +10,7 @@ from django.conf import settings
 from django.db import models
 from django.utils import timezone
 
+from catalogo.models import Importacao
 from compras.regras import CONTROLE_QUANTIDADE, CONTROLE_VALOR, rotulo_pedido
 
 
@@ -220,6 +221,9 @@ class TravaPedido(models.Model):
     importacao = models.ForeignKey(
         "catalogo.Importacao", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
     )
+    extracao = models.ForeignKey(
+        "ExtracaoEntradas", null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
     recebimento = models.ForeignKey(
         Recebimento, null=True, blank=True, on_delete=models.PROTECT, related_name="travas"
     )
@@ -247,3 +251,126 @@ class TravaPedido(models.Model):
     @property
     def aberta(self) -> bool:
         return self.destravada_em is None
+
+
+class ExtracaoEntradas(models.Model):
+    """Uma extração da "Relação de Requisições" de Entrada do SCPI, bem-sucedida ou não: o
+    registro oficial das entradas (spec 014, espelha a `conciliacao.ExtracaoOficial`)."""
+
+    class Motivo(models.TextChoices):
+        ANTES = "ANTES", "Antes do lançamento"
+        DEPOIS = "DEPOIS", "Depois do lançamento"
+        DIARIA = "DIARIA", "Diária"
+        MANUAL = "MANUAL", "Manual"
+        # Um CSV já baixado (`--arquivo`): não se sabe quando foi exportado. Nunca libera um
+        # recebimento em verificação nem gera revisão; só dá o primeiro veredito de um lançado.
+        ARQUIVO = "ARQUIVO", "Arquivo enviado"
+
+    importacao = models.OneToOneField(
+        "catalogo.Importacao", on_delete=models.PROTECT, related_name="extracao_entradas"
+    )
+    motivo = models.CharField(max_length=10, choices=Motivo.choices)
+    execucao = models.ForeignKey(
+        "pedidos.ExecucaoRobo",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="extracoes_entradas",
+        verbose_name="execução do robô",
+    )
+    impressao = models.CharField("impressão digital (SHA-256)", max_length=64, blank=True)
+    arquivo = models.BinaryField("arquivo bruto (gzip)", null=True, blank=True)
+    mesmo_arquivo_que = models.ForeignKey(
+        "self",
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="repeticoes",
+        verbose_name="mesmo arquivo que",
+    )
+    arquivo_apagado_em = models.DateTimeField("bruto apagado em", null=True, blank=True)
+    maior_requisicao = models.CharField("maior requisição", max_length=9, null=True, blank=True)
+    requisicoes = models.PositiveIntegerField("requisições", default=0)
+
+    MOTIVOS_DA_EXECUCAO = (Motivo.ANTES, Motivo.DEPOIS)
+
+    class Meta:
+        ordering = ["-importacao__inicio"]
+        verbose_name = "extração de entradas do SCPI"
+        verbose_name_plural = "extrações de entradas do SCPI"
+        indexes = [models.Index(fields=["motivo", "execucao"], name="extracao_entr_motivo_exec")]
+        constraints = [
+            # A extração de antes e a de depois pertencem sempre a uma execução real do robô.
+            models.CheckConstraint(
+                condition=~models.Q(motivo__in=["ANTES", "DEPOIS"])
+                | models.Q(execucao__isnull=False),
+                name="extracao_entradas_execucao_antes_depois",
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.get_motivo_display()} · {self.importacao}"
+
+    @property
+    def bem_sucedida(self) -> bool:
+        return self.importacao.situacao == Importacao.Situacao.SUCESSO
+
+
+class RequisicaoEntradaOficial(models.Model):
+    """Uma requisição de entrada como o relatório a trouxe numa extração (uma foto por extração)."""
+
+    extracao = models.ForeignKey(
+        ExtracaoEntradas, on_delete=models.CASCADE, related_name="requisicoes_lidas"
+    )
+    requisicao = models.CharField("requisição", max_length=9)
+    ano = models.PositiveSmallIntegerField()
+    numero = models.PositiveIntegerField("número")
+    id_requi = models.PositiveIntegerField("identificador interno")
+    data_entrada = models.DateField("data da entrada (DATAE)")
+    data_requisicao = models.DateField("data da requisição (DTLAN)")
+    fornecedor_codigo = models.CharField("código do fornecedor", max_length=20, blank=True)
+    nf = models.CharField("nota fiscal", max_length=30, blank=True)
+    pedido_ano = models.PositiveSmallIntegerField("ano do pedido", null=True, blank=True)
+    pedido_numero = models.PositiveIntegerField("número do pedido", null=True, blank=True)
+    com_saida = models.BooleanField("com saída", default=False)
+    tipo = models.CharField(max_length=60, blank=True)
+    observacoes = models.TextField("observações", blank=True)
+    recebimento_observado = models.CharField(
+        "recebimento nas observações", max_length=12, blank=True, db_index=True
+    )
+    responsavel = models.CharField("responsável", max_length=200, blank=True)
+
+    class Meta:
+        ordering = ["extracao", "ano", "numero"]
+        verbose_name = "requisição de entrada do SCPI"
+        verbose_name_plural = "requisições de entrada do SCPI"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["extracao", "ano", "numero"], name="requisicao_entrada_unica"
+            )
+        ]
+        indexes = [
+            models.Index(fields=["fornecedor_codigo", "nf"], name="req_entrada_fornecedor_nf"),
+            models.Index(fields=["pedido_ano", "pedido_numero"], name="req_entrada_pedido"),
+        ]
+
+    def __str__(self):
+        return self.requisicao
+
+
+class ItemEntradaOficial(models.Model):
+    requisicao = models.ForeignKey(
+        RequisicaoEntradaOficial, on_delete=models.CASCADE, related_name="itens"
+    )
+    ordem = models.PositiveSmallIntegerField()
+    codigo = models.CharField("código", max_length=30)
+    quantidade = models.DecimalField(max_digits=18, decimal_places=6)
+    unidade = models.CharField(max_length=20, blank=True)
+
+    class Meta:
+        ordering = ["requisicao", "ordem"]
+        verbose_name = "item da requisição de entrada do SCPI"
+        verbose_name_plural = "itens da requisição de entrada do SCPI"
+
+    def __str__(self):
+        return f"{self.requisicao} · {self.codigo}"

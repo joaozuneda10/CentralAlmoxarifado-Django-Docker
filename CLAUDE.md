@@ -828,6 +828,26 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   devolve o mesmo recebimento, diferente é "divergente"; a edição confere a `versao` (concorrência
   otimista) e recria os itens; edição e cancelamento recusam o recebimento com tentativa do robô.
   Destravar exige motivo e uma importação de pedidos começada depois da trava.
+  **Registro oficial das entradas (PR 3)**: cada extração da "Relação de Requisições" de Entrada
+  (`scpi.relatorios.baixar_entradas(de, ate)`, rádio "Requisições de Entrada", o período filtra a
+  `DATAE`; só lê o SCPI, e a função das saídas não muda) é uma `Importacao` do tipo `ENTRADAS` com
+  uma `compras.ExtracaoEntradas` (motivo, execução do robô quando houver, o bruto em gzip com a
+  impressão SHA-256 e o `mesmo_arquivo_que`, `maior_requisicao`) e as `RequisicaoEntradaOficial` e
+  `ItemEntradaOficial` lidas, uma foto por extração (espelha a `conciliacao.ExtracaoOficial`; a
+  quantidade do item é decimal(18,6) como a do pedido). `compras.extracao.extrair` é a única camada
+  que a grava, também na falha (sem requisições, `maior_requisicao` nulo, bruto guardado se chegou a
+  ser baixado); "Nada a exibir" é extração sem requisições, salvo com recebimento lançado no
+  período, que faz falhar. `scpi.leitura.ler_entradas` é tudo ou nada: `REQUI` fora do formato,
+  `NUMPED` inválido, `QUAN1` ilegível, zero ou com mais de 6 casas e cabeçalho (`CABECALHO_ENTRADA`)
+  que varia dentro da requisição são `ErroImportacao`; o `DOCUM` perde os zeros à esquerda (o que
+  não é número fica como veio) e `NUMPED` e `DOCUM` vazios são permitidos. A marca do recebimento
+  nas Observações é "Central Almoxarifado RC-0042" (`compras.regras.texto_observacoes`, escrita
+  pelo robô do PR 4, e `recebimento_observado`, que a lê; o `conciliacao.regras.lote_observado` não
+  lê `RC-`, nem este o `P-`/`AV-`). `conciliar_entradas [--arquivo] [--desde --ate] [--diaria]
+  [--sem-limpeza]` só extrai neste PR (período sem datas: do dia anterior ao menor entre hoje − 9
+  dias, a data dos lançados dos últimos 9 dias e a dos recebimentos em verificação, até amanhã;
+  recusa com qualquer lançamento ou importação em andamento); a conciliação e a limpeza vêm nos
+  PRs seguintes. `TravaPedido.extracao` (FK nula) já existe para a trava `FORA_DO_CENTRAL`.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela
