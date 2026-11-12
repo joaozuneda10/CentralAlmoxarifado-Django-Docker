@@ -23,9 +23,16 @@ from catalogo.curva import INICIO_DADOS_CONFIAVEIS
 from catalogo.forms import ROBOS, ROBOS_POR_CHAVE
 from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
-from compras.consultas import fila_entradas, verificacoes_entradas
+from compras.consultas import (
+    FILTROS_VEREDITO,
+    fila_entradas,
+    ultima_extracao_entradas,
+    vereditos,
+    verificacoes_entradas,
+)
 from compras.forms import LancamentoEntradasForm
-from compras.servicos import resolver_recebimento
+from compras.models import TravaPedido
+from compras.servicos import destravar_pedido, resolver_recebimento
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
@@ -42,6 +49,7 @@ from scpi.disparo import (
     guardar_csv_enviado,
     iniciar_atualizacao,
     iniciar_conciliacao,
+    iniciar_conciliacao_entradas,
     iniciar_importacao,
     iniciar_lancamento,
     iniciar_lancamento_entradas,
@@ -183,6 +191,52 @@ def contexto_lancamento() -> dict:
     }
 
 
+def contexto_conferencia_entradas(request=None) -> dict:
+    """A região "Conferência" da aba Entradas no SCPI: a última extração e o veredito atual de cada
+    recebimento lançado, com o filtro `?veredito_entradas=` e a página `?pagina_veredito=`."""
+    filtro = (request.GET.get("veredito_entradas", "") if request else "") or "divergencias"
+    if filtro not in dict(FILTROS_VEREDITO):
+        filtro = "divergencias"
+    extracao = ultima_extracao_entradas()
+    falha = extracao is not None and extracao.importacao.situacao == Importacao.Situacao.FALHA
+    motivo = ""
+    if ExecucaoRobo.em_andamento().exists():
+        motivo = "Há um lançamento em andamento. Confira quando ele terminar."
+    elif Importacao.em_andamento().filter(tipo=Importacao.Tipo.ENTRADAS).exists():
+        motivo = "A conferência das entradas está em andamento."
+    elif Importacao.em_andamento().exists():
+        motivo = "Há uma importação em andamento. Confira quando ela terminar."
+    return {
+        "ultima_extracao_entradas": extracao,
+        "erro_extracao_entradas": resumo_do_erro(extracao.importacao.erro) if falha else "",
+        "conferir_entradas_motivo": motivo,
+        "filtros_veredito": FILTROS_VEREDITO,
+        "filtro_veredito": filtro,
+        "pagina_vereditos": vereditos(
+            filtro, request.GET.get("pagina_veredito", 1) if request else 1
+        ),
+    }
+
+
+def contexto_travas_entradas() -> dict:
+    """A região "Pedidos travados": por pedido, as travas abertas e a data da última importação."""
+    abertas = (
+        TravaPedido.objects.filter(destravada_em__isnull=True)
+        .select_related("pedido", "recebimento")
+        .order_by("pedido_id", "-criada_em")
+    )
+    por_pedido: dict[int, dict] = {}
+    for trava in abertas:
+        por_pedido.setdefault(trava.pedido_id, {"pedido": trava.pedido, "travas": []})[
+            "travas"
+        ].append(trava)
+    from compras.consultas import ultima_importacao_pedidos
+
+    for item in por_pedido.values():
+        item["ultima_importacao"] = ultima_importacao_pedidos(item["pedido"].exercicio)
+    return {"pedidos_travados": list(por_pedido.values())}
+
+
 def contexto_entradas() -> dict:
     """Entradas no SCPI (spec 014): botões, fila de recebimentos e andamento do robô de entradas.
     Qualquer robô rodando segura a trava do lançamento: a dica diz qual."""
@@ -316,6 +370,8 @@ def contexto_pagina(request, aba: str, formularios: dict | None = None) -> dict:
         **_contexto_historico(request),
         **situacao,
         **contexto_entradas(),
+        **contexto_conferencia_entradas(request),
+        **contexto_travas_entradas(),
         "conciliacao": conciliacao_da_aba(
             request.GET.get("veredito", ""), request.GET.get("pagina_conciliacao", 1)
         ),
@@ -478,6 +534,37 @@ def lancar_entradas(request):
         )
         texto += f" {', '.join(recebimentos)}."
         messages.success(request, texto)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def conferir_entradas(request):
+    """ "Conferir agora" das entradas: extração e conciliação fora do lançamento."""
+    destino = url_da_aba("entradas")
+    if ExecucaoRobo.em_andamento().exists():
+        messages.warning(request, "Há um lançamento em andamento. Confira quando ele terminar.")
+    elif not iniciar_conciliacao_entradas():
+        messages.warning(request, JA_EM_ANDAMENTO)
+    else:
+        messages.success(
+            request,
+            "Conferência iniciada: o robô extrai as entradas do SCPI e confere os recebimentos. "
+            "Recarregue a aba em alguns instantes.",
+        )
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def destravar_pedido_entradas(request, pk):
+    """Destrava um pedido (todas as travas abertas), com o motivo e uma importação posterior."""
+    destino = url_da_aba("entradas")
+    if ExecucaoRobo.em_andamento().exists():
+        messages.warning(request, "Há um lançamento em andamento. Destrave quando ele terminar.")
+        return redirect(destino)
+    resposta = destravar_pedido(pk, request.user, motivo=request.POST.get("motivo", ""))
+    (messages.success if resposta.ok else messages.error)(request, resposta.mensagem)
     return redirect(destino)
 
 

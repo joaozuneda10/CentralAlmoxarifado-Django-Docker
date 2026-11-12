@@ -1,0 +1,58 @@
+{% comment %}
+Região "Conferência" da aba Entradas no SCPI (spec 014, US4): a última extração, "Conferir agora",
+"Atualizar pedidos" e o veredito atual de cada recebimento lançado, com o filtro
+`?veredito_entradas=` (Divergências, o padrão, Aguardando, Comprovados e Todos) e 50 por página.
+As diferenças aparecem em texto, nunca só por cor.
+{% endcomment %}
+<div class="cartao pilha" id="conferencia-entradas">
+  <h2 class="cartao-titulo">Conferência com o SCPI</h2>
+  <div class="conferir-cabecalho">
+    <p class="texto-secundario">
+      {% if ultima_extracao_entradas %}Última extração: {{ ultima_extracao_entradas.importacao.inicio|date:"d/m/Y H:i" }} · {{ ultima_extracao_entradas.get_motivo_display }}{% if erro_extracao_entradas %} · <strong>falhou:</strong> {{ erro_extracao_entradas }}{% else %} · {{ ultima_extracao_entradas.requisicoes }} requisições{% endif %}{% else %}Ainda não houve extração das entradas.{% endif %}
+    </p>
+    <div class="acoes">
+      <form method="post" action="{% url 'automacoes:conferir_entradas' %}">
+        {% csrf_token %}
+        <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Conferir agora</button>
+      </form>
+      <form method="post" action="{% url 'automacoes:importar' 'pedidos_compra' %}">
+        {% csrf_token %}
+        <input type="hidden" name="origem" value="scpi">
+        <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Atualizar pedidos</button>
+      </form>
+    </div>
+    {% if conferir_entradas_motivo %}<p class="texto-secundario texto-pequeno">{{ conferir_entradas_motivo }}</p>{% endif %}
+  </div>
+  <nav class="filtros-veredito" aria-label="Filtrar os recebimentos lançados">
+    {% for chave, rotulo in filtros_veredito %}<a class="botao {% if chave == filtro_veredito %}botao-primario{% else %}botao-secundario{% endif %}" href="?aba=entradas&amp;veredito_entradas={{ chave }}"{% if chave == filtro_veredito %} aria-current="true"{% endif %}>{{ rotulo }}</a>{% endfor %}
+  </nav>
+  {% if pagina_vereditos.object_list %}
+  <div class="tabela-rolagem">
+    <table class="tabela">
+      <thead><tr><th scope="col">Recebimento</th><th scope="col">Pedido</th><th scope="col">NF</th><th scope="col">Requisição</th><th scope="col">Veredito</th><th scope="col">Diferenças</th></tr></thead>
+      <tbody>
+        {% for linha in pagina_vereditos %}
+        {% with r=linha.recebimento c=linha.conferencia %}
+        <tr>
+          <td><a class="mono" href="{% url 'compras:recebimento' r.pk %}">{{ r.rotulo }}</a></td>
+          <td><a class="mono" href="{% url 'compras:pedido' r.pedido_id %}">{{ r.pedido.rotulo }}</a></td>
+          <td class="mono">{{ r.nf }}</td>
+          <td class="mono">{{ r.requisicao_scpi }}{% if r.via == "MANUAL" %} <span class="texto-secundario">(à mão)</span>{% endif %}</td>
+          <td><span class="selo {% if linha.veredito == 'COMPROVADO' %}selo-ok{% elif linha.veredito == 'AGUARDANDO' %}selo-neutro{% else %}selo-erro{% endif %}">{% if c %}{{ c.get_veredito_display }}{% else %}Aguardando{% endif %}</span>{% if c and c.alterado_depois %} <span class="selo selo-aviso">Alterado no SCPI depois</span>{% endif %}</td>
+          <td>
+            {% if c %}
+            {% for d in c.diferencas %}<p class="texto-pequeno">{{ d.campo|capfirst }}: {% if d.alteracao %}era {{ d.esperado }}, agora {{ d.oficial }}{% else %}no Central, {{ d.esperado }}; no SCPI, {{ d.oficial }}{% endif %}.</p>{% endfor %}
+            {% for n in c.notas %}<p class="texto-secundario texto-pequeno">{{ n.texto|capfirst }}.</p>{% endfor %}
+            {% endif %}
+          </td>
+        </tr>
+        {% endwith %}
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% include "interface/_paginacao.html" with pagina=pagina_vereditos parametro="pagina_veredito" rotulo="Paginação dos vereditos" rotulo_item="recebimento" rotulo_item_plural="recebimentos" %}
+  {% else %}
+  <p class="texto-secundario">Nenhum recebimento lançado neste filtro.</p>
+  {% endif %}
+</div>

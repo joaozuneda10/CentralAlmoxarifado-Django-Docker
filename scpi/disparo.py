@@ -104,6 +104,19 @@ def iniciar_conciliacao() -> bool:
     return True
 
 
+def iniciar_conciliacao_entradas() -> bool:
+    """Inicia `manage.py conciliar_entradas` (o "Conferir agora" da aba Entradas no SCPI): uma
+    extração das entradas do período padrão e a conciliação, num processo separado.
+
+    Devolve False, sem iniciar nada, com lançamento ou importação (inclusive a de pedidos) em
+    andamento; o comando recusa de novo, pelas travas, se outro começar entre a checagem e a
+    partida."""
+    if ExecucaoRobo.em_andamento().exists() or Importacao.em_andamento().exists():
+        return False
+    _iniciar_comando(["conciliar_entradas"], "conciliar_entradas.log", "Conferir entradas agora")
+    return True
+
+
 def iniciar_lancamento(usuario, *, simulacao: bool, lotes: list[str]) -> ExecucaoRobo | None:
     """Cria a `ExecucaoRobo` e inicia `manage.py lancar_saidas` num processo separado.
 

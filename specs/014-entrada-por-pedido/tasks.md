@@ -483,35 +483,35 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: com relatórios sintéticos, conferir cada veredito, inclusive uma requisição editada no SCPI depois do lançamento e uma excluída (quickstart, passo 6).
 
-- [ ] T078 [US4] Criar a branch `claude/entradas-6-vereditos` a partir de `claude/entradas-5-verificar`
-- [ ] T079 [P] [US4] Acrescentar a `tests/test_compras_regras.py` os casos de `veredito_entrada`, `comparar_entrada` e `alteracoes_entrada`:
+- [X] T078 [US4] Criar a branch `claude/entradas-6-vereditos` a partir de `claude/entradas-5-verificar`
+- [X] T079 [P] [US4] Acrescentar a `tests/test_compras_regras.py` os casos de `veredito_entrada`, `comparar_entrada` e `alteracoes_entrada`:
   - cada linha da tabela de [R17](research.md#r17-vereditos-de-um-recebimento-lançado), inclusive o Duplicado pela NF sem a marca;
   - a soma por código com o código repetido;
   - a `DTLAN` e o empenho nunca comparados;
   - a marca ausente como nota;
   - a revisão com as alterações.
-- [ ] T080 [P] [US4] Escrever `tests/test_compras_vereditos.py`, os cenários 1 a 6 da US4, com o `conciliar_entradas`, mais:
+- [X] T080 [P] [US4] Escrever `tests/test_compras_vereditos.py`, os cenários 1 a 6 da US4, com o `conciliar_entradas`, mais:
   - a primeira conclusiva `LANCAMENTO` e as seguintes `REVISAO` com `alterado_depois`;
   - a `AGUARDANDO` provisória;
   - `--arquivo` dá só o primeiro veredito;
   - o recebimento lançado nunca muda (FR-027);
   - a conciliação incompleta sai com erro e a contagem parcial.
-- [ ] T081 [US4] Implementar em `compras/regras.py` `veredito_entrada`, `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento, soma por código com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho) e `alteracoes_entrada`; a T079 passa
-- [ ] T082 [US4] Implementar em `compras/conciliacao.py`:
+- [X] T081 [US4] Implementar em `compras/regras.py` `veredito_entrada`, `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento, soma por código com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho) e `alteracoes_entrada`; a T079 passa
+- [X] T082 [US4] Implementar em `compras/conciliacao.py`:
   - `conciliar_lancados(extracao)`: os recebimentos `LANCADO` com data no período e lançados antes do início da extração; a primeira conclusiva `LANCAMENTO`, depois `REVISAO`;
   - `conciliar(extracao) = conciliar_verificar + conciliar_lancados`, sob a trava da conciliação de entradas, com cada etapa e cada recebimento isolados, e `ConciliacaoIncompleta` no fim, como `conciliacao.servicos.conciliar`;
   - `compras.consultas.veredito_atual` e `vereditos(filtro, pagina)`;
   - trocar as chamadas da T074 (em `compras.robo.extrair_depois` e no `conciliar_entradas`) por `conciliar`.
 
   A T080 passa.
-- [ ] T083 [US4] Acrescentar à aba a região "Conferência" (`compras/templates/compras/_conferencia.html`):
+- [X] T083 [US4] Acrescentar à aba a região "Conferência" (`compras/templates/compras/_conferencia.html`):
   - a última extração;
   - "Conferir agora" (`automacoes:conferir_entradas` → `scpi.disparo.iniciar_conciliacao_entradas`, desabilitado com lançamento, extração ou importação de pedidos em andamento);
   - "Atualizar pedidos" (o POST de `automacoes:importar` com `pedidos_compra`);
   - o veredito atual com o filtro `?veredito_entradas=` (Divergências, Aguardando, Comprovados e Todos) e 50 por página, com as diferenças em texto.
 
   A rota entra em `REGRAS_POR_ROTA`. Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T084 [US4] Atualizar o `CLAUDE.md` (os três vínculos, a comparação, os vereditos e o "Conferir agora" das entradas)
+- [X] T084 [US4] Atualizar o `CLAUDE.md` (os três vínculos, a comparação, os vereditos e o "Conferir agora" das entradas)
 
 **Checkpoint**: todo recebimento lançado tem veredito, e uma edição à mão no SCPI aparece como revisão.
 
@@ -523,7 +523,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: importar um relatório de pedidos sintético, depois um de entradas com uma requisição sem marca, e conferir o saldo livre, o aviso e a trava (quickstart, passo 6).
 
-- [ ] T085 [P] [US5] Acrescentar a `tests/test_compras_regras.py` os casos de `ja_entrou_explicado(delta, certos, incertos)`:
+- [X] T085 [P] [US5] Acrescentar a `tests/test_compras_regras.py` os casos de `ja_entrou_explicado(delta, certos, incertos)`:
   - só os certos;
   - certos e um subconjunto dos incertos;
   - nenhuma combinação;
@@ -531,7 +531,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - os incertos vazios.
 
   E os do saldo livre com a `EntradaForaDoCentral` não refletida, inclusive o código repetido, que reserva em cada item.
-- [ ] T086 [P] [US5] Escrever `tests/test_compras_fora_do_central.py`, os cenários 3 a 6 da US5. Casos:
+- [X] T086 [P] [US5] Escrever `tests/test_compras_fora_do_central.py`, os cenários 3 a 6 da US5. Casos:
   - a requisição sem marca com a NF de um recebimento `PREPARADO`, `ERRO` ou `VERIFICAR` é ligada (`via=MANUAL`) e sai da fila;
   - a NF desconhecida vira `EntradaForaDoCentral`, reserva e trava `FORA_DO_CENTRAL`;
   - a entrada com saída (`SAID=S`) também;
@@ -540,21 +540,21 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a importação com o "Já Entrou" não explicado trava `JA_ENTROU` e gera aviso, e a explicada pelos lançamentos do robô não trava;
   - o destravamento sem motivo, ou sem uma importação posterior, é recusado; depois dela é permitido, com o saldo recalculado;
   - a mesma requisição em duas extrações não duplica a `EntradaForaDoCentral`.
-- [ ] T087 [US5] Criar `EntradaForaDoCentral` em `compras/models.py`, conforme [data-model.md](data-model.md#entradaforadocentral-pr-6): `pedido` (FK, `PROTECT`), `requisicao` (FK → `RequisicaoEntradaOficial`, `PROTECT`), `ano` e `numero` (únicos juntos), `visivel_desde` (datetime) e `itens` (JSON `[{codigo, quantidade}]`). Gerar `compras/migrations/0006_entrada_fora_do_central.py`
-- [ ] T088 [US5] Implementar em `compras/regras.py` `ja_entrou_explicado`. Estender `saldo_livre` e `compras.consultas.reservado_por_item` com as `EntradaForaDoCentral` não refletidas. Implementar `compras.consultas.marco()`, o `maior_requisicao` da primeira `ExtracaoEntradas` bem-sucedida, comparado pela `conciliacao.regras.chave`. A T085 passa
-- [ ] T089 [US5] Implementar `conciliar_fora(extracao)` em `compras/conciliacao.py` ([R18](research.md#r18-entrada-por-pedido-feita-fora-do-central-fr-028)) e incluí-la em `conciliar`, depois de `conciliar_verificar` e antes de `conciliar_lancados`.
+- [X] T087 [US5] Criar `EntradaForaDoCentral` em `compras/models.py`, conforme [data-model.md](data-model.md#entradaforadocentral-pr-6): `pedido` (FK, `PROTECT`), `requisicao` (FK → `RequisicaoEntradaOficial`, `PROTECT`), `ano` e `numero` (únicos juntos), `visivel_desde` (datetime) e `itens` (JSON `[{codigo, quantidade}]`). Gerar `compras/migrations/0007_entrada_fora_do_central.py`
+- [X] T088 [US5] Implementar em `compras/regras.py` `ja_entrou_explicado`. Estender `saldo_livre` e `compras.consultas.reservado_por_item` com as `EntradaForaDoCentral` não refletidas. Implementar `compras.consultas.marco()`, o `maior_requisicao` da primeira `ExtracaoEntradas` bem-sucedida, comparado pela `conciliacao.regras.chave`. A T085 passa
+- [X] T089 [US5] Implementar `conciliar_fora(extracao)` em `compras/conciliacao.py` ([R18](research.md#r18-entrada-por-pedido-feita-fora-do-central-fr-028)) e incluí-la em `conciliar`, depois de `conciliar_verificar` e antes de `conciliar_lancados`.
   - Liga à mão o recebimento aberto com a mesma NF e o mesmo fornecedor, pelo `compras.servicos`, com `select_for_update`.
   - Cria a `EntradaForaDoCentral` com a trava `FORA_DO_CENTRAL`.
   - Trava `MARCA_SEM_LANCAMENTO`.
   - Ignora o que está abaixo do marco e o que já está ligado.
-- [ ] T090 [US5] Ligar a explicação do "Já Entrou" à importação em `compras/importacao.py`: por (pedido, código), entre esta importação e a anterior, os certos e os incertos de [R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029), a trava `JA_ENTROU` por `compras.servicos.travar_pedido` e um aviso em `Resultado.avisos`. A T086 passa
-- [ ] T091 [US5] Acrescentar à aba a região "Pedidos travados" (`compras/templates/compras/_travas.html`): as travas abertas com o detalhe, a data da última importação e "Destravar" com o motivo.
+- [X] T090 [US5] Ligar a explicação do "Já Entrou" à importação em `compras/importacao.py`: por (pedido, código), entre esta importação e a anterior, os certos e os incertos de [R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029), a trava `JA_ENTROU` por `compras.servicos.travar_pedido` e um aviso em `Resultado.avisos`. A T086 passa
+- [X] T091 [US5] Acrescentar à aba a região "Pedidos travados" (`compras/templates/compras/_travas.html`): as travas abertas com o detalhe, a data da última importação e "Destravar" com o motivo.
   - Criar a rota `automacoes:destravar_pedido` (POST), que chama `compras.servicos.destravar_pedido` e entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - Mostrar as travas e as entradas fora do Central também em `compras/templates/compras/pedido.html`.
   - Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T092 [US5] Completar `compras/saude.py` com os avisos de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#saúde-catalogosaude_demais): os pedidos travados, os recebimentos em verificação ou com erro, a extração de entradas com falha e as entradas fora do Central nos últimos 30 dias. Acrescentar as linhas "Pedidos de compra" e "Entradas" à visão geral de Automações (`automacoes/visao_geral.py` e `catalogo.saude.situacao_do_catalogo`). Testes em `tests/test_compras_saude.py`
-- [ ] T093 [US5] Conferir à mão no navegador local as regiões novas da aba (verificação, conferência e travas) e as travas no detalhe do pedido, a 375 px e sem depender de cor, com screenshots
-- [ ] T094 [US5] Atualizar o `CLAUDE.md` (entrada fora do Central, o marco, a explicação do "Já Entrou", as travas e o destravamento) e passar os portões do PR 6; commit
+- [X] T092 [US5] Completar `compras/saude.py` com os avisos de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#saúde-catalogosaude_demais): os pedidos travados, os recebimentos em verificação ou com erro, a extração de entradas com falha e as entradas fora do Central nos últimos 30 dias. Acrescentar as linhas "Pedidos de compra" e "Entradas" à visão geral de Automações (`automacoes/visao_geral.py` e `catalogo.saude.situacao_do_catalogo`). Testes em `tests/test_compras_saude.py`
+- [ ] T093 (**falta a conferência visual com o usuário**) [US5] Conferir à mão no navegador local as regiões novas da aba (verificação, conferência e travas) e as travas no detalhe do pedido, a 375 px e sem depender de cor, com screenshots
+- [X] T094 [US5] Atualizar o `CLAUDE.md` (entrada fora do Central, o marco, a explicação do "Já Entrou", as travas e o destravamento) e passar os portões do PR 6; commit
 
 **Checkpoint**: toda entrada feita fora do Central trava o pedido (SC-005), e o saldo livre bate com o SCPI menos o reservado (SC-003).
 

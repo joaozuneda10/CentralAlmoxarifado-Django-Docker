@@ -23,6 +23,13 @@
       {% for t in travas %}<p><strong>{{ t.get_motivo_display }}</strong> desde {{ t.criada_em|date:"d/m/Y H:i" }}.{% if t.detalhe %} {{ t.detalhe }}{% endif %}</p>{% endfor %}
     </div></div>
     {% endif %}
+    {% if entradas_fora %}
+    <div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<div>
+      <p><strong>Entradas feitas direto no SCPI, sem o Central:</strong></p>
+      {% for e in entradas_fora %}<p><span class="mono">{{ e.requisicao.requisicao }}</span> em {{ e.visivel_desde|date:"d/m/Y H:i" }}: {% for i in e.itens %}<span class="mono">{{ i.codigo }}</span> × {{ i.quantidade }}{% if not forloop.last %}; {% endif %}{% endfor %}</p>{% endfor %}
+      <p class="texto-secundario texto-pequeno">Elas reservam o saldo até uma importação de pedidos as refletir.</p>
+    </div></div>
+    {% endif %}
     {% if pode_receber %}
     <div class="acoes">
       <a class="botao botao-primario" href="{% url 'compras:receber' pedido.pk %}?modo=total">{% include "interface/_icone.html" with nome="caixa-check" %}Receber total</a>

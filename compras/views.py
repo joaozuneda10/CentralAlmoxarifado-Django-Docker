@@ -108,6 +108,7 @@ def pedido(request, pk):
             "recusa": consultas.recusa_do_pedido(estado),
             "recebimentos": pedido.recebimentos.select_related("preparado_por"),
             "travas": consultas.travas_abertas(pedido),
+            "entradas_fora": pedido.entradas_fora_do_central.select_related("requisicao"),
             "ultima_importacao": consultas.ultima_importacao_pedidos(pedido.exercicio),
             "pode_receber": estado in ("disponivel", "precisa_conferencia")
             and any(linha.motivo is None and linha.saldo_livre > 0 for linha in linhas),
