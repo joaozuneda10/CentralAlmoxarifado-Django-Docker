@@ -10,6 +10,9 @@ Log do pedido em 10/11/2026 (F9). O 07.04.01 é o mesmo relatório que o usuári
 
 **Download**: `scpi.relatorios.baixar_pedidos_compra() -> bytes`.
 
+No menu Relatórios o item se chama "07.13. Relação de Pedidos Entregues e Não Entregues" (conferido
+na tela em 12/11/2026); "Relação de Pedidos (Condição da Entrega)" é o título do relatório.
+
 | Filtro | Valor |
 |---|---|
 | Tipo | Analítico |

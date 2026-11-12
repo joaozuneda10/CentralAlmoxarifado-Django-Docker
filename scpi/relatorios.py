@@ -320,40 +320,13 @@ def _relacao_de_requisicoes(
         return conteudo
 
 
-TITULO_PEDIDOS = "Relação de Pedidos (Condição da Entrega)"
-# O título pelo que importa, sem depender de acento, de maiúscula nem de parênteses exatos.
-RE_TITULO_PEDIDOS = re.compile(r"Rela..o de Pedidos.*Condi..o.*Entrega", re.IGNORECASE)
-
-
-def _abrir_pelo_menu_de_relatorios(frame, titulo: re.Pattern) -> None:
-    """Clica em Relatórios e no item `titulo`, onde ele estiver: direto no menu ou dentro de algum
-    submenu (basta passar o mouse por cada item até o alvo aparecer). Não achando, o erro lista os
-    itens do menu que estavam à vista, para o caminho certo poder ser conferido na tela."""
-    from playwright.sync_api import TimeoutError as PlaywrightTimeout
-
-    frame.get_by_role("button", name="Relatórios").click()
-    alvo = frame.get_by_role("menuitem", name=titulo).filter(visible=True)
-
-    def aparece(espera_ms: int) -> bool:
-        try:
-            alvo.first.wait_for(state="visible", timeout=espera_ms)
-        except PlaywrightTimeout:
-            return False
-        return True
-
-    if not aparece(3000):
-        itens = frame.get_by_role("menuitem").filter(visible=True)
-        nomes = [t.strip() for t in itens.all_inner_texts() if t.strip()]
-        for nome in nomes:
-            itens.filter(has_text=nome).first.hover()
-            if aparece(1500):
-                break
-        else:
-            raise ErroImportacao(
-                f"SCPI: o item do relatório '{TITULO_PEDIDOS}' não foi achado no menu Relatórios "
-                f"(itens à vista: {', '.join(nomes) or 'nenhum'})."
-            )
-    alvo.first.click()
+# No menu Relatórios o item é "07.13. Relação de Pedidos Entregues e Não Entregues" (conferido na
+# tela em 12/11/2026); a janela do relatório pode levar esse nome ou o título "Relação de Pedidos
+# (Condição da Entrega)". Os dois são casados sem depender de acento nem de maiúscula.
+RE_MENU_PEDIDOS = re.compile(r"Pedidos Entregues e N.o Entregues", re.IGNORECASE)
+RE_JANELA_PEDIDOS = re.compile(
+    r"Pedidos Entregues e N.o Entregues|Rela..o de Pedidos.*Condi..o.*Entrega", re.IGNORECASE
+)
 
 
 def baixar_pedidos_compra() -> bytes:
@@ -374,9 +347,10 @@ def baixar_pedidos_compra() -> bytes:
     with _sessao("pedidos_compra") as sessao:
         frame = sessao.frame
 
-        _abrir_pelo_menu_de_relatorios(frame, RE_TITULO_PEDIDOS)
+        frame.get_by_role("button", name="Relatórios").click()
+        frame.get_by_role("menuitem", name=RE_MENU_PEDIDOS).click()
 
-        dialog = frame.get_by_label(RE_TITULO_PEDIDOS)
+        dialog = frame.get_by_label(RE_JANELA_PEDIDOS)
         dialog.get_by_role("button", name="Imprimir").wait_for(state="visible")
         dialog.get_by_role("radio", name="Analítico").check()
         dialog.get_by_role("checkbox", name="Apenas com saldo a entregar").check()
