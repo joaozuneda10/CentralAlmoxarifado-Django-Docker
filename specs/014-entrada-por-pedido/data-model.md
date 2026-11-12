@@ -103,7 +103,7 @@ Um pedido de compra do SCPI num exercício.
 - único (`pedido`, `item`);
 - índice em (`pedido`, `codigo`).
 
-As quantidades guardam 4 casas para não perder o que o SCPI mandou. A disponibilidade exige até 3.
+As quantidades guardam 6 casas para não perder o que o SCPI manda (5 casas, como 1,66651; migration `compras/0002`). A disponibilidade exige até 3.
 
 ## `Recebimento` (PR 2)
 
