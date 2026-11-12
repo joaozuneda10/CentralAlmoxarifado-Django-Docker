@@ -838,7 +838,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   que a grava, também na falha (sem requisições, `maior_requisicao` nulo, bruto guardado se chegou a
   ser baixado); "Nada a exibir" é extração sem requisições, salvo com recebimento lançado no
   período, que faz falhar. `scpi.leitura.ler_entradas` é tudo ou nada: `REQUI` fora do formato,
-  `NUMPED` inválido, `QUAN1` ilegível, zero ou com mais de 6 casas e cabeçalho (`CABECALHO_ENTRADA`)
+  `NUMPED` inválido, `QUAN1` ilegível, negativo ou com mais de 6 casas (o zero é dado do SCPI e vale) e cabeçalho (`CABECALHO_ENTRADA`)
   que varia dentro da requisição são `ErroImportacao`; o `DOCUM` perde os zeros à esquerda (o que
   não é número fica como veio) e `NUMPED` e `DOCUM` vazios são permitidos. A marca do recebimento
   nas Observações é "Central Almoxarifado RC-0042" (`compras.regras.texto_observacoes`, escrita
