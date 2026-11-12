@@ -78,4 +78,5 @@ motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os bot
   </div>
 
   {% if not entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
+  {% include "compras/_verificacao.html" %}
 </section>

@@ -113,3 +113,14 @@ def trava_ocupada():
         yield
     finally:
         outra.close()
+
+
+@pytest.fixture(autouse=True)
+def navegador_fechado(monkeypatch):
+    """Os testes nunca abrem o navegador do SCPI: um teste que chegasse ao Playwright de verdade
+    entraria no SCPI real com as credenciais do .env. Quem precisa do SCPI usa o simulado."""
+
+    def nunca(*args, **kwargs):
+        raise AssertionError("Os testes nunca abrem o navegador do SCPI (use o SCPI simulado).")
+
+    monkeypatch.setattr("playwright.sync_api.sync_playwright", nunca)

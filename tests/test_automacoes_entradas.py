@@ -216,3 +216,142 @@ def test_a_acao_exige_login_e_operar_automacoes(client, pedido, disparos):
     assert client.post(LANCAR, dados).status_code == 403
     assert client.get(LANCAR).status_code == 403  # recusa antes do método
     assert disparos == [] and not ExecucaoRobo.objects.exists()
+
+
+# --- a região "Em verificação e com erro" e a ação de resolver ---------------------------------
+
+
+@pytest.fixture
+def scpi_simulado(pedido):
+    from decimal import Decimal
+
+    from tests.scpi_entradas_simulado import SCPIEntradasSimulado
+
+    simulado = SCPIEntradasSimulado()
+    simulado.pedido(
+        pedido.ano, pedido.numero, {1: ("006.011.020", "100"), 2: ("023.003.004", "20")}
+    )
+    simulado.pedidos[(pedido.ano, pedido.numero)][1]["ja_entrou"] = Decimal("50")
+    return simulado
+
+
+def _verificar(pedido, logado, scpi_simulado, *, salvou):
+    from pedidos.models import ExecucaoRobo
+    from scpi.lancamento_entradas import executar_lancamento_entradas
+
+    r = preparar(pedido, logado, {1: "10"})
+    (scpi_simulado.salva_e_falha if salvou else scpi_simulado.falha_salvar).add(r.rotulo)
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    executar_lancamento_entradas(
+        execucao,
+        scpi_simulado.abrir,
+        recebimentos=[r.rotulo],
+        extrair=scpi_simulado.relatorio_entradas,
+    )
+    r.refresh_from_db()
+    return r
+
+
+def test_a_regiao_mostra_o_recebimento_em_verificacao_com_a_candidata_e_o_e_esta(
+    client, logado, pedido, scpi_simulado
+):
+    r = _verificar(pedido, logado, scpi_simulado, salvou=True)
+    texto = client.get(ENTRADAS).text
+    assert 'id="travas-entradas"' in texto and r.rotulo in texto
+    assert "003492/26" in texto and "Provavelmente esta" in texto
+    assert f'action="{reverse("automacoes:resolver_entrada", args=[r.pk])}"' in texto
+    assert 'name="acao" value="e_esta"' in texto
+    assert "Para liberar ou cancelar ainda falta:" in texto
+    assert "Há requisição candidata no intervalo: 003492/26." in texto
+
+
+def test_e_esta_pela_aba_liga_o_recebimento(client, logado, pedido, scpi_simulado):
+    from compras.models import CandidataEntrada
+
+    r = _verificar(pedido, logado, scpi_simulado, salvou=True)
+    candidata = CandidataEntrada.objects.get()
+    resposta = client.post(
+        reverse("automacoes:resolver_entrada", args=[r.pk]),
+        {"acao": "e_esta", "requisicao_id": candidata.requisicao_id},
+        follow=True,
+    )
+    assert f"{r.rotulo}: requisição 003492/26 registrada." in resposta.text
+    r.refresh_from_db()
+    assert r.status == "LANCADO" and r.requisicao_scpi == "003492/26"
+
+
+def test_liberar_sem_as_provas_volta_a_aba_com_a_falta(client, logado, pedido, scpi_simulado):
+    r = _verificar(pedido, logado, scpi_simulado, salvou=False)
+    resposta = client.post(
+        reverse("automacoes:resolver_entrada", args=[r.pk]),
+        {"acao": "liberar", "conferi": "1"},
+        follow=True,
+    )
+    assert "não foi conferido depois da tentativa: atualize os pedidos." in resposta.text
+    r.refresh_from_db()
+    assert r.status == "VERIFICAR"
+
+
+def test_com_as_tres_provas_a_aba_libera_e_o_botao_fica_habilitado(
+    client, logado, pedido, scpi_simulado
+):
+    from compras import importacao
+
+    r = _verificar(pedido, logado, scpi_simulado, salvou=False)
+    importacao.importar(scpi_simulado.relatorio_pedidos, forcar=True)
+    texto = client.get(ENTRADAS).text
+    assert "Para liberar ou cancelar ainda falta:" not in texto
+    botao = re.search(r"<button[^>]*>Liberar para relançar", texto).group(0)
+    assert " disabled" not in botao
+    resposta = client.post(
+        reverse("automacoes:resolver_entrada", args=[r.pk]),
+        {"acao": "liberar", "conferi": "1"},
+        follow=True,
+    )
+    assert f"{r.rotulo} liberado para o próximo lançamento." in resposta.text
+    r.refresh_from_db()
+    assert r.status == "PREPARADO"
+
+
+def test_cancelar_pela_aba_em_dois_passos(client, logado, pedido, scpi_simulado):
+    from compras import importacao
+
+    r = _verificar(pedido, logado, scpi_simulado, salvou=False)
+    importacao.importar(scpi_simulado.relatorio_pedidos, forcar=True)
+    url = reverse("automacoes:resolver_entrada", args=[r.pk])
+    sem = client.post(url, {"acao": "cancelar", "motivo": "NF devolvida"}, follow=True)
+    assert "Confirme antes de cancelar." in sem.text
+    com = client.post(
+        url, {"acao": "cancelar", "motivo": "NF devolvida", "confirmado": "1"}, follow=True
+    )
+    assert "cancelado; a NF continua reservada." in com.text
+    r.refresh_from_db()
+    assert r.status == "CANCELADO"
+
+
+def test_com_robo_rodando_a_regiao_diz_que_a_resolucao_espera(
+    client, logado, pedido, scpi_simulado
+):
+    _verificar(pedido, logado, scpi_simulado, salvou=False)
+    ExecucaoRobo.objects.create(robo="SAIDAS")
+    texto = client.get(ENTRADAS).text
+    assert "A resolução fica disponível quando o lançamento terminar." in texto
+    assert 'name="acao" value="liberar"' not in texto
+
+
+def test_recebimento_com_erro_aparece_sem_acoes_de_verificacao(client, logado, pedido):
+    r = preparar(pedido, logado, {1: "10"})
+    Recebimento.objects.filter(pk=r.pk).update(status="ERRO", mensagem="O SCPI mudou: item 1")
+    texto = client.get(ENTRADAS).text
+    assert r.rotulo in texto and "O SCPI mudou: item 1" in texto
+    assert "O robô parou antes do Salvar" in texto and 'name="acao" value="e_esta"' not in texto
+
+
+def test_resolver_entrada_exige_login_e_operar_automacoes(client, logado, pedido):
+    r = preparar(pedido, logado, {1: "10"})
+    url = reverse("automacoes:resolver_entrada", args=[r.pk])
+    client.logout()
+    assert client.post(url, {"acao": "liberar"}).status_code == 302
+    client.force_login(usuario_com(username="40012"))
+    assert client.post(url, {"acao": "liberar"}).status_code == 403
+    assert client.get(url).status_code == 403

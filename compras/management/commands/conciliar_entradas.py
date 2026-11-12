@@ -4,8 +4,10 @@ from django.core.management import BaseCommand, CommandError
 from django.utils import timezone
 
 from catalogo.models import Importacao
+from compras.conciliacao import ConciliacaoEmAndamento, conciliar
 from compras.extracao import extrair
 from compras.models import ExtracaoEntradas, Recebimento
+from compras.robo import resumo_da_contagem
 from conciliacao.regras import periodo as periodo_do_relatorio
 from pedidos.models import ExecucaoRobo
 from scpi import relatorios
@@ -102,3 +104,9 @@ class Command(BaseCommand):
             f"Entradas do SCPI ({de:%d/%m/%Y} a {ate:%d/%m/%Y}): {extracao.requisicoes} "
             f"requisições, a maior {maior}."
         )
+        try:
+            contagem = conciliar(extracao)
+        except ConciliacaoEmAndamento as exc:
+            raise CommandError(str(exc)) from None
+        if contagem:
+            self.stdout.write(f"  Conciliação: {resumo_da_contagem(contagem)}.")

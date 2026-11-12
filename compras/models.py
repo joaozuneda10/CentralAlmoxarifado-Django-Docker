@@ -416,3 +416,96 @@ class TentativaEntrada(models.Model):
 
     def __str__(self):
         return f"{self.recebimento} · {self.get_resultado_display()}"
+
+
+class ConferenciaRecebimento(models.Model):
+    """O que uma extração de entradas diz de um recebimento: a conferência de um em verificação
+    (intervalo e candidatas) ou o veredito de um lançado (spec 014, PR 5 e PR 6; espelha a
+    `conciliacao.ConferenciaLote`)."""
+
+    class Tipo(models.TextChoices):
+        LANCAMENTO = "LANCAMENTO", "Primeira conferência do lançamento"
+        REVISAO = "REVISAO", "Revisão"
+        VERIFICAR = "VERIFICAR", "Em verificação"
+
+    class Veredito(models.TextChoices):
+        AGUARDANDO = "AGUARDANDO", "Aguardando"
+        COMPROVADO = "COMPROVADO", "Comprovado"
+        DIVERGENTE = "DIVERGENTE", "Divergente"
+        NAO_ENCONTRADO = "NAO_ENCONTRADO", "Não encontrado"
+        DUPLICADO = "DUPLICADO", "Duplicado"
+        CONFLITO = "CONFLITO", "Vínculo em conflito"
+        INTERVALO_VAZIO = "INTERVALO_VAZIO", "Nenhuma candidata no intervalo"
+        COM_CANDIDATAS = "COM_CANDIDATAS", "Com candidatas"
+        SEM_TENTATIVA = "SEM_TENTATIVA", "Sem tentativa registrada"
+
+    recebimento = models.ForeignKey(
+        Recebimento, on_delete=models.PROTECT, related_name="conferencias"
+    )
+    extracao = models.ForeignKey(
+        ExtracaoEntradas, on_delete=models.PROTECT, related_name="conferencias"
+    )
+    tipo = models.CharField(max_length=12, choices=Tipo.choices)
+    veredito = models.CharField(max_length=20, choices=Veredito.choices)
+    requisicao = models.ForeignKey(
+        RequisicaoEntradaOficial,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="conferencias",
+    )
+    outra_requisicao = models.ForeignKey(
+        RequisicaoEntradaOficial,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="+",
+    )
+    vinculos = models.JSONField(default=list, blank=True)  # quais apontaram: numero, marca, nf
+    diferencas = models.JSONField(default=list, blank=True)
+    notas = models.JSONField(default=list, blank=True)
+    alterado_depois = models.BooleanField(default=False)
+    intervalo_de = models.CharField("intervalo de", max_length=9, blank=True)
+    intervalo_ate = models.CharField("intervalo até", max_length=9, blank=True)
+    tentativa = models.ForeignKey(
+        TentativaEntrada,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="conferencias",
+    )
+    criada_em = models.DateTimeField("criada em", default=timezone.now)
+
+    class Meta:
+        ordering = ["-criada_em", "-id"]
+        verbose_name = "conferência de recebimento"
+        verbose_name_plural = "conferências de recebimento"
+        constraints = [
+            models.UniqueConstraint(
+                fields=["recebimento", "extracao", "tipo"], name="conferencia_recebimento_unica"
+            )
+        ]
+
+    def __str__(self):
+        return f"{self.recebimento} · {self.get_veredito_display()}"
+
+
+class CandidataEntrada(models.Model):
+    """Uma requisição de entrada que pode ser a de um recebimento em verificação."""
+
+    conferencia = models.ForeignKey(
+        ConferenciaRecebimento, on_delete=models.CASCADE, related_name="candidatas"
+    )
+    requisicao = models.ForeignKey(
+        RequisicaoEntradaOficial, on_delete=models.PROTECT, related_name="candidaturas"
+    )
+    e_esta = models.BooleanField("é esta", default=False)
+    ordem = models.PositiveSmallIntegerField()
+
+    class Meta:
+        ordering = ["conferencia", "ordem"]
+        verbose_name = "candidata de entrada"
+        verbose_name_plural = "candidatas de entrada"
+
+    def __str__(self):
+        return f"{self.conferencia} · {self.requisicao}"

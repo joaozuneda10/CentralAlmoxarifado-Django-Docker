@@ -391,3 +391,165 @@ def destravar_pedido(pedido_id: int, usuario, *, motivo: str) -> Resposta:
             trava.motivo_destrave = motivo[:limite]
             trava.save(update_fields=["destravada_em", "destravada_por", "motivo_destrave"])
     return Resposta(True, f"Pedido {pedido.rotulo} destravado.")
+
+
+# --- Resolver um recebimento em verificação (PR 5) -----------------------------------------------
+
+ACOES_DE_VERIFICACAO = ("e_esta", "liberar", "cancelar")
+MENSAGEM_LANCAMENTO_EM_ANDAMENTO = "Há um lançamento em andamento. Resolva quando ele terminar."
+
+
+def resolver_recebimento(
+    recebimento_id: int,
+    usuario,
+    *,
+    acao: str,
+    requisicao_id: int | None = None,
+    conferi: bool = False,
+    motivo: str = "",
+    confirmado: bool = False,
+    agora=None,
+) -> Resposta:
+    """Resolve um recebimento que o robô deixou em verificação (ou em lançamento): "É esta" liga a
+    requisição candidata como lançada; "Liberar para relançar" e "Cancelar" exigem as três provas
+    (`consultas.liberacao`, R16). Corre sob a `TRAVA_LANCAMENTO` (recusa com um robô rodando) e
+    trava o pedido e o recebimento."""
+    from pedidos.models import TRAVA_LANCAMENTO, ExecucaoRobo
+    from scpi.execucao import trava
+
+    if acao not in ACOES_DE_VERIFICACAO:
+        return Resposta(False, "Ação desconhecida.", motivo="acao")
+    agora = agora or timezone.now()
+    if ExecucaoRobo.em_andamento(agora).exists():
+        return Resposta(False, MENSAGEM_LANCAMENTO_EM_ANDAMENTO, motivo="andamento")
+    # A trava do lançamento fica com a resolução do começo ao fim: um robô que comece agora não
+    # pega o recebimento que esta resolução está liberando.
+    with trava(TRAVA_LANCAMENTO) as obtida:
+        if not obtida:
+            return Resposta(False, MENSAGEM_LANCAMENTO_EM_ANDAMENTO, motivo="andamento")
+        with transaction.atomic():
+            return _resolver(
+                recebimento_id, usuario, acao, requisicao_id, conferi, motivo, confirmado, agora
+            )
+
+
+def _resolver(recebimento_id, usuario, acao, requisicao_id, conferi, motivo, confirmado, agora):
+    travados = _travar_recebimento(recebimento_id)
+    if travados is None:
+        return Resposta(False, "Recebimento não encontrado.", motivo="nao_encontrado")
+    pedido, recebimento = travados
+    if recebimento.status not in (
+        Recebimento.Status.VERIFICAR,
+        Recebimento.Status.EM_LANCAMENTO,
+    ):
+        return Resposta(
+            False,
+            f"O {recebimento.rotulo} está {recebimento.get_status_display().lower()}: "
+            "só um recebimento em verificação se resolve aqui.",
+            recebimento=recebimento,
+            motivo="estado",
+        )
+    quem = f"por {usuario.username} em {timezone.localtime(agora):%d/%m/%Y %H:%M}"
+    if acao == "e_esta":
+        return _e_esta(recebimento, requisicao_id, quem, agora)
+    motivo = (motivo or "").strip()
+    if acao == "liberar" and not conferi:
+        return Resposta(
+            False,
+            "Antes de liberar, confira no SCPI que a entrada não foi gravada e marque a "
+            "confirmação.",
+            recebimento=recebimento,
+            motivo="conferi",
+        )
+    if acao == "cancelar":
+        if not motivo:
+            return Resposta(
+                False, "Informe o motivo do cancelamento.", recebimento=recebimento, motivo="motivo"
+            )
+        if not confirmado:
+            return Resposta(
+                False, "Confirme antes de cancelar.", recebimento=recebimento, motivo="confirmacao"
+            )
+    faltas = consultas.liberacao(recebimento)
+    if faltas:
+        return Resposta(False, " ".join(faltas), recebimento=recebimento, motivo="provas")
+    if acao == "liberar":
+        recebimento.status = Recebimento.Status.PREPARADO
+        recebimento.mensagem = f"Liberado para relançar {quem}."
+        recebimento.requisicao_scpi = ""
+        recebimento.lancado_em = None
+        recebimento.visivel_desde = None
+        recebimento.via = ""
+        # A tentativa estava a verificar: as três provas dizem que nada foi salvo. Daí em diante
+        # ela não trava a edição nem o cancelamento do recebimento, que voltou à fila.
+        ultima = TentativaEntrada.objects.filter(
+            recebimento=recebimento, resultado=TentativaEntrada.Resultado.VERIFICAR
+        )
+        for tentativa in ultima:
+            tentativa.resultado = TentativaEntrada.Resultado.IGNORADA
+            tentativa.foto = {**(tentativa.foto or {}), "liberada": quem}
+            tentativa.save(update_fields=["resultado", "foto"])
+        final = f"{recebimento.rotulo} liberado para o próximo lançamento."
+    else:
+        limite = Recebimento._meta.get_field("motivo_cancelamento").max_length
+        recebimento.status = Recebimento.Status.CANCELADO
+        recebimento.motivo_cancelamento = motivo[:limite]
+        # A NF continua reservada (`chave_nf`): houve tentativa do robô.
+        final = f"{recebimento.rotulo} cancelado; a NF continua reservada."
+    recebimento.versao += 1
+    recebimento.alterado_por = usuario
+    recebimento.alterado_em = agora
+    recebimento.save()
+    return Resposta(True, final, recebimento=recebimento)
+
+
+def _e_esta(recebimento, requisicao_id, quem, agora) -> Resposta:
+    """Liga ao recebimento a requisição que é uma candidata dele e que não é de outro."""
+    from compras.models import CandidataEntrada
+
+    candidata = (
+        CandidataEntrada.objects.filter(
+            conferencia__recebimento=recebimento, requisicao_id=requisicao_id
+        )
+        .select_related("requisicao", "conferencia__extracao__importacao")
+        .order_by("-conferencia__criada_em")
+        .first()
+        if requisicao_id
+        else None
+    )
+    if candidata is None:
+        return Resposta(
+            False,
+            "Escolha uma das requisições candidatas deste recebimento.",
+            recebimento=recebimento,
+            motivo="candidata",
+        )
+    numero = candidata.requisicao.requisicao
+    outro = (
+        Recebimento.objects.filter(requisicao_scpi=numero)
+        .exclude(pk=recebimento.pk)
+        .exclude(status=Recebimento.Status.CANCELADO)
+        .first()
+    )
+    if outro is not None:
+        return Resposta(
+            False,
+            f"A requisição {numero} já está ligada ao {outro.rotulo}.",
+            recebimento=recebimento,
+            motivo="ligada",
+        )
+    inicio = candidata.conferencia.extracao.importacao.inicio
+    recebimento.status = Recebimento.Status.LANCADO
+    recebimento.requisicao_scpi = numero
+    recebimento.lancado_em = agora
+    recebimento.via = Recebimento.Via.ROBO
+    recebimento.visivel_desde = inicio
+    recebimento.mensagem = f"Requisição {numero} informada {quem}."
+    recebimento.versao += 1
+    recebimento.save()
+    TentativaEntrada.objects.filter(
+        recebimento=recebimento, resultado=TentativaEntrada.Resultado.VERIFICAR
+    ).update(resultado=TentativaEntrada.Resultado.LANCADA, requisicao=numero)
+    return Resposta(
+        True, f"{recebimento.rotulo}: requisição {numero} registrada.", recebimento=recebimento
+    )

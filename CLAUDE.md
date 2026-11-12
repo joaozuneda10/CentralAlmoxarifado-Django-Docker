@@ -880,6 +880,25 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   exercitado no SCPI real**: os pontos incertos estão marcados "R25" e o primeiro `--dry-run`
   (quickstart, passo 4) os confirma. Nos testes, `tests/scpi_entradas_simulado.py`
   (`SCPIEntradasSimulado`: pedidos, falhas e os dois relatórios).
+  **Recebimento em verificação (PR 5)**: `compras/conciliacao.py` (`conciliar_verificar`, sob a trava
+  `almoxarifado:conciliacao_entradas`; roda depois da extração de depois e no `conciliar_entradas`;
+  `ARQUIVO` nunca confere) grava, para cada recebimento `VERIFICAR`/`EM_LANCAMENTO` coberto, uma
+  `ConferenciaRecebimento` `VERIFICAR` (só se a extração começou depois da tentativa mais recente;
+  sem tentativa, `SEM_TENTATIVA`) com o intervalo (`conciliacao.regras.intervalo`, o piso é o
+  `maior_requisicao` da extração de antes) e as `CandidataEntrada`. A **candidata** é a que tem a
+  marca `RC-…` ou a NF e o fornecedor do recebimento, em qualquer número ("é esta"), ou a que está no
+  intervalo, é **do mesmo pedido** e não tem a marca de outro recebimento (`regras.candidatas`: sem o
+  filtro do pedido, toda entrada manual do dia bloquearia a liberação). **Liberar** e **cancelar** um
+  recebimento em verificação exigem as três provas (`consultas.liberacao` sobre `regras.tres_provas`:
+  extração de entradas posterior que não seja de arquivo, nenhuma candidata em nenhuma conferência
+  da tentativa e o "Já Entrou" da tela antes do Salvar, gravado na foto, igual na importação de
+  pedidos posterior). `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
+  `TRAVA_LANCAMENTO`, recusa com robô rodando) liga a candidata como `LANCADO` (`via=ROBO`,
+  `visivel_desde` = início da extração), devolve **o mesmo** recebimento a `PREPARADO` com
+  `versao + 1` e a NF ainda reservada (a tentativa antiga passa a `IGNORADA`, para não travar a
+  edição) ou cancela sem liberar a NF. A aba Entradas no SCPI ganha a região "Em verificação e com
+  erro" (`compras/_verificacao.html`, rota `automacoes:resolver_entrada` em `REGRAS_POR_ROTA`).
+  Os testes nunca abrem o navegador: o `conftest` troca o `sync_playwright` por um erro.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

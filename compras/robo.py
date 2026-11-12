@@ -17,8 +17,10 @@ from django.utils import timezone
 
 from catalogo.models import Importacao
 from compras import consultas, regras
+from compras.conciliacao import conciliar
 from compras.extracao import extrair
 from compras.models import (
+    ConferenciaRecebimento,
     ExtracaoEntradas,
     ItemRecebimento,
     Recebimento,
@@ -238,6 +240,13 @@ def extrair_depois(execucao, periodo: tuple[date, date], baixar: Extrair) -> Non
         logger.info(
             "✔ %d requisições de entrada no SCPI depois do lançamento", extracao.requisicoes
         )
+        try:
+            contagem = conciliar(extracao)
+        except Exception:
+            logger.exception("⚠ não foi possível conciliar os recebimentos desta execução")
+        else:
+            if contagem:
+                logger.info("✔ conciliação: %s", resumo_da_contagem(contagem))
     else:
         logger.warning(
             "⚠ extração de depois falhou (%s); os recebimentos ficam aguardando conferência",
@@ -275,3 +284,11 @@ def tentativa_lancada(execucao, recebimento_id: int, numero: str) -> None:
         )
     except Exception:
         logger.exception("Não foi possível registrar o número %s na tentativa.", numero)
+
+
+def resumo_da_contagem(contagem: dict[str, int]) -> str:
+    """'VERIFICAR': 2 → "2 em verificação conferidos"."""
+    rotulos = dict(ConferenciaRecebimento.Veredito.choices)
+    return ", ".join(
+        f"{n} {rotulos.get(v, 'em verificação conferidos').lower()}" for v, n in contagem.items()
+    )

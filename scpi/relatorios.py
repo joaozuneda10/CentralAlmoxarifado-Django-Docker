@@ -336,7 +336,8 @@ def baixar_entradas(de: date, ate: date) -> bytes:
         frame.get_by_role("menuitem", name="Requisições").hover()
         frame.get_by_role("menuitem", name="Relação de Requisições").click()
 
-        frame.get_by_role("radio", name="Requisições de Entrada").check()
+        # exact: o nome sozinho casou 2 rádios no SCPI real (12/11/2026, R25); confirmar no passo 4
+        frame.get_by_role("radio", name="Requisições de Entrada", exact=True).check()
 
         ids = frame.evaluate(JS_IDS_SAIDAS)
         frame.locator(f"#{ids['datas'][0]}").fill(_br(de))
