@@ -132,7 +132,7 @@ def para_lancar(recebimento: Recebimento) -> regras.RecebimentoParaLancar:
         fornecedor_codigo=recebimento.fornecedor_codigo,
         nf=recebimento.nf,
         data=recebimento.data_recebimento,
-        observacoes=regras.texto_observacoes(recebimento.rotulo, recebimento.observacao),
+        observacoes=regras.texto_observacao_item(recebimento.rotulo, recebimento.observacao),
         itens=itens,
         esperado=tuple(esperado),
     )
