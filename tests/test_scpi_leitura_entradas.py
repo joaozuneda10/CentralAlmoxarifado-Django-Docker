@@ -120,8 +120,13 @@ def test_pedido_invalido_e_erro():
         ler_entradas(csv_entradas([_entrada(pedido="514-26")]))
 
 
-@pytest.mark.parametrize("quantidade", ["", "abc", "0", "-1", "0,1234567"])
-def test_quan1_ilegivel_zero_ou_longa_e_erro(quantidade):
+def test_quan1_zero_e_lida_como_dado_do_scpi():
+    (e,) = ler_entradas(csv_entradas([_entrada(itens=[ItemEntradaCSV("005.000.001", "0")])])).linhas
+    assert e.itens[0].quantidade == 0
+
+
+@pytest.mark.parametrize("quantidade", ["", "abc", "-1", "0,1234567"])
+def test_quan1_ilegivel_negativa_ou_longa_e_erro(quantidade):
     with pytest.raises(ErroImportacao, match="quantidade"):
         ler_entradas(csv_entradas([_entrada(itens=[ItemEntradaCSV("006.011.020", quantidade)])]))
 

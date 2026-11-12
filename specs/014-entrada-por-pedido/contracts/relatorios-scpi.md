@@ -74,7 +74,7 @@ uma extração sem requisições. A função das saídas (`_relacao_de_requisico
 | `SAID` | `com_saida` | `S` → verdadeiro |
 | `TPREQUI` | `tipo` | |
 | `OBS_CABECALHO` | `observacoes` | a marca `RC-…` é lida daqui |
-| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, maior que 0 |
+| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, zero ou mais (o SCPI traz entradas com 0); negativo é erro |
 | `RESPONSA` | `responsavel` | opcional |
 
 Regras:
