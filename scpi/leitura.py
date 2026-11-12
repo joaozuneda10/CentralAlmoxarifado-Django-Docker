@@ -696,9 +696,11 @@ def ler_entradas(conteudo: bytes) -> Leitura:
                     f"{rotulo}: quantidade inválida na entrada {numero_visivel}, "
                     f"{linha['CADPRO']} ('{linha['QUAN1']}')."
                 ) from None
-            if quantidade <= 0:
+            if quantidade < 0:
+                # Zero existe no SCPI (entrada 003726/26, 005.000.001, em 12/11/2026): é dado, não
+                # erro. Só o negativo recusa a leitura inteira.
                 raise ErroImportacao(
-                    f"{rotulo}: quantidade zero ou negativa na entrada {numero_visivel}, "
+                    f"{rotulo}: quantidade negativa na entrada {numero_visivel}, "
                     f"{linha['CADPRO']} ('{linha['QUAN1']}')."
                 )
             itens.append(ItemEntradaLido(linha["CADPRO"], quantidade, linha["UNID1"]))
