@@ -352,7 +352,8 @@ def baixar_pedidos_compra() -> bytes:
 
         dialog = frame.get_by_label(RE_JANELA_PEDIDOS)
         dialog.get_by_role("button", name="Imprimir").wait_for(state="visible")
-        dialog.get_by_role("radio", name="Analítico").check()
+        # exact: "Analítico Detalhado" também casaria com "Analítico" (SCPI, 12/11/2026)
+        dialog.get_by_role("radio", name="Analítico", exact=True).check()
         dialog.get_by_role("checkbox", name="Apenas com saldo a entregar").check()
 
         dialog.get_by_role("button", name="Imprimir").click()
