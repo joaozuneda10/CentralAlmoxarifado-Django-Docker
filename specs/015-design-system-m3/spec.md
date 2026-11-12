@@ -115,7 +115,7 @@ depois.
 6. **Given** um pedido atendido com o lote ainda pendente, **When** a equipe abre o ⋮ da linha, **Then** vê "Abrir pedido", "Imprimir recibo" e "Editar atendimento"; num pedido aguardando atendimento, só "Abrir pedido"; com o lote já lançado, sem "Editar atendimento".
 7. **Given** "Imprimir recibo" escolhido no ⋮, **When** o detalhe abre, **Then** a impressão começa e a confirmação "O recibo saiu na impressora?" aparece no detalhe; nada é marcado como impresso sem essa confirmação.
 8. **Given** o pedido aguardando mais antigo enviado há 3 dias, **When** o painel abre, **Then** o cartão de atendimento mostra "há 3 dias".
-9. **Given** 1 requisição aguardando o robô e 1 em verificar, **When** o painel abre, **Then** o cartão do robô mostra 1 como número principal e a nota "1 para verificar no SCPI", e o menu mostra 1 em Automações.
+9. **Given** 1 requisição aguardando o robô e 1 em verificar, **When** o painel abre, **Then** o cartão do robô mostra 1 como número principal e a nota "1 para conferir", com o link para as travas, e o menu mostra 1 em Automações.
 10. **Given** 2 pedidos de EPI aguardando autorização, **When** o painel abre, **Then** o cartão de atendimento mostra "+2 aguardando autorização", com link para o filtro; com zero, a nota some.
 
 ---
@@ -254,7 +254,7 @@ com os formulários na revisão visual do chefe.
 
   Cada item só aparece para quem tem a permissão que a ação já exige (spec 012), e o servidor continua recusando quem não a tem. Pedido de EPI não autorizado não ganha "Imprimir recibo" nem "Editar atendimento", porque não tem atendimento. Sem JavaScript, o menu vira os mesmos links visíveis na linha. O ⋮ tem rótulo acessível ("Ações do pedido P-000123"), abre e fecha pelo teclado e fecha com Esc.
 - **FR-018b**: **"O mais antigo há N dias"** no cartão "Aguardando atendimento". É o pedido mais antigo pela data de envio, entre os que o filtro "Aguardando atendimento" já conta (fora os que aguardam autorização e os recusados). N são os dias de calendário entre a data do envio e hoje, no fuso do servidor: "enviado hoje", "enviado ontem" ou "há N dias". Some quando não há pedido aguardando.
-- **FR-018c**: **Requisições travadas no cartão do robô.** O número principal continua o de hoje: as requisições aguardando o robô. As travadas (em verificar, em lançamento ou com erro; o mesmo número que o sistema já conta) aparecem no mesmo cartão, numa nota de alerta à parte ("1 para verificar no SCPI"), com ícone e link para a lista filtrada por "Verificar / erro" (o filtro de hoje). Os dois números **não** se somam: um é fila, o outro exige ação de alguém, e a soma esconderia o travado dentro da fila. O protótipo somava, e a spec corrige. O contador do item Automações no menu é o mesmo número das travadas.
+- **FR-018c**: **Requisições travadas no cartão do robô.** O número principal continua o de hoje: as requisições aguardando o robô. As travadas (em verificar, em lançamento ou com erro; o mesmo número que o sistema já conta) continuam no mesmo cartão, como já acontece hoje: numa nota de alerta à parte, com o texto de hoje ("N para conferir"), ícone e o link de hoje para as travas na aba Lançamento no SCPI de Automações, onde elas se resolvem. Os dois números **não** se somam: um é fila, o outro exige ação de alguém, e a soma esconderia o travado dentro da fila. O protótipo somava, e a spec corrige. O contador do item Automações no menu é o mesmo número das travadas.
 - **FR-018d**: **"+N aguardando autorização"** no cartão "Aguardando atendimento". N são os pedidos de EPI aguardando a decisão da Segurança do Trabalho (o mesmo do filtro Autorização). É um link para a lista filtrada por esse estado e some quando N é zero. Não entra no número principal, porque esses pedidos ainda não podem ser atendidos.
 
 **Formulários públicos**
@@ -288,6 +288,7 @@ com os formulários na revisão visual do chefe.
   - a barra de baixo do painel no celular escondia destinos;
   - o cartão do robô somava as travadas com as que aguardam o robô (FR-018c corrige);
   - o menu ⋮ do protótipo aparece em todas as linhas, sem as condições de FR-018a.
+  - o protótipo do painel tem uma barra no topo de toda a área interna, com a busca e o usuário. Na spec, a busca fica no topo da página do painel (FR-014), e o usuário com o "Sair" no pé do menu, como hoje: as outras telas não têm busca de pedidos, e uma barra só para o painel seria um layout a mais.
 - **FR-029**: Telas da spec 014: se forem integradas antes da etapa que cobre a área interna (US4), são convertidas nela; se vierem depois da fundação, já nascem no desenho novo.
 
 ## Success Criteria *(mandatory)*
