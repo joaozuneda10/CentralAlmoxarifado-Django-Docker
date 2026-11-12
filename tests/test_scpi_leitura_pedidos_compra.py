@@ -103,6 +103,12 @@ def test_preco_com_mais_de_4_casas_e_arredondado_e_nao_recusa_a_leitura():
     assert linha.preco == Decimal("1.6666")
 
 
+def test_preco_que_o_arredondamento_leva_ao_teto_e_recusado():
+    """9999999999,99995 cabe antes de arredondar e vira 10000000000,0000, que o campo não guarda."""
+    with pytest.raises(ErroImportacao, match="PRCUNT inválido.*fora do limite"):
+        ler_pedidos_compra(csv_pedidos([_item(preco="9999999999,99995")]))
+
+
 def test_quantidade_com_5_casas_e_lida_exata():
     """O 07.13 traz 1,66651 (pedido 00060/25, SCPI de 12/11/2026): cabe nos 6 casas do pedido."""
     (linha,) = ler_pedidos_compra(csv_pedidos([_item(quantidade="1,66651")])).linhas

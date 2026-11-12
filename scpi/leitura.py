@@ -79,7 +79,10 @@ def _preco_que_cabe(valor: Decimal) -> Decimal:
     recebimento depende dele, então arredondar não vale uma importação recusada."""
     if abs(valor) >= TETO_QUANTIDADE:
         raise ValueError(f"preço fora do limite: {valor}")
-    return valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE), rounding=ROUND_HALF_UP)
+    arredondado = valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE), rounding=ROUND_HALF_UP)
+    if abs(arredondado) >= TETO_QUANTIDADE:  # 9999999999,99995 sobe para 10000000000,0000
+        raise ValueError(f"preço fora do limite: {valor}")
+    return arredondado
 
 
 def data_br(texto: str) -> date:
