@@ -407,18 +407,27 @@ def verificacoes_entradas() -> list[RecebimentoParaResolver]:
     return resultado
 
 
+# O marco de quando a primeira extração não trouxe nenhuma entrada: abaixo de qualquer número.
+MARCO_VAZIO = "000000/00"
+
+
 def marco() -> str | None:
     """O `maior_requisicao` da primeira extração de entradas bem-sucedida: o que tem número até ele
-    é história anterior ao Central (R18). None sem nenhuma extração ainda."""
+    é história anterior ao Central (R18). None sem nenhuma extração ainda.
+
+    A primeira extração fixa o marco mesmo vazia (`MARCO_VAZIO`): se ele ficasse para a primeira
+    extração com entradas, a entrada feita à mão depois da vazia viraria história, sem registro
+    nem trava."""
     from compras.models import ExtracaoEntradas
 
     primeira = (
         ExtracaoEntradas.objects.filter(importacao__situacao=Importacao.Situacao.SUCESSO)
-        .exclude(maior_requisicao__isnull=True)
         .order_by("importacao__inicio", "pk")
         .first()
     )
-    return primeira.maior_requisicao if primeira else None
+    if primeira is None:
+        return None
+    return primeira.maior_requisicao or MARCO_VAZIO
 
 
 def _conclusivas(recebimento):

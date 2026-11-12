@@ -559,6 +559,9 @@ def _e_esta(recebimento, requisicao_id, quem, agora) -> Resposta:
     inicio = candidata.conferencia.extracao.importacao.inicio
     recebimento.status = Recebimento.Status.LANCADO
     recebimento.requisicao_scpi = numero
+    # `lancado_em` é o momento da resolução, não o da entrada (o Salvar incerto foi antes, numa
+    # hora que ninguém sabe): diferente do `visivel_desde`, é o que marca a hora incerta para a
+    # explicação do "Já Entrou" (`importacao._explicar_ja_entrou`).
     recebimento.lancado_em = agora
     recebimento.via = Recebimento.Via.ROBO
     recebimento.visivel_desde = inicio

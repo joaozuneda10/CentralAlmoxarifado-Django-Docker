@@ -382,6 +382,16 @@ def contexto_pagina(request, aba: str, formularios: dict | None = None) -> dict:
     }
 
 
+def _contexto_regiao_entradas(request) -> dict:
+    """A aba Entradas no SCPI inteira: a fila, os pedidos travados e a conferência, com os
+    filtros da URL, como na página (a recarga não pode perder as duas últimas)."""
+    return {
+        **contexto_entradas(),
+        **contexto_conferencia_entradas(request),
+        **contexto_travas_entradas(),
+    }
+
+
 def _contexto_regiao_historico(request) -> dict:
     return {**_contexto_acompanhamento(request), **_contexto_historico(request)}
 
@@ -392,7 +402,7 @@ def _contexto_regiao_historico(request) -> dict:
 REGIOES = {
     "section#situacao-catalogo": ("catalogo/_situacao.html", _contexto_situacao),
     "section#lancamentos": ("pedidos/_lancamentos.html", lambda request: contexto_lancamento()),
-    "section#entradas-no-scpi": ("compras/_entradas.html", lambda request: contexto_entradas()),
+    "section#entradas-no-scpi": ("compras/_entradas.html", _contexto_regiao_entradas),
     "div#historico": ("automacoes/_historico.html", _contexto_regiao_historico),
     "div#conferir-agora": ("conciliacao/_conferir.html", lambda request: _contexto_conferir()),
 }

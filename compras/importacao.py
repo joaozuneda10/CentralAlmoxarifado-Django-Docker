@@ -230,18 +230,20 @@ def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> Non
             if norm_u(linha.item.codigo) != codigo:
                 continue
             r = linha.recebimento
-            if (
-                r.status == Recebimento.Status.LANCADO
-                and r.via == Recebimento.Via.ROBO
-                and r.lancado_em
-                and inicio_antes <= r.lancado_em < inicio_agora
-            ):
+            lancado = r.status == Recebimento.Status.LANCADO
+            # Hora certa: o robô salvou e gravou o número na hora (`visivel_desde` é o próprio
+            # `lancado_em`). O ligado pelo "É esta" também tem `via=ROBO`, mas o `lancado_em` dele
+            # é o da resolução, e a entrada pode já estar refletida numa importação anterior.
+            certo = lancado and r.via == Recebimento.Via.ROBO and r.visivel_desde == r.lancado_em
+            if certo and r.lancado_em and inicio_antes <= r.lancado_em < inicio_agora:
                 certos += linha.quantidade
             elif r.status == Recebimento.Status.VERIFICAR or (
-                r.status == Recebimento.Status.LANCADO
-                and r.via == Recebimento.Via.MANUAL
-                and r.visivel_desde
-                and r.visivel_desde >= inicio_antes
+                lancado
+                and not certo
+                and (
+                    (r.visivel_desde and r.visivel_desde >= inicio_antes)
+                    or (r.lancado_em and r.lancado_em >= inicio_antes)
+                )
             ):
                 incertos.append(linha.quantidade)
         for entrada in EntradaForaDoCentral.objects.filter(

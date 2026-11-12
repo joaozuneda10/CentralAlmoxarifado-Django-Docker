@@ -415,7 +415,7 @@ def conciliar_fora(extracao: ExtracaoEntradas, falhas: list[str] | None = None) 
 
 def _entrada_de_fora(extracao, requisicao) -> str:
     """Trata uma requisição acima do marco; devolve o que fez (vazio: nada)."""
-    from compras.servicos import ligar_a_mao, travar_pedido
+    from compras.servicos import travar_pedido
 
     pedido = (
         PedidoCompra.objects.filter(ano=requisicao.pedido_ano, numero=requisicao.pedido_numero)
@@ -447,6 +447,17 @@ def _entrada_de_fora(extracao, requisicao) -> str:
         )
         return "MARCA_SEM_LANCAMENTO"
     numero = requisicao.requisicao
+    with transaction.atomic():
+        return _ligar_ou_registrar(extracao, requisicao, pedido, numero)
+
+
+def _ligar_ou_registrar(extracao, requisicao, pedido, numero: str) -> str:
+    """Liga a requisição ao recebimento aberto da mesma NF ou a registra como entrada fora do
+    Central, com a trava do pedido. Numa transação só, com o pedido travado: o registro sem a
+    trava (uma falha entre os dois) nunca mais seria refeito, porque a entrada já existiria."""
+    from compras.servicos import ligar_a_mao, travar_pedido
+
+    PedidoCompra.objects.select_for_update().get(pk=pedido.pk)
     if (
         Recebimento.objects.filter(requisicao_scpi=numero)
         .exclude(status=Recebimento.Status.CANCELADO)
