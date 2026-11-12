@@ -219,6 +219,25 @@ def extrair_antes(execucao, periodo: tuple[date, date], baixar: Extrair) -> Extr
     )
 
 
+def ja_no_scpi(extracao: ExtracaoEntradas, aptos) -> dict[int, str]:
+    """Dos recebimentos aptos, os que a extração de antes já achou no SCPI, com o número da
+    requisição: a que tem a marca dele nas observações ou a NF e o fornecedor dele. A conferência
+    da tela não pega este caso quando a entrada foi feita por outro item do pedido com o mesmo
+    código: o "Já Entrou" do item do recebimento não muda."""
+    achados: dict[int, str] = {}
+    lidas = list(
+        extracao.requisicoes_lidas.order_by("ano", "numero").values_list(
+            "requisicao", "recebimento_observado", "fornecedor_codigo", "nf"
+        )
+    )
+    for rec in aptos:
+        for numero, marca, fornecedor, nf in lidas:
+            if marca == rec.rotulo or (nf and nf == rec.nf and fornecedor == rec.fornecedor_codigo):
+                achados[rec.id] = numero
+                break
+    return achados
+
+
 def extrair_depois(execucao, periodo: tuple[date, date], baixar: Extrair) -> None:
     """A extração de depois, uma tentativa. Qualquer falha, inclusive do banco ao registrá-la, só
     vai para o log: os recebimentos já lançados ficam aguardando conferência, e a situação da
