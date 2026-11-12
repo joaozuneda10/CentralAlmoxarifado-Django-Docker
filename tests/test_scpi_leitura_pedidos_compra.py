@@ -96,6 +96,18 @@ def test_codigo_obrigatorio_vazio_e_erro(campos, coluna):
         ler_pedidos_compra(csv_pedidos([_item(codigo=codigo, **campos)]))
 
 
+def test_preco_com_mais_de_4_casas_e_arredondado_e_nao_recusa_a_leitura():
+    (linha,) = ler_pedidos_compra(csv_pedidos([_item(preco="1,66651")])).linhas
+    assert linha.preco == Decimal("1.6665")
+    (linha,) = ler_pedidos_compra(csv_pedidos([_item(preco="1,66655")])).linhas
+    assert linha.preco == Decimal("1.6666")
+
+
+def test_quantidade_com_mais_de_4_casas_continua_recusada_e_o_erro_diz_a_coluna():
+    with pytest.raises(ErroImportacao, match=r"QTDANU inválido.*mais de 4 casas"):
+        ler_pedidos_compra(csv_pedidos([_item(anulado="1,66651")]))
+
+
 def test_controle_desconhecido_e_erro():
     with pytest.raises(ErroImportacao, match="TPCONTROLE_SALDO"):
         ler_pedidos_compra(csv_pedidos([_item(controle="X")]))
