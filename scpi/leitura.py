@@ -616,6 +616,18 @@ def _nf_do_relatorio(documento: str) -> str:
     return texto.lstrip("0") if texto.isascii() and texto.isdigit() else texto
 
 
+def _observacoes_da_entrada(cabecalho: str, linhas: list[dict]) -> str:
+    """As observações da entrada: a do cabeçalho e a de cada item (coluna `OBS`), sem repetir. Numa
+    entrada por pedido o campo do cabeçalho é bloqueado, e o robô escreve a marca `RC-…` na
+    observação de cada item (SCPI, 12/11/2026); a leitura da marca olha as duas."""
+    partes = [cabecalho.strip(), *(linha.get("OBS", "").strip() for linha in linhas)]
+    vistas: list[str] = []
+    for parte in partes:
+        if parte and parte not in vistas:
+            vistas.append(parte)
+    return "\n".join(vistas)
+
+
 def ler_entradas(conteudo: bytes) -> Leitura:
     """ "Relação de Requisições" de Entrada → `EntradaLida`, uma por número.
 
@@ -643,7 +655,7 @@ def ler_entradas(conteudo: bytes) -> Leitura:
         registros_saidas,
         "GRUPO",
         obrigatorias,
-        opcionais=("UNID1", "RESPONSA"),
+        opcionais=("UNID1", "RESPONSA", "OBS"),
         completos=True,
     )
     if not tabela:
@@ -719,7 +731,7 @@ def ler_entradas(conteudo: bytes) -> Leitura:
                 pedido_numero=pedido_numero,
                 com_saida=primeira["SAID"].strip().upper() == "S",
                 tipo=primeira["TPREQUI"],
-                observacoes=primeira["OBS_CABECALHO"],
+                observacoes=_observacoes_da_entrada(primeira["OBS_CABECALHO"], linhas),
                 responsavel=primeira["RESPONSA"],
                 itens=tuple(itens),
             )

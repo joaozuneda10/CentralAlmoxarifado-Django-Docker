@@ -155,3 +155,21 @@ def test_o_gerador_segue_o_formato_real():
     assert conteudo.startswith(b"\xef\xbb\xbfGRUPO;GRUPO_1;") and b"\r\n" in conteudo
     cabecalho = conteudo.decode("utf-8-sig").split("\r\n")[0].split(";")
     assert cabecalho[-1] == "" and len(cabecalho) == 66  # 65 colunas e o ";" final
+
+
+def test_a_marca_na_observacao_do_item_e_lida_e_junta_com_a_do_cabecalho():
+    itens = [
+        ItemEntradaCSV("006.011.020", obs="Central Almoxarifado RC-0042"),
+        ItemEntradaCSV("023.003.004", obs="Central Almoxarifado RC-0042"),
+    ]
+    (e,) = ler_entradas(
+        csv_entradas([_entrada(itens=itens, observacoes="Recebido na portaria")])
+    ).linhas
+    assert regras.recebimento_observado(e.observacoes) == "RC-0042"
+    assert e.observacoes.count("RC-0042") == 1  # a observação repetida nos itens entra uma vez
+    assert "Recebido na portaria" in e.observacoes
+
+
+def test_sem_observacao_de_item_continua_lendo_a_do_cabecalho():
+    (e,) = ler_entradas(csv_entradas([_entrada(observacoes="Central Almoxarifado RC-0042")])).linhas
+    assert regras.recebimento_observado(e.observacoes) == "RC-0042"

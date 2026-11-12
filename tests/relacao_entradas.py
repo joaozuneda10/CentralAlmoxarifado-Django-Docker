@@ -26,6 +26,7 @@ class ItemEntradaCSV:
     codigo: str
     quantidade: str = "1"  # como o SCPI escreve: "2", "1,5"
     unidade: str = "UN"
+    obs: str = ""  # a coluna OBS: a observação do item (onde o robô escreve a marca RC-)
 
 
 @dataclass
@@ -65,6 +66,7 @@ def _linha(req: EntradaCSV, item: ItemEntradaCSV) -> str:
         CADPRO=item.codigo,
         DISC1=f"MATERIAL {item.codigo}",
         UNID1=item.unidade,
+        OBS=item.obs,
         QUAN1=item.quantidade,
         VAUN1="1,5",
         VATO1="1,5",
