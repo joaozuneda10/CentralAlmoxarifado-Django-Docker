@@ -173,3 +173,14 @@ def test_a_marca_na_observacao_do_item_e_lida_e_junta_com_a_do_cabecalho():
 def test_sem_observacao_de_item_continua_lendo_a_do_cabecalho():
     (e,) = ler_entradas(csv_entradas([_entrada(observacoes="Central Almoxarifado RC-0042")])).linhas
     assert regras.recebimento_observado(e.observacoes) == "RC-0042"
+
+
+def test_registro_colado_ao_anterior_recusa_a_leitura():
+    """Sem o começo que separa os registros (GRUPO vazio), a recolagem junta a segunda requisição
+    à primeira: campos a mais que o cabeçalho, e a leitura inteira é recusada (tudo ou nada)."""
+    conteudo = csv_entradas([_entrada(), _entrada("003493/26", 9002)]).decode("utf-8-sig")
+    linhas = conteudo.split("\r\n")
+    posicao = next(i for i, linha in enumerate(linhas) if ";003493/26;" in linha)
+    linhas[posicao] = ";" + linhas[posicao].split(";", 1)[1]
+    with pytest.raises(ErroImportacao, match="campos"):
+        ler_entradas("\r\n".join(linhas).encode("utf-8-sig"))
