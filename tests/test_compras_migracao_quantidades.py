@@ -47,6 +47,17 @@ def test_reversao_com_valor_de_5_casas_e_recusada():
         migracao.recusar_reversao_que_arredonda(apps, None)
 
 
+def test_reversao_com_valor_que_nao_cabe_nos_14_digitos_e_recusada():
+    _item("10000000000.000000")
+    with pytest.raises(IrreversibleError, match="não cabe nos 14 dígitos"):
+        migracao.recusar_reversao_que_arredonda(apps, None)
+
+
+def test_reversao_com_o_maior_valor_que_cabe_passa():
+    _item("9999999999.9999")
+    migracao.recusar_reversao_que_arredonda(apps, None)
+
+
 def test_reversao_sem_valor_que_arredonde_passa():
     _item("1.5")
     migracao.recusar_reversao_que_arredonda(apps, None)

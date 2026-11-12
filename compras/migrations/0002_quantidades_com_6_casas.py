@@ -7,14 +7,21 @@ from django.db.migrations.exceptions import IrreversibleError
 
 CAMPOS = ("quantidade", "anulado", "ja_entrou", "ja_entrou_anterior", "pedida", "saldo_scpi")
 QUATRO_CASAS = Decimal("0.0001")
+TETO_14_4 = Decimal(10) ** 10  # decimal(14,4) guarda até 9999999999,9999
 
 
 def recusar_reversao_que_arredonda(apps, schema_editor):
-    """Voltar a 4 casas arredondaria, sem erro, o que o SCPI mandou com 5 ou 6 (1,66651): a
-    reversão para antes disso, em vez de perder o valor original."""
+    """Voltar a decimal(14,4) arredondaria, sem erro, o que o SCPI mandou com 5 ou 6 casas (1,66651),
+    e falharia no meio dos AlterField (o DDL do MySQL não é transacional) com um valor de mais de
+    10 dígitos inteiros: a reversão para antes, sem alterar nada."""
     Item = apps.get_model("compras", "ItemPedidoCompra")
     for campo in CAMPOS:
         for valor in Item.objects.exclude(**{campo: None}).values_list(campo, flat=True).iterator():
+            if abs(valor) >= TETO_14_4:
+                raise IrreversibleError(
+                    f"Não dá para reverter: há itens com {campo} de {valor}, que não cabe nos "
+                    "14 dígitos do campo antigo. Nada foi alterado."
+                )
             if valor != valor.quantize(QUATRO_CASAS):
                 raise IrreversibleError(
                     f"Não dá para reverter: há itens com {campo} de mais de 4 casas decimais "
