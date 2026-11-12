@@ -23,6 +23,8 @@ from catalogo.curva import INICIO_DADOS_CONFIAVEIS
 from catalogo.forms import ROBOS, ROBOS_POR_CHAVE
 from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
+from compras.consultas import fila_entradas
+from compras.forms import LancamentoEntradasForm
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
@@ -41,11 +43,13 @@ from scpi.disparo import (
     iniciar_conciliacao,
     iniciar_importacao,
     iniciar_lancamento,
+    iniciar_lancamento_entradas,
 )
 
 ABAS = [
     ("visao-geral", "Visão geral"),
     ("lancamento", "Lançamento no SCPI"),
+    ("entradas", "Entradas no SCPI"),
     *((robo.chave, robo.rotulo) for robo in ROBOS),
 ]
 CHAVES_ABAS = [chave for chave, _ in ABAS]
@@ -178,6 +182,42 @@ def contexto_lancamento() -> dict:
     }
 
 
+def contexto_entradas() -> dict:
+    """Entradas no SCPI (spec 014): botões, fila de recebimentos e andamento do robô de entradas.
+    Qualquer robô rodando segura a trava do lançamento: a dica diz qual."""
+    agora = timezone.now()
+    entradas = ExecucaoRobo.Robo.ENTRADAS
+    execucao = ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
+    em_andamento = ExecucaoRobo.em_andamento(agora, robo=entradas).exists()
+    qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
+    fila = fila_entradas()
+    interrompida = bool(execucao and execucao.interrompida)
+    resumo = None
+    if execucao:
+        resumo = {
+            "frase": andamento.frase(execucao, agora, interrompida),
+            "interrompida": interrompida,
+            "contadores": andamento.contadores(execucao.resumo, execucao.simulacao, entradas=True),
+            "duracao": andamento.duracao(execucao.inicio, execucao.fim),
+            "precisa_conferir": andamento.precisa_conferir(execucao),
+            "falha": andamento.explicar_falha(execucao),
+        }
+    return {
+        "execucao_entradas": execucao,
+        "andamento_entradas": resumo,
+        "acomp_entradas": (
+            andamento.acompanhamento(execucao, agora, interrompida) if execucao else None
+        ),
+        "entradas_no_topo": _andamento_no_topo(execucao, agora, em_andamento),
+        "entradas_em_andamento": em_andamento,
+        "saidas_lancando": qualquer_robo and not em_andamento,
+        "log_entradas": "\n".join(execucao.log.splitlines()[-LINHAS_DO_LOG:]) if execucao else "",
+        "fila_entradas": fila,
+        "pode_executar_entradas": bool(fila.aptos) and not qualquer_robo,
+        "lancamento_real": settings.LANCAMENTO_REAL,
+    }
+
+
 def _lancamento_resumido() -> dict:
     """Só o que a situação lê do lançamento, sem a fila inteira nem o andamento da aba: a recarga
     da situação não paga o contexto da aba Lançamento no SCPI."""
@@ -273,6 +313,7 @@ def contexto_pagina(request, aba: str, formularios: dict | None = None) -> dict:
     return {
         **_contexto_historico(request),
         **situacao,
+        **contexto_entradas(),
         "conciliacao": conciliacao_da_aba(
             request.GET.get("veredito", ""), request.GET.get("pagina_conciliacao", 1)
         ),
@@ -293,6 +334,7 @@ def _contexto_regiao_historico(request) -> dict:
 REGIOES = {
     "section#situacao-catalogo": ("catalogo/_situacao.html", _contexto_situacao),
     "section#lancamentos": ("pedidos/_lancamentos.html", lambda request: contexto_lancamento()),
+    "section#entradas-no-scpi": ("compras/_entradas.html", lambda request: contexto_entradas()),
     "div#historico": ("automacoes/_historico.html", _contexto_regiao_historico),
     "div#conferir-agora": ("conciliacao/_conferir.html", lambda request: _contexto_conferir()),
 }
@@ -406,6 +448,33 @@ def lancar(request):
             else "Lançamento iniciado. Acompanhe o andamento abaixo."
         )
         texto += f" {', '.join(lotes)}."
+        messages.success(request, texto)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def lancar_entradas(request):
+    destino = url_da_aba("entradas")
+    form = LancamentoEntradasForm(request.POST)
+    if not form.is_valid():
+        for erros in form.errors.values():
+            messages.error(request, " ".join(erros))
+        return redirect(destino)
+    simulacao = form.cleaned_data["modo"] == "simular"
+    recebimentos = form.cleaned_data["recebimentos"]
+    if (
+        iniciar_lancamento_entradas(request.user, simulacao=simulacao, recebimentos=recebimentos)
+        is None
+    ):
+        messages.warning(request, "Já há um lançamento em andamento. Aguarde terminar.")
+    else:
+        texto = (
+            "Simulação iniciada: o robô preenche cada recebimento no SCPI, sem salvar."
+            if simulacao
+            else "Lançamento iniciado. Acompanhe o andamento abaixo."
+        )
+        texto += f" {', '.join(recebimentos)}."
         messages.success(request, texto)
     return redirect(destino)
 

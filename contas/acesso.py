@@ -124,6 +124,7 @@ REGRAS_POR_ROTA: dict[str, Regra | str] = {
     "automacoes:atualizar": _AUTOMACOES,
     "automacoes:importar": _AUTOMACOES,
     "automacoes:lancar": _AUTOMACOES,
+    "automacoes:lancar_entradas": _AUTOMACOES,
     "automacoes:resolver": _AUTOMACOES,
     "automacoes:conferir": _AUTOMACOES,
     "automacoes:corrigir": _AUTOMACOES,

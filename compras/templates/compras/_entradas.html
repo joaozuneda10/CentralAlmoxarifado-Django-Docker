@@ -1,0 +1,81 @@
+{% comment %}
+Aba Entradas no SCPI (spec 014): a fila de recebimentos que o robô lança, os botões Simular e Lançar
+no SCPI e o andamento. Mesmo desenho da aba Lançamento no SCPI, com o `fila-robo.js` dirigido pelos
+atributos `data-fila-*` do formulário. A região (`section#entradas-no-scpi`) se recarrega a cada 3 s
+só enquanto o robô de entradas roda; os recebimentos bloqueados aparecem sem caixa de marcar, com o
+motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os botões.
+{% endcomment %}
+<section id="entradas-no-scpi" class="pilha-larga"{% if entradas_em_andamento %} hx-get="{% url 'automacoes:pagina' %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+  {% if entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
+  <div class="cartao pilha">
+    <form method="post" action="{% url 'automacoes:lancar_entradas' %}" id="fila-entradas-form" class="fila-form" data-fila-robo data-fila-campo="recebimentos" data-fila-um="recebimento selecionado" data-fila-varios="recebimentos selecionados" data-fila-nenhum="Nenhum recebimento selecionado" data-fila-conf-um="O recebimento {} será lançado de verdade no SCPI. Não dá para desfazer por aqui." data-fila-conf-varios="Os recebimentos {} serão lançados de verdade no SCPI. Não dá para desfazer por aqui." data-fila-dialogo="dialogo-lancar-entradas">
+      {% csrf_token %}
+      <div class="fila-barra">
+        <p class="fila-contagem" data-fila-contagem aria-live="polite">{% if fila_entradas.aptos %}{{ fila_entradas.aptos }} {{ fila_entradas.aptos|pluralize:"recebimento aguardando o robô,recebimentos aguardando o robô" }}<small>Marque na lista o que o robô deve processar.</small>{% else %}Nenhum recebimento aguardando o robô.{% endif %}</p>
+        <div class="lancar-botoes">
+          <button type="submit" name="modo" value="simular" data-requer-selecao class="botao {% if pode_executar_entradas and not lancamento_real %}botao-primario{% else %}botao-secundario{% endif %}"{% if not pode_executar_entradas %} disabled{% endif %}>{% include "interface/_icone.html" with nome="olho" %}Simular</button>
+          {% if lancamento_real %}
+          <button type="submit" name="modo" value="lancar" data-requer-selecao data-confirmar-lancamento class="botao {% if pode_executar_entradas %}botao-primario{% else %}botao-secundario{% endif %}"{% if not pode_executar_entradas %} disabled{% endif %}>{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI</button>
+          {% else %}
+          <span class="dica-flutuante">
+            <button type="button" class="botao botao-secundario" aria-disabled="true" aria-describedby="dica-lancamento-real-entradas">{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI{% include "interface/_icone.html" with nome="cadeado" %}</button>
+            <span class="dica-flutuante-texto" role="tooltip" id="dica-lancamento-real-entradas">Lançamento real bloqueado neste ambiente: só a simulação roda.</span>
+          </span>
+          {% endif %}
+        </div>
+        {% if saidas_lancando %}<p class="lancar-motivo">O robô de saídas está lançando.</p>{% elif entradas_em_andamento %}<p class="lancar-motivo">Há uma execução em andamento.</p>{% endif %}
+      </div>
+      <p class="campo-dica">A simulação abre o pedido no SCPI, confere a tela e preenche a entrada, sem salvar: nenhum recebimento muda de estado.{% if not lancamento_real %} O lançamento real é liberado pelo LANCAMENTO_REAL no .env.{% endif %}</p>
+      <div class="fila-robo" id="fila-entradas">
+        {% if fila_entradas.linhas %}
+        <div class="tabela-rolagem">
+          <table class="tabela">
+            <thead>
+              <tr>
+                <th scope="col" class="celula-marca"><label><input type="checkbox" data-fila-todas aria-label="Marcar todos os recebimentos da fila"{% if not pode_executar_entradas %} disabled{% endif %}></label></th>
+                <th scope="col">Recebimento</th>
+                <th scope="col">Pedido</th>
+                <th scope="col">Fornecedor</th>
+                <th scope="col">NF</th>
+                <th scope="col">Data</th>
+                <th scope="col">Itens</th>
+                <th scope="col">Situação</th>
+              </tr>
+            </thead>
+            <tbody>
+              {% for linha in fila_entradas.linhas %}
+              <tr{% if linha.apto %} data-fila-linha{% endif %}>
+                <td class="celula-marca">{% if linha.apto %}<label><input type="checkbox" name="recebimentos" value="{{ linha.rotulo }}" aria-label="Selecionar o recebimento {{ linha.rotulo }}"{% if not pode_executar_entradas %} disabled{% endif %}></label>{% endif %}</td>
+                <td><a class="mono" href="{% url 'compras:recebimento' linha.pk %}">{{ linha.rotulo }}</a></td>
+                <td><a class="mono" href="{% url 'compras:pedido' linha.pedido_pk %}">{{ linha.pedido_rotulo }}</a></td>
+                <td>{{ linha.fornecedor }}</td>
+                <td class="mono">{{ linha.nf }}</td>
+                <td class="tabela-data">{{ linha.data|date:"d/m/Y" }}</td>
+                <td class="tabela-data">{{ linha.itens }}</td>
+                <td>{% if linha.apto %}<span class="selo selo-ok">Pronto para lançar</span>{% else %}<span class="selo selo-aviso">Bloqueado</span> <span class="texto-secundario texto-pequeno">{{ linha.motivo|capfirst }}.</span>{% endif %}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% endif %}
+      </div>
+    </form>
+    {% if lancamento_real %}
+    <dialog class="dialogo-confirmacao" id="dialogo-lancar-entradas" aria-labelledby="dialogo-lancar-entradas-titulo">
+      <div class="dialogo-confirmacao-corpo">
+        <div class="dialogo-confirmacao-texto">
+          <h2 id="dialogo-lancar-entradas-titulo" class="dialogo-confirmacao-titulo">Lançar as entradas no SCPI?</h2>
+          <p data-fila-confirmacao>Os recebimentos marcados serão lançados de verdade no SCPI. Não dá para desfazer por aqui.</p>
+        </div>
+        <div class="dialogo-confirmacao-acoes">
+          <button type="button" class="botao botao-secundario" data-fechar-dialogo>Cancelar</button>
+          <button type="submit" form="fila-entradas-form" name="modo" value="lancar" class="botao botao-primario">{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI</button>
+        </div>
+      </div>
+    </dialog>
+    {% endif %}
+  </div>
+
+  {% if not entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
+</section>

@@ -8,7 +8,7 @@ from tests.paginas import item_atual
 pytestmark = pytest.mark.django_db
 
 URL = reverse("automacoes:pagina")
-ABAS = ["visao-geral", "lancamento", "cadastro", "estoque", "saidas", "pedidos_compra"]
+ABAS = ["visao-geral", "lancamento", "entradas", "cadastro", "estoque", "saidas", "pedidos_compra"]
 
 
 def aba_ativa(html):

@@ -15,6 +15,12 @@ pytestmark = pytest.mark.django_db
 LANCAMENTO = reverse("automacoes:pagina") + "?aba=lancamento"
 
 
+def _painel_das_saidas(texto: str) -> str:
+    """Só o painel da aba Lançamento no SCPI (a página tem também o das entradas)."""
+    inicio = texto.index('id="painel-lancamento"')
+    return texto[inicio : texto.index('role="tabpanel"', inicio + 1)]
+
+
 @pytest.fixture
 def duas_execucoes():
     """Uma execução de saídas concluída e uma de entradas em andamento (a mais recente)."""
@@ -37,7 +43,8 @@ def test_a_aba_das_saidas_mostra_so_a_ultima_execucao_de_saidas(
     r = client.get(LANCAMENTO)
     assert r.context["execucao"] == saidas
     assert r.context["lancamento_em_andamento"] is False  # as saídas não estão rodando
-    assert 'hx-trigger="every 3s"' not in r.text  # não acompanha a execução de entradas
+    painel = _painel_das_saidas(r.text)
+    assert 'hx-trigger="every 3s"' not in painel  # não acompanha a execução de entradas
 
 
 def test_os_botoes_das_saidas_ficam_desabilitados_com_a_dica_das_entradas(
@@ -45,22 +52,23 @@ def test_os_botoes_das_saidas_ficam_desabilitados_com_a_dica_das_entradas(
 ):
     r = client.get(LANCAMENTO)
     assert r.context["entradas_lancando"] is True and r.context["pode_executar"] is False
-    assert "O robô de entradas está lançando." in r.text
-    assert "Há uma execução em andamento." not in r.text
+    painel = _painel_das_saidas(r.text)
+    assert "O robô de entradas está lançando." in painel
+    assert "Há uma execução em andamento." not in painel
 
 
 def test_sem_entradas_rodando_nao_tem_a_dica(client, usuario_logado):
     ExecucaoRobo.objects.create(robo="SAIDAS", situacao="SUCESSO", fim=timezone.now())
     r = client.get(LANCAMENTO)
     assert r.context["entradas_lancando"] is False
-    assert "O robô de entradas está lançando." not in r.text
+    assert "O robô de entradas está lançando." not in _painel_das_saidas(r.text)
 
 
 def test_com_as_saidas_rodando_a_dica_e_a_das_saidas(client, usuario_logado):
     ExecucaoRobo.objects.create(robo="SAIDAS")
     r = client.get(LANCAMENTO)
     assert r.context["entradas_lancando"] is False and r.context["lancamento_em_andamento"] is True
-    assert "Há uma execução em andamento." in r.text
+    assert "Há uma execução em andamento." in _painel_das_saidas(r.text)
 
 
 def test_iniciar_lancamento_das_saidas_recusa_com_o_robo_de_entradas_rodando(
