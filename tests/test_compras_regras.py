@@ -397,3 +397,14 @@ def test_a_foto_guarda_o_que_o_robo_digita_e_o_que_a_tela_mostrou():
         "tela": [{"item": 1, "ja_entrou": "50", "saldo": "50"}],
     }
     assert regras.foto(rec)["tela"] == []
+
+
+def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
+    assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
+    assert (
+        regras.texto_observacao_item("RC-0042", " portaria;\n volume 3 ")
+        == "Central Almoxarifado RC-0042 Obs.: portaria, volume 3"
+    )
+    longa = regras.texto_observacao_item("RC-0042", "x" * 500)
+    assert len(longa) <= regras.LIMITE_OBSERVACAO_ITEM
+    assert regras.recebimento_observado(longa) == "RC-0042"  # a marca nunca é cortada

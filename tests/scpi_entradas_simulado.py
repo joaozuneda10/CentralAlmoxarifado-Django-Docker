@@ -208,9 +208,9 @@ class SCPIEntradasSimulado:
                     fornecedor=s.fornecedor,
                     nf=s.nf.zfill(12),
                     pedido=f"{s.pedido[1]:05d}/{s.pedido[0] % 100:02d}",
-                    observacoes=s.observacoes,
                     itens=[
-                        ItemEntradaCSV(codigo, format(q.normalize(), "f")) for codigo, q in s.itens
+                        ItemEntradaCSV(codigo, format(q.normalize(), "f"), obs=s.observacoes)
+                        for codigo, q in s.itens
                     ],
                 )
                 for s in no_periodo
