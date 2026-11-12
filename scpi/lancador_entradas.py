@@ -46,6 +46,8 @@ from scpi.requisicoes import ErroSCPI, ResultadoIncerto
 log = logging.getLogger("scpi.lancamento_entradas").info
 
 ESPERA_ESCOLHA_MS = 30000  # a janela "Escolha os Itens" e as linhas dela
+# A espera da janela "Pesquisa de empenhos" depois do Confirmar dos itens (nem sempre abre).
+ESPERA_EMPENHOS_MS = 5_000
 
 # Colunas de "Escolha os Itens", pelo texto do cabeçalho (SCPI, 12/11/2026): `exato` para os nomes
 # que são prefixo de outros ("Qtd." também comeca "Qtd. Já Entrou"). R25: confirmar "Qtd. Saldo".
@@ -133,6 +135,13 @@ def _indice(cabecalhos: list[str], texto: str, exato: bool) -> int:
         f"a grade de Escolha os Itens não tem a coluna '{texto}' (cabeçalhos: "
         f"{', '.join(cabecalhos)})"
     )
+
+
+def _na_grade(rec: RecebimentoParaLancar) -> dict:
+    """Os itens do recebimento pela posição que têm na grade "Itens da Entrada": o SCPI renumera
+    os escolhidos de 1 a n, na ordem do pedido (F1; confirmado com os itens 13, 35, 47 e 55 do
+    00514/26 em 12/11/2026). O código de cada linha é conferido por quem usa."""
+    return dict(enumerate(sorted(rec.itens, key=lambda i: i.item), start=1))
 
 
 def ler_escolha_dos_itens(dados: dict | None) -> TelaItens:
@@ -321,26 +330,51 @@ class NavegadorEntradas(Sessao):
 
     def _marcar_itens(self, rec: RecebimentoParaLancar) -> None:
         """Em "Escolha os Itens", os itens do recebimento ficam marcados e os outros, não. O
-        estado vem marcado (todos); clicar na primeira célula da linha alterna (R25: o estado
-        marcado é lido pela classe ou pelo input; a conferência final de "Itens da Entrada" pega
-        qualquer engano antes do Salvar)."""
+        estado vem marcado (todos). A caixa é o `span.x-grid-checkcolumn` da primeira célula, com
+        a classe `-checked` quando marcada: é nele que se clica (o clique na célula só seleciona a
+        linha; SCPI, 12/11/2026), e o robô confere que a marca mudou. A conferência final de
+        "Itens da Entrada" pega qualquer engano antes do Salvar."""
         no_recebimento = {i.item for i in rec.itens}
         grade = self._grade("Item", "Código", "Qtd. Saldo")
+        vistos = set()
         for linha in grade.locator(".x-grid-row").filter(visible=True).all():
             celulas = linha.locator(".x-grid-cell")
             numero = int(re.sub(r"\D", "", celulas.nth(1).inner_text()))
-            marcada = linha.evaluate(JS_LINHA_MARCADA)
-            if (numero in no_recebimento) != marcada:
-                celulas.first.click()
-                _respirar(self.frame)
+            vistos.add(numero)
+            caixa = linha.locator(".x-grid-checkcolumn").first
+            marcada = linha.locator(".x-grid-checkcolumn-checked").count() > 0
+            if (numero in no_recebimento) == marcada:
+                continue
+            caixa.click()
+            _respirar(self.frame)
+            if (linha.locator(".x-grid-checkcolumn-checked").count() > 0) == marcada:
+                raise ErroSCPI(f"a marca do item {numero} em Escolha os Itens não mudou")
+        faltam = no_recebimento - vistos
+        if faltam:
+            raise ErroSCPI(f"Escolha os Itens não tem os itens {sorted(faltam)} do recebimento")
 
     def _confirmar_empenhos(self) -> None:
-        """A janela de empenhos, se abrir, é confirmada sem escolher nada (D7). Na entrada vista em
-        12/11/2026 o empenho já veio preenchido e a janela não abriu."""
-        janela = self.frame.get_by_label(re.compile("Empenho", re.I)).filter(visible=True)
-        if janela.count():
-            janela.first.get_by_role("button", name=re.compile("OK|Confirmar", re.I)).click()
-            aguardar_mascara(self.frame)
+        """A janela "Pesquisa de empenhos", se abrir, é confirmada sem escolher nada (D7): vale o
+        empenho que vem selecionado. Ela abre quando o pedido tem mais de um empenho (00514/26,
+        12/11/2026) e demora um instante depois do Confirmar dos itens, então o robô a espera;
+        com um empenho só ela não abre, e o robô segue."""
+        janela = (
+            self.frame.locator(".x-window")
+            .filter(has_text=re.compile(r"Pesquisa de empenhos", re.I))
+            .filter(visible=True)
+        )
+        try:
+            janela.first.wait_for(state="visible", timeout=ESPERA_EMPENHOS_MS)
+        except Exception:
+            return  # não abriu: o empenho já veio preenchido
+        log("  janela de empenhos: confirmando o que veio selecionado")
+        _clicar(
+            janela.first.get_by_role("button", name=re.compile(r"^\s*Confirmar\s*$", re.I))
+            .filter(visible=True)
+            .first
+        )
+        janela.first.wait_for(state="hidden", timeout=ESPERA_ESCOLHA_MS)
+        aguardar_mascara(self.frame)
 
     def _digitar(
         self, rotulo: str, valor: str, *, comeca: bool = False, sem_zeros: bool = False
@@ -391,16 +425,25 @@ class NavegadorEntradas(Sessao):
         _respirar(self.frame)
 
     def _preencher_itens(self, rec: RecebimentoParaLancar) -> None:
-        """A QTD (o padrão é o saldo inteiro) e a Observação de cada item da grade, achados pelo
-        número do item no pedido, nunca pela posição."""
+        """A QTD (o padrão é o saldo inteiro) e a Observação de cada item da grade. A grade
+        renumera os itens escolhidos de 1 a n, na ordem do pedido (`_na_grade`); antes de digitar,
+        o código da linha tem de ser o do item."""
         grade, onde = self._abrir_itens_da_entrada()
-        por_item = {i.item: i for i in rec.itens}
+        por_posicao = _na_grade(rec)
         for linha in grade.locator(".x-grid-row").filter(visible=True).all():
             celulas = linha.locator(".x-grid-cell")
-            numero = int(re.sub(r"\D", "", celulas.nth(onde["Item"]).inner_text()))
-            item = por_item.get(numero)
+            posicao = int(re.sub(r"\D", "", celulas.nth(onde["Item"]).inner_text()))
+            item = por_posicao.get(posicao)
             if item is None:
-                continue
+                raise ErroSCPI(
+                    f"a grade tem a linha {posicao} e o recebimento, {len(por_posicao)} itens"
+                )
+            codigo = celulas.nth(onde["Código"]).inner_text().strip()
+            if norm_codigo(codigo) != norm_codigo(item.codigo):
+                raise ErroSCPI(
+                    f"linha {posicao} da grade: código {codigo}, e o item {item.item} do pedido "
+                    f"é {item.codigo}"
+                )
             self._editar_celula(celulas.nth(onde["QTD"]), _qtd_br(item.quantidade))
             self._editar_celula(celulas.nth(onde["Observação"]), rec.observacoes)
             _respirar(self.frame)
@@ -413,13 +456,15 @@ class NavegadorEntradas(Sessao):
         for linha in grade.locator(".x-grid-row").filter(visible=True).all():
             celulas = [c.strip() for c in linha.locator(".x-grid-cell").all_inner_texts()]
             lidas[int(re.sub(r"\D", "", celulas[onde["Item"]]))] = celulas
-        esperado = {i.item: i for i in rec.itens}
+        esperado = _na_grade(rec)
         if set(lidas) != set(esperado):
             raise ErroSCPI(
-                f"os itens da entrada são {sorted(lidas)} e o recebimento tem {sorted(esperado)}"
+                f"a grade da entrada tem as linhas {sorted(lidas)} e o recebimento, "
+                f"{len(esperado)} itens ({sorted(i.item for i in rec.itens)} do pedido)"
             )
-        for numero, item in esperado.items():
-            celulas = lidas[numero]
+        for posicao, item in esperado.items():
+            celulas = lidas[posicao]
+            numero = item.item
             if norm_codigo(celulas[onde["Código"]]) != norm_codigo(item.codigo):
                 raise ErroSCPI(f"item {numero}: código {celulas[onde['Código']]} na grade")
             if parse_decimal_br(celulas[onde["QTD"]]) != item.quantidade:
