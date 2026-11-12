@@ -670,3 +670,14 @@ def test_ja_entrou_sem_nenhuma_combinacao_ou_negativo_nao_e_explicado():
     assert not regras.ja_entrou_explicado(d("5"), d("10"), [])  # menos do que o robô lançou
     assert not regras.ja_entrou_explicado(d("-3"), d("0"), [d("3")])  # entrada excluída
     assert not regras.ja_entrou_explicado(d("7"), d("0"), [])
+
+
+def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
+    assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
+    assert (
+        regras.texto_observacao_item("RC-0042", " portaria;\n volume 3 ")
+        == "Central Almoxarifado RC-0042 Obs.: portaria, volume 3"
+    )
+    longa = regras.texto_observacao_item("RC-0042", "x" * 500)
+    assert len(longa) <= regras.LIMITE_OBSERVACAO_ITEM
+    assert regras.recebimento_observado(longa) == "RC-0042"  # a marca nunca é cortada

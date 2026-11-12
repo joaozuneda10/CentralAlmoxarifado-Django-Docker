@@ -19,22 +19,23 @@ import logging
 import re
 from collections.abc import Iterator
 from contextlib import contextmanager
-from decimal import Decimal
 from pathlib import Path
 
 from django.conf import settings
 from django.utils import timezone
 
-from compras.regras import LinhaTela, RecebimentoParaLancar, TelaItens
+from compras.regras import LinhaTela, RecebimentoParaLancar, TelaItens, norm_codigo
 from scpi.browser import abrir_sessao, frame_compras, orm_liberado
 from scpi.lancador import (
     TIMEOUT,
     Sessao,
     aguardar_mascara,
-    cancelar_formulario,
+    botao_habilitado,
+    campo,
     checar_mensagem,
     fechar_janelas_pos_salvar,
     localizar_salvar,
+    mensagem_scpi,
     parse_decimal_br,
     pausar,
     resumo_erro,
@@ -72,6 +73,20 @@ JS_LER_ESCOLHA_DOS_ITENS = """
     return null;
 }
 """
+
+
+JS_LINHA_MARCADA = """
+(linha) => !!linha.querySelector(
+    '.x-grid-checkcolumn-checked, .x-grid-row-checker-checked, input[type=checkbox]:checked, '
+    + '.x-form-cb-checked'
+) || linha.classList.contains('x-grid-item-selected')
+    || linha.classList.contains('x-grid-row-selected')
+"""
+
+
+def _qtd_br(quantidade) -> str:
+    """12 → "12"; 1.5 → "1,5": a quantidade como o SCPI a mostra e aceita."""
+    return format(quantidade.normalize(), "f").replace(".", ",")
 
 
 def _numero_pedido(rec: RecebimentoParaLancar) -> tuple[str, str]:
@@ -181,7 +196,7 @@ class NavegadorEntradas(Sessao):
         self.abrir()
 
     def limpar(self) -> None:
-        for passo in (lambda: cancelar_formulario(self.frame), self.reabrir_modulo, self.reiniciar):
+        for passo in (self._cancelar_entrada, self.reabrir_modulo, self.reiniciar):
             try:
                 passo()
                 return
@@ -216,7 +231,9 @@ class NavegadorEntradas(Sessao):
             campos.nth(1).fill(ano)
             pesquisa.get_by_role("button", name=re.compile(r"^\s*Pesquisar\s*$", re.I)).click()
             aguardar_mascara(frame)
-            pesquisa.locator(".x-grid-row").filter(visible=True).first.dblclick()  # R25
+            # A linha do pedido e o botão Selecionar (SCPI, 12/11/2026): carrega "Escolha os Itens".
+            pesquisa.locator(".x-grid-row").filter(visible=True).first.click()
+            pesquisa.get_by_role("button", name=re.compile(r"^\s*Selecionar\s*$", re.I)).click()
             # Depois do duplo clique o SCPI mostra "Aguarde…" e só então abre "Escolha os Itens":
             # espera a janela e a grade carregarem (as linhas chegam depois da janela).
             frame.get_by_text("Escolha os Itens", exact=True).filter(visible=True).first.wait_for(
@@ -237,27 +254,23 @@ class NavegadorEntradas(Sessao):
             raise ErroSCPI(resumo_erro(exc)) from exc
 
     def preencher(self, rec: RecebimentoParaLancar) -> None:
-        """Desmarca os itens fora do recebimento, confirma os empenhos sem escolher, preenche a
-        QTD de cada linha da grade, a data da entrada, a NF e as Observações, e confere tudo."""
+        """Marca só os itens do recebimento em "Escolha os Itens" e confirma; preenche a data da
+        entrada e a NF no formulário e, em "Itens da Entrada", a QTD e a Observação (a marca
+        `RC-…`) de cada item; depois confere tudo na tela. Qualquer falha é `ErroSCPI`."""
         frame = self.frame
         try:
             log("  etapa: preencher a entrada")
-            no_recebimento = {i.item for i in rec.itens}
-            escolha = frame.get_by_label(re.compile("Escolha os Itens", re.I))
-            for linha in escolha.locator(".x-grid-row").filter(visible=True).all():
-                numero = int(re.sub(r"\D", "", linha.locator(".x-grid-cell").first.inner_text()))
-                caixa = linha.get_by_role("checkbox")
-                if (numero in no_recebimento) != caixa.is_checked():
-                    caixa.click()
-                pausar(frame)
-            escolha.get_by_role("button", name=re.compile("OK|Confirmar", re.I)).click()  # R25
+            self._marcar_itens(rec)
+            frame.get_by_role("button", name=re.compile(r"^\s*Confirmar\s*$", re.I)).filter(
+                visible=True
+            ).first.click()
             aguardar_mascara(frame)
             self._confirmar_empenhos()
-            for i in rec.itens:
-                self._preencher_qtd(i.codigo, i.quantidade)
-            self._digitar("Data", f"{rec.data:%d/%m/%Y}")  # a hora sugerida fica (R25)
-            self._digitar("Nota Fiscal", rec.nf)  # sem zeros à esquerda (R25: o rótulo)
-            self._digitar("Observações", rec.observacoes)
+            checar_mensagem(frame, "confirmar os itens")
+            self._digitar("Data e Hora da Entrada", f"{rec.data:%d/%m/%Y}")
+            self._digitar("Nota Fiscal", rec.nf)  # sem zeros à esquerda
+            self._preencher_itens(rec)
+            self._conferir_itens(rec)
             checar_mensagem(frame, "preencher a entrada")
             self._salvar = localizar_salvar(frame)
         except ErroSCPI:
@@ -265,32 +278,137 @@ class NavegadorEntradas(Sessao):
         except Exception as exc:
             raise ErroSCPI(resumo_erro(exc)) from exc
 
+    def _grade(self, *cabecalhos: str):
+        """A grade visível que tem estes cabeçalhos (a de "Escolha os Itens" ou a de "Itens da
+        Entrada")."""
+        grade = self.frame.locator(".x-grid").filter(visible=True)
+        for cabecalho in cabecalhos:
+            grade = grade.filter(
+                has=self.frame.locator(".x-column-header").filter(
+                    has_text=re.compile(rf"^\s*{re.escape(cabecalho)}\s*$")
+                )
+            )
+        return grade.first
+
+    def _marcar_itens(self, rec: RecebimentoParaLancar) -> None:
+        """Em "Escolha os Itens", os itens do recebimento ficam marcados e os outros, não. O
+        estado vem marcado (todos); clicar na primeira célula da linha alterna (R25: o estado
+        marcado é lido pela classe ou pelo input; a conferência final de "Itens da Entrada" pega
+        qualquer engano antes do Salvar)."""
+        no_recebimento = {i.item for i in rec.itens}
+        grade = self._grade("Item", "Código", "Qtd. Saldo")
+        for linha in grade.locator(".x-grid-row").filter(visible=True).all():
+            celulas = linha.locator(".x-grid-cell")
+            numero = int(re.sub(r"\D", "", celulas.nth(1).inner_text()))
+            marcada = linha.evaluate(JS_LINHA_MARCADA)
+            if (numero in no_recebimento) != marcada:
+                celulas.first.click()
+                pausar(self.frame)
+
     def _confirmar_empenhos(self) -> None:
-        """A janela de empenhos é confirmada sem escolher nada (D7)."""
-        janela = self.frame.get_by_label(re.compile("Empenho", re.I))
+        """A janela de empenhos, se abrir, é confirmada sem escolher nada (D7). Na entrada vista em
+        12/11/2026 o empenho já veio preenchido e a janela não abriu."""
+        janela = self.frame.get_by_label(re.compile("Empenho", re.I)).filter(visible=True)
         if janela.count():
-            janela.get_by_role("button", name=re.compile("OK|Confirmar", re.I)).click()
+            janela.first.get_by_role("button", name=re.compile("OK|Confirmar", re.I)).click()
             aguardar_mascara(self.frame)
 
     def _digitar(self, rotulo: str, valor: str) -> None:
-        from scpi.lancador import campo
-
+        """Escreve no campo que tem este rótulo e sai dele (a máscara de data aceita os dígitos)."""
         entrada = campo(self.frame, rotulo)
-        entrada.fill(valor)
-        entrada.press("Tab")
-        pausar(self.frame)
-
-    def _preencher_qtd(self, codigo: str, quantidade: Decimal) -> None:
-        """A grade renumera de 1 a n: a linha é a do código, e um código repetido que não dá para
-        distinguir é erro (R25: confirmar no --dry-run com um pedido de código repetido)."""
-        grade = self.frame.locator(".x-grid-row").filter(visible=True, has_text=codigo)
-        if grade.count() != 1:
-            raise ErroSCPI(f"o código {codigo} aparece {grade.count()} vezes na grade da entrada")
-        celula = grade.first.locator(".x-grid-cell").filter(has_text=re.compile(r"[\d,.]+$")).last
-        celula.dblclick()
-        self.page.keyboard.type(format(quantidade.normalize(), "f").replace(".", ","))
+        entrada.click()
+        self.page.keyboard.press("ControlOrMeta+A")
+        self.page.keyboard.type(valor, delay=30)
         self.page.keyboard.press("Tab")
         pausar(self.frame)
+
+    def _abrir_itens_da_entrada(self):
+        """A aba "Itens da Entrada" e a grade dela, com os índices das colunas pelos cabeçalhos."""
+        self.frame.locator(".x-tab").filter(
+            has_text=re.compile(r"^\s*Itens da Entrada\s*$")
+        ).first.click()
+        pausar(self.frame)
+        grade = self._grade("Item", "QTD", "Observação")
+        cabecalhos = [
+            t.strip() for t in grade.locator(".x-column-header").all_inner_texts() if t.strip()
+        ]
+        return grade, {
+            nome: _indice(cabecalhos, nome, True)
+            for nome in ("Item", "Código", "QTD", "Observação")
+        }
+
+    def _editar_celula(self, celula, texto: str) -> None:
+        celula.dblclick()
+        self.page.keyboard.press("ControlOrMeta+A")
+        self.page.keyboard.type(texto, delay=30)
+        self.page.keyboard.press("Enter")
+        pausar(self.frame)
+
+    def _preencher_itens(self, rec: RecebimentoParaLancar) -> None:
+        """A QTD (o padrão é o saldo inteiro) e a Observação de cada item da grade, achados pelo
+        número do item no pedido, nunca pela posição."""
+        grade, onde = self._abrir_itens_da_entrada()
+        por_item = {i.item: i for i in rec.itens}
+        for linha in grade.locator(".x-grid-row").filter(visible=True).all():
+            celulas = linha.locator(".x-grid-cell")
+            numero = int(re.sub(r"\D", "", celulas.nth(onde["Item"]).inner_text()))
+            item = por_item.get(numero)
+            if item is None:
+                continue
+            self._editar_celula(celulas.nth(onde["QTD"]), _qtd_br(item.quantidade))
+            self._editar_celula(celulas.nth(onde["Observação"]), rec.observacoes)
+
+    def _conferir_itens(self, rec: RecebimentoParaLancar) -> None:
+        """A conferência final de "Itens da Entrada", antes do Salvar: só os itens do recebimento,
+        com o código, a QTD e a Observação digitados. Qualquer diferença é `ErroSCPI`."""
+        grade, onde = self._abrir_itens_da_entrada()
+        lidas = {}
+        for linha in grade.locator(".x-grid-row").filter(visible=True).all():
+            celulas = [c.strip() for c in linha.locator(".x-grid-cell").all_inner_texts()]
+            lidas[int(re.sub(r"\D", "", celulas[onde["Item"]]))] = celulas
+        esperado = {i.item: i for i in rec.itens}
+        if set(lidas) != set(esperado):
+            raise ErroSCPI(
+                f"os itens da entrada são {sorted(lidas)} e o recebimento tem {sorted(esperado)}"
+            )
+        for numero, item in esperado.items():
+            celulas = lidas[numero]
+            if norm_codigo(celulas[onde["Código"]]) != norm_codigo(item.codigo):
+                raise ErroSCPI(f"item {numero}: código {celulas[onde['Código']]} na grade")
+            if parse_decimal_br(celulas[onde["QTD"]]) != item.quantidade:
+                raise ErroSCPI(
+                    f"item {numero}: QTD {celulas[onde['QTD']]} na grade, esperado "
+                    f"{_qtd_br(item.quantidade)}"
+                )
+            if celulas[onde["Observação"]] != rec.observacoes:
+                raise ErroSCPI(f"item {numero}: a Observação não ficou como o robô digitou")
+
+    def _cancelar_entrada(self) -> None:
+        """Descarta o que estiver aberto: o botão Cancelar (da pesquisa ou do formulário) e, no
+        formulário, o "Você Realmente Deseja Cancelar?" com Sim (SCPI, 12/11/2026). Repete até o
+        Inserir voltar a ficar disponível."""
+        frame = self.frame
+        inserir = frame.get_by_role("button", name="Inserir", exact=True).filter(visible=True).first
+        for _ in range(4):
+            try:
+                frame.get_by_role("button", name="Cancelar", exact=True).filter(
+                    visible=True
+                ).last.click(timeout=5000)
+            except Exception:
+                pass
+            try:
+                frame.get_by_role("button", name="Sim", exact=True).filter(visible=True).last.click(
+                    timeout=3000
+                )
+            except Exception:
+                pass
+            pausar(frame)
+            msg = mensagem_scpi(frame)
+            if msg and "OK" in msg["botoes"]:
+                frame.get_by_role("button", name="OK", exact=True).last.click()
+            if botao_habilitado(inserir):
+                return
+        raise ErroSCPI("o SCPI não voltou ao estado inicial depois de cancelar a entrada")
 
     def salvar(self) -> str:
         try:
