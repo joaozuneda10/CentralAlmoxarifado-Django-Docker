@@ -44,6 +44,8 @@ from scpi.requisicoes import ErroSCPI, ResultadoIncerto
 
 log = logging.getLogger("scpi.lancamento_entradas").info
 
+ESPERA_ESCOLHA_MS = 30000  # a janela "Escolha os Itens" e as linhas dela
+
 # Colunas de "Escolha os Itens", pelo cabeçalho (R25: confirmar os rótulos no --dry-run).
 COLUNAS_TELA = ("Item", "Código", "Qtd.", "Já Entrou", "Já Pedida", "Qtd. Saldo")
 
@@ -198,9 +200,19 @@ class NavegadorEntradas(Sessao):
             pesquisa.get_by_role("button", name=re.compile(r"^\s*Pesquisar\s*$", re.I)).click()
             aguardar_mascara(frame)
             pesquisa.locator(".x-grid-row").filter(visible=True).first.dblclick()  # R25
+            # Depois do duplo clique o SCPI mostra "Aguarde…" e só então abre "Escolha os Itens":
+            # espera a janela e a grade carregarem (as linhas chegam depois da janela).
+            frame.get_by_label(re.compile("Escolha os Itens", re.I)).first.wait_for(
+                state="visible", timeout=ESPERA_ESCOLHA_MS
+            )
             aguardar_mascara(frame)
             checar_mensagem(frame, "abrir pedido")
-            linhas = frame.evaluate(JS_LER_ESCOLHA_DOS_ITENS, list(COLUNAS_TELA))
+            linhas = None
+            for _ in range(ESPERA_ESCOLHA_MS // 500):
+                linhas = frame.evaluate(JS_LER_ESCOLHA_DOS_ITENS, list(COLUNAS_TELA))
+                if linhas:
+                    break
+                frame.page.wait_for_timeout(500)
             return ler_escolha_dos_itens(linhas)
         except ErroSCPI:
             raise
