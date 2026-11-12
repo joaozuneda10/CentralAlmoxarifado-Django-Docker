@@ -58,6 +58,12 @@ def test_a_primeira_importacao_cria_pedidos_e_itens_com_a_base_nula():
     )
 
 
+def test_quantidade_com_5_casas_e_gravada_exata():
+    _importar([_item(quantidade="1,66651")])
+    item = _item_db(514, 1)
+    assert (item.quantidade, item.saldo_scpi) == (Decimal("1.66651"), Decimal("1.66651"))
+
+
 def test_a_segunda_importacao_atualiza_e_guarda_o_ja_entrou_anterior():
     _importar([_item(quantidade="100", ja_entrou="30"), _item(item=2, codigo="023.003.004")])
     segunda = _importar(

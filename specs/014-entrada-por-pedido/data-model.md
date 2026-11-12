@@ -90,13 +90,13 @@ Um pedido de compra do SCPI num exercício.
 | `codigo` | char(30) | `CADPRO` |
 | `unidade` | char(20) | `UNID1` |
 | `controle` | char(1) | `TPCONTROLE_SALDO`: `Q` quantidade, `T` valor |
-| `quantidade` | decimal(14,4) | `QTD` |
-| `anulado` | decimal(14,4) | `QTDANU` |
-| `ja_entrou` | decimal(14,4) | `QTDENT` da última importação |
-| `ja_entrou_anterior` | decimal(14,4), nulo | `QTDENT` da importação anterior; nulo na primeira, que é a base ([R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029)) |
-| `pedida` | decimal(14,4) | `QTDPEDIDA` (subpedido) |
-| `saldo_scpi` | decimal(14,4) | `QTDFALTA`, conferido na leitura |
-| `preco` | decimal(14,4) | `PRCUNT` |
+| `quantidade` | decimal(18,6) | `QTD` |
+| `anulado` | decimal(18,6) | `QTDANU` |
+| `ja_entrou` | decimal(18,6) | `QTDENT` da última importação |
+| `ja_entrou_anterior` | decimal(18,6), nulo | `QTDENT` da importação anterior; nulo na primeira, que é a base ([R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029)) |
+| `pedida` | decimal(18,6) | `QTDPEDIDA` (subpedido) |
+| `saldo_scpi` | decimal(18,6) | `QTDFALTA`, conferido na leitura |
+| `preco` | decimal(14,4), arredondado a 4 casas (o SCPI manda 5 ou mais) | `PRCUNT` |
 | `ausente_desde` | FK → `Importacao`, nula | o item não veio: o saldo no SCPI é zero |
 
 **Restrições**:

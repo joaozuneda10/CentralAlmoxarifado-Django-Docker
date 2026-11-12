@@ -70,19 +70,19 @@ class ItemPedidoCompra(models.Model):
     codigo = models.CharField("código", max_length=30)
     unidade = models.CharField(max_length=20, blank=True)
     controle = models.CharField(max_length=1, choices=Controle.choices)
-    quantidade = models.DecimalField(max_digits=14, decimal_places=4)
-    anulado = models.DecimalField(max_digits=14, decimal_places=4)
-    ja_entrou = models.DecimalField("já entrou", max_digits=14, decimal_places=4)
+    quantidade = models.DecimalField(max_digits=18, decimal_places=6)
+    anulado = models.DecimalField(max_digits=18, decimal_places=6)
+    ja_entrou = models.DecimalField("já entrou", max_digits=18, decimal_places=6)
     ja_entrou_anterior = models.DecimalField(
         "já entrou (importação anterior)",
-        max_digits=14,
-        decimal_places=4,
+        max_digits=18,
+        decimal_places=6,
         null=True,
         blank=True,
         help_text="Nulo na primeira importação, que é a base.",
     )
-    pedida = models.DecimalField(max_digits=14, decimal_places=4)
-    saldo_scpi = models.DecimalField("saldo no SCPI", max_digits=14, decimal_places=4)
+    pedida = models.DecimalField(max_digits=18, decimal_places=6)
+    saldo_scpi = models.DecimalField("saldo no SCPI", max_digits=18, decimal_places=6)
     preco = models.DecimalField("preço", max_digits=14, decimal_places=4)
     ausente_desde = models.ForeignKey(
         "catalogo.Importacao",

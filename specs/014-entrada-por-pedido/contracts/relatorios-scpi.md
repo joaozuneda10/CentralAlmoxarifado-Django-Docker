@@ -33,8 +33,8 @@ relatório" e "Sair").
 | `CADPRO` | código do material | texto, comparado por `norm_u` |
 | `UNID1` | unidade | texto |
 | `TPCONTROLE_SALDO` | `Q` ou `T` | outro valor é erro |
-| `QTD`, `QTDANU`, `QTDENT`, `QTDPEDIDA`, `QTDFALTA` | quantidades | decimal pt-BR (`1361,32`) |
-| `PRCUNT` | preço unitário | decimal pt-BR |
+| `QTD`, `QTDANU`, `QTDENT`, `QTDPEDIDA`, `QTDFALTA` | quantidades | decimal pt-BR (`1361,32`); até 6 casas (o SCPI manda 5: `1,66651` no 00060/25); mais que isso é erro |
+| `PRCUNT` | preço unitário | decimal pt-BR; vem com mais de 4 casas (1,66651 no 00060/25) e é arredondado a 4: só informa, nada do saldo depende dele |
 
 Regras:
 - Os registros quebrados em várias linhas são recolados (`scpi.normalizadores`). Se a contagem de

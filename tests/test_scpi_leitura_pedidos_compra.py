@@ -96,6 +96,24 @@ def test_codigo_obrigatorio_vazio_e_erro(campos, coluna):
         ler_pedidos_compra(csv_pedidos([_item(codigo=codigo, **campos)]))
 
 
+def test_preco_com_mais_de_4_casas_e_arredondado_e_nao_recusa_a_leitura():
+    (linha,) = ler_pedidos_compra(csv_pedidos([_item(preco="1,66651")])).linhas
+    assert linha.preco == Decimal("1.6665")
+    (linha,) = ler_pedidos_compra(csv_pedidos([_item(preco="1,66655")])).linhas
+    assert linha.preco == Decimal("1.6666")
+
+
+def test_quantidade_com_5_casas_e_lida_exata():
+    """O 07.13 traz 1,66651 (pedido 00060/25, SCPI de 12/11/2026): cabe nos 6 casas do pedido."""
+    (linha,) = ler_pedidos_compra(csv_pedidos([_item(quantidade="1,66651")])).linhas
+    assert (linha.quantidade, linha.saldo) == (Decimal("1.66651"), Decimal("1.66651"))
+
+
+def test_quantidade_com_mais_de_6_casas_e_recusada_e_o_erro_diz_a_coluna():
+    with pytest.raises(ErroImportacao, match=r"QTDANU inválido.*mais de 6 casas"):
+        ler_pedidos_compra(csv_pedidos([_item(anulado="0,1234567")]))
+
+
 def test_controle_desconhecido_e_erro():
     with pytest.raises(ErroImportacao, match="TPCONTROLE_SALDO"):
         ler_pedidos_compra(csv_pedidos([_item(controle="X")]))
@@ -115,11 +133,6 @@ def test_csv_sem_itens_e_erro():
 def test_quantidade_com_quatro_casas_e_lida_sem_perda():
     (linha,) = ler_pedidos_compra(csv_pedidos([_item(quantidade="10,1234")])).linhas
     assert linha.quantidade == Decimal("10.1234") and linha.saldo == Decimal("10.1234")
-
-
-def test_quantidade_com_cinco_casas_e_erro():
-    with pytest.raises(ErroImportacao, match="quantidade"):
-        ler_pedidos_compra(csv_pedidos([_item(quantidade="10,12345", saldo="10,12345")]))
 
 
 def test_o_gerador_segue_o_formato_real():
