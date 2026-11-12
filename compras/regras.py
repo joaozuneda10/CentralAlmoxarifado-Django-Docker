@@ -215,6 +215,21 @@ def recebimento_observado(observacoes: str) -> str:
     return casou.group(1).upper() if casou else ""
 
 
+LIMITE_OBSERVACAO_ITEM = 100  # R25: confirmar o tamanho do campo no SCPI
+
+
+def texto_observacao_item(rotulo: str, observacao: str = "") -> str:
+    """O que o robô escreve na coluna Observação de cada item da entrada: numa entrada por pedido
+    o campo do cabeçalho é bloqueado (SCPI, 12/11/2026), então a marca vai em cada item, numa
+    linha só.
+    A marca vem inteira; a observação do recebimento ("Obs.: …", sem ";" nem quebras) só entra no
+    que couber em `LIMITE_OBSERVACAO_ITEM`."""
+    marca = f"Central Almoxarifado {rotulo}"
+    obs = " ".join((observacao or "").replace(";", ",").split())
+    texto = f"{marca} Obs.: {obs}" if obs else marca
+    return texto[:LIMITE_OBSERVACAO_ITEM].rstrip()
+
+
 def texto_observacoes(rotulo: str, observacao: str = "") -> str:
     """O que o robô escreve nas Observações da entrada: o recebimento na primeira linha e, num
     parágrafo novo, a observação dele, numa linha só.

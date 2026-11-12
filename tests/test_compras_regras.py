@@ -527,3 +527,14 @@ def test_a_extracao_de_arquivo_nao_e_extracao_posterior_e_a_lacuna_nao_entra_na_
 
     assert "lacuna" not in inspect.signature(regras.tres_provas).parameters
     assert _prova(extracao_posterior=False, importacao_posterior=False)[0].startswith("Ainda não")
+
+
+def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
+    assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
+    assert (
+        regras.texto_observacao_item("RC-0042", " portaria;\n volume 3 ")
+        == "Central Almoxarifado RC-0042 Obs.: portaria, volume 3"
+    )
+    longa = regras.texto_observacao_item("RC-0042", "x" * 500)
+    assert len(longa) <= regras.LIMITE_OBSERVACAO_ITEM
+    assert regras.recebimento_observado(longa) == "RC-0042"  # a marca nunca é cortada
