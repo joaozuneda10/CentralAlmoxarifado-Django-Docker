@@ -224,7 +224,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - A migration é RunPython: cria a permissão, a dá aos grupos `"Atendimento"` e `"Gestão"` (literais) e levanta erro se algum dos dois ficar sem ela.
   - Na volta, `noop`.
   - Depende de `contas/0006_solicitante`.
-- [X] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0002_recebimento.py`.
+- [X] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0003_recebimento.py`.
   - **`Recebimento`**:
     - `envio` (UUID, único), `pedido` (FK, `PROTECT`);
     - `nf` (char 12, "só dígitos, sem os zeros à esquerda, diferente de zero"), `fornecedor_codigo` (char 20);

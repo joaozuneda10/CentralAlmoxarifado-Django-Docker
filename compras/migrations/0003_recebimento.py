@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('catalogo', '0009_importacao_compras'),
-        ('compras', '0001_initial'),
+        ('compras', '0002_quantidades_com_6_casas'),
         ('pedidos', '0006_conta'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
