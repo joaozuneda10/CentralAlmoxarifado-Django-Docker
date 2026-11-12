@@ -187,9 +187,15 @@ class NavegadorEntradas(Sessao):
             ).first.click()
             pesquisa = frame.get_by_label(re.compile("Pesquisa Pedido de Compra", re.I))
             pesquisa.wait_for(state="visible", timeout=TIMEOUT)
-            pesquisa.get_by_label(re.compile(r"N[úu]mero", re.I)).fill(numero)  # R25
-            pesquisa.get_by_label(re.compile("Ano", re.I)).fill(ano)  # R25: o ano do pedido
-            pesquisa.get_by_role("button", name=re.compile("Pesquisar|Buscar", re.I)).click()
+            # "Pesquisa por: 1- Nº Pedido" já vem marcado. Os dois campos de texto são, na ordem, o
+            # pedido (máscara ____/__: número e ano de dois dígitos) e o ano da pesquisa (SCPI,
+            # 12/11/2026; R25: o que o ano da pesquisa faz com um pedido do exercício anterior).
+            campos = pesquisa.locator('input[type="text"]').filter(visible=True)
+            pedido_digitado = f"{numero}{rec.pedido_ano % 100:02d}"
+            campos.nth(0).click()
+            campos.nth(0).press_sequentially(pedido_digitado, delay=50)
+            campos.nth(1).fill(ano)
+            pesquisa.get_by_role("button", name=re.compile(r"^\s*Pesquisar\s*$", re.I)).click()
             aguardar_mascara(frame)
             pesquisa.locator(".x-grid-row").filter(visible=True).first.dblclick()  # R25
             aguardar_mascara(frame)
