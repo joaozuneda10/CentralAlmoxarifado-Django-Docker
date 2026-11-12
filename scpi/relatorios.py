@@ -350,7 +350,9 @@ def baixar_pedidos_compra() -> bytes:
         frame.get_by_role("button", name="Relatórios").click()
         frame.get_by_role("menuitem", name=RE_MENU_PEDIDOS).click()
 
-        dialog = frame.get_by_label(RE_JANELA_PEDIDOS)
+        # A aba do formulário, não get_by_label: depois do Imprimir o visualizador abre uma janela
+        # (role=dialog) com o mesmo título, e o rótulo casaria com as duas (SCPI, 12/11/2026).
+        dialog = frame.get_by_role("tabpanel", name=RE_JANELA_PEDIDOS)
         dialog.get_by_role("button", name="Imprimir").wait_for(state="visible")
         # exact: "Analítico Detalhado" também casaria com "Analítico" (SCPI, 12/11/2026)
         dialog.get_by_role("radio", name="Analítico", exact=True).check()
