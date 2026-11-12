@@ -297,7 +297,9 @@ def liberacao(recebimento: Recebimento) -> list[str]:
       uma extração bem-sucedida que não é de arquivo (`conciliar_verificar` só grava essas);
     - as candidatas são as de todas as conferências da tentativa;
     - o "Já Entrou" da tela antes do Salvar está na foto da tentativa; a importação posterior é a
-      última importação de pedidos bem-sucedida do exercício, começada depois dela."""
+      última importação de pedidos bem-sucedida do exercício, começada depois dela e lida do SCPI
+      na hora: um CSV já baixado (`de_arquivo`) pode ser de antes da tentativa e traria de volta
+      o "Já Entrou" antigo, então, enquanto ele for a última, a prova não existe."""
     from compras.conciliacao import ultima_tentativa
     from compras.models import CandidataEntrada, ConferenciaRecebimento
 
@@ -311,7 +313,11 @@ def liberacao(recebimento: Recebimento) -> list[str]:
         "requisicao__requisicao", flat=True
     )
     importacao = ultima_importacao_pedidos(recebimento.pedido.exercicio)
-    posterior = importacao is not None and importacao.inicio > tentativa.momento
+    posterior = (
+        importacao is not None
+        and importacao.inicio > tentativa.momento
+        and not importacao.de_arquivo
+    )
     antes_da_tela = {i["item"]: i["ja_entrou"] for i in (tentativa.foto or {}).get("tela", [])}
     atuais = {
         i.item: i

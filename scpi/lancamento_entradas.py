@@ -104,9 +104,17 @@ def _progresso(rotulo: str, rec=None, resultado="aguardando", mensagem=""):
     }
 
 
-def _journal(evento: str, rec: regras.RecebimentoParaLancar, execucao_id: int | None, **extra):
-    """Acrescenta um acontecimento ao journal. Falha ao gravá-lo só vai para o log: o journal
-    nunca impede que o resultado chegue ao banco."""
+def _journal(
+    evento: str,
+    rec: regras.RecebimentoParaLancar,
+    execucao_id: int | None,
+    *,
+    critico: bool = False,
+    **extra,
+):
+    """Acrescenta um acontecimento ao journal. Com `critico` (o `em_lancamento` de antes do Salvar
+    e o número obtido), a falha ao gravá-lo é `FalhaCritica`: sem o journal, um banco que recuse a
+    gravação seguinte deixaria o número sem registro nenhum. Nos demais, só vai para o log."""
     registro = {
         "ts": timezone.localtime().isoformat(),
         "evento": evento,
@@ -118,18 +126,36 @@ def _journal(evento: str, rec: regras.RecebimentoParaLancar, execucao_id: int | 
     try:
         with open(Path(settings.LOG_DIR) / JOURNAL, "a", encoding="utf-8") as arquivo:
             arquivo.write(json.dumps(registro, ensure_ascii=False, default=str) + "\n")
-    except OSError:
+    except OSError as exc:
         logger.exception("Não foi possível gravar %s no journal (%s).", evento, rec.rotulo)
+        if critico:
+            raise FalhaCritica(
+                f"não foi possível gravar {evento} de {rec} em {JOURNAL}: {exc}. "
+                "O recebimento fica travado: confira no SCPI e resolva à mão."
+            ) from exc
 
 
 def _gravar(
-    rec: regras.RecebimentoParaLancar, status: str, *, execucao_id: int, critico: bool, **campos
-) -> None:
-    """Grava o resultado no recebimento, com valores absolutos pelo `id`. Se o banco recusar, o
-    que se queria gravar vai para o journal. Com `critico` (resultado de um Salvar), a execução
-    para: continuar arriscaria lançar sem registrar."""
+    rec: regras.RecebimentoParaLancar,
+    status: str,
+    *,
+    execucao_id: int,
+    critico: bool,
+    se_preparado: bool = False,
+    **campos,
+) -> bool:
+    """Grava o resultado no recebimento, com valores absolutos pelo `id`, e diz se gravou. Se o
+    banco recusar, o que se queria gravar vai para o journal. Com `critico` (resultado de um
+    Salvar), a execução para: continuar arriscaria lançar sem registrar.
+
+    Com `se_preparado` (a falha de antes do Salvar), só grava se o recebimento continua
+    `PREPARADO` na versão selecionada: até o `_travar` ele não é do robô, e quem o mudou nesse
+    meio (uma edição, a ligação com a entrada feita à mão) não pode ser desfeito por um `ERRO`."""
+    alvo = Recebimento.objects.filter(pk=rec.id)
+    if se_preparado:
+        alvo = alvo.filter(status=Recebimento.Status.PREPARADO, versao=rec.versao)
     try:
-        Recebimento.objects.filter(pk=rec.id).update(status=status, **campos)
+        return bool(alvo.update(status=status, **campos))
     except Exception as exc:
         _journal(
             "falha_banco", rec, execucao_id, valores={"status": status, **campos}, erro=repr(exc)
@@ -140,6 +166,7 @@ def _gravar(
                 f"{JOURNAL}: confira no SCPI e resolva o recebimento à mão."
             ) from exc
         logger.error("✘ %s: não foi possível gravar %s: %s", rec, status, exc)
+        return False
 
 
 def _travar(
@@ -155,8 +182,9 @@ def _travar(
     agora = timezone.localtime()
     try:
         with transaction.atomic():
-            atual = Recebimento.objects.select_for_update().filter(pk=rec.id).first()
+            # Pedido e depois recebimento, a ordem de `compras.servicos`: a inversa dá deadlock.
             pedido = PedidoCompra.objects.select_for_update().get(pk=rec.pedido_id)
+            atual = Recebimento.objects.select_for_update().filter(pk=rec.id).first()
             if atual is None or atual.status != Recebimento.Status.PREPARADO:
                 return False
             if atual.versao != rec.versao:
@@ -251,6 +279,7 @@ def _lancar_um(
                 execucao_id=execucao.pk,
                 mensagem=mensagem[:500],
                 critico=False,
+                se_preparado=True,
             )
             try:
                 travar_pedido(
@@ -288,7 +317,12 @@ def _lancar_um(
         scpi.descartar(rec)
         return
 
-    _journal("em_lancamento", rec, execucao.pk)
+    try:
+        _journal("em_lancamento", rec, execucao.pk, critico=True)
+    except FalhaCritica:
+        # O Salvar não foi clicado, mas o recebimento já está em lançamento: fica travado.
+        concluir("verificar", mensagem="O journal não pôde ser gravado antes do Salvar.")
+        raise
     try:
         numero = scpi.salvar()
     except Exception as exc:  # qualquer falha depois do clique: a requisição pode existir
@@ -307,7 +341,13 @@ def _lancar_um(
         return
 
     agora = timezone.now()
-    _journal("lancada", rec, execucao.pk, requisicao=numero)
+    sem_journal = None
+    try:
+        _journal("lancada", rec, execucao.pk, critico=True, requisicao=numero)
+    except FalhaCritica as exc:
+        # O número ainda vai ao banco (e ao log): é o que resta dele. Depois, a execução para.
+        logger.critical("✘ %s: requisição %s obtida do SCPI e fora do journal", rec, numero)
+        sem_journal = exc
     _gravar(
         rec,
         Recebimento.Status.LANCADO,
@@ -323,6 +363,8 @@ def _lancar_um(
     resumo.lancadas += 1
     logger.info("✔ lançada no SCPI: requisição %s (%s)", numero, rec)
     concluir("lancada", numero)
+    if sem_journal is not None:
+        raise sem_journal
     try:
         scpi.depois_de_salvar()
     except Exception as exc:
@@ -332,20 +374,59 @@ def _lancar_um(
 
 def _falha_antes_do_salvar(rec, exc, scpi, execucao, resumo, ordem, concluir, tela=None) -> None:
     """A falha de `abrir_pedido` ou de `preencher`: nada foi salvo, seguro tentar de novo."""
-    resumo.falhas += 1
     mensagem = str(exc) or type(exc).__name__
     logger.error("✘ %s: %s", rec, mensagem)
-    if not execucao.simulacao:
-        _gravar(
-            rec,
-            Recebimento.Status.ERRO,
-            execucao_id=execucao.pk,
-            mensagem=mensagem[:500],
-            critico=False,
-        )
-        _tentativa_sem_salvar(execucao, ordem, rec, TentativaEntrada.Resultado.ERRO, tela)
-    concluir("erro", mensagem=mensagem)
+    gravou = execucao.simulacao or _gravar(
+        rec,
+        Recebimento.Status.ERRO,
+        execucao_id=execucao.pk,
+        mensagem=mensagem[:500],
+        critico=False,
+        se_preparado=True,
+    )
+    if gravou:
+        resumo.falhas += 1
+        if not execucao.simulacao:
+            _tentativa_sem_salvar(execucao, ordem, rec, TentativaEntrada.Resultado.ERRO, tela)
+        concluir("erro", mensagem=mensagem)
+    else:
+        # Mudou enquanto o robô o preenchia (editado, ou ligado à entrada feita à mão): o estado
+        # de quem mudou fica como está.
+        resumo.ignoradas += 1
+        logger.warning("⚠ %s: o recebimento mudou durante a execução; o erro não foi gravado", rec)
+        _tentativa_sem_salvar(execucao, ordem, rec, TentativaEntrada.Resultado.IGNORADA, tela)
+        concluir("ignorada", mensagem=MENSAGEM_MUDOU)
     scpi.descartar(rec)
+
+
+def _ja_no_scpi(rec, numero: str, execucao, resumo, ordem: int) -> None:
+    """O recebimento cuja NF (ou marca) a extração de antes já achou numa requisição do SCPI:
+    não vai ao SCPI, para a entrada não sair em dobro. Fica com erro, e nada é salvo."""
+    mensagem = (
+        f"A requisição {numero} do SCPI já tem a NF {rec.nf} deste fornecedor (ou a marca "
+        f"{rec.rotulo}): a entrada já foi feita. Não lançado; confira no SCPI."
+    )
+    logger.error("✘ %s: %s", rec, mensagem)
+    gravou = _gravar(
+        rec,
+        Recebimento.Status.ERRO,
+        execucao_id=execucao.pk,
+        mensagem=mensagem[:500],
+        critico=False,
+        se_preparado=True,
+    )
+    resultado = TentativaEntrada.Resultado.ERRO if gravou else TentativaEntrada.Resultado.IGNORADA
+    _tentativa_sem_salvar(execucao, ordem, rec, resultado)
+    if gravou:
+        resumo.falhas += 1
+    else:
+        resumo.ignoradas += 1
+    resumo.lotes[ordem - 1].update(
+        resultado="erro" if gravou else "ignorada",
+        mensagem=mensagem[:300],
+        fim=timezone.now().isoformat(),
+    )
+    _salvar_progresso(execucao, resumo)
 
 
 def lancar(
@@ -378,11 +459,13 @@ def lancar(
         resumo.ignoradas += 1
 
     periodo = None
+    no_scpi: dict[int, str] = {}
     if aptos and not simulacao:
         resumo.fase = "antes"
         _salvar_progresso(execucao, resumo)
         periodo = robo.periodo_da_execucao(aptos, timezone.localdate())
-        robo.extrair_antes(execucao, periodo, extrair)  # sem ela, nada abaixo acontece
+        antes = robo.extrair_antes(execucao, periodo, extrair)  # sem ela, nada abaixo acontece
+        no_scpi = robo.ja_no_scpi(antes, aptos)
 
     resumo.requisicoes = len(aptos)
     resumo.fase = "lancando"
@@ -396,7 +479,10 @@ def lancar(
             resumo.lotes[ordem - 1].update(resultado="andamento", inicio=timezone.now().isoformat())
             _salvar_progresso(execucao, resumo)
             logger.info("→ (%d/%d) %s", ordem, len(aptos), rec)
-            _lancar_um(rec, scpi, execucao, resumo, ordem)
+            if rec.id in no_scpi:
+                _ja_no_scpi(rec, no_scpi[rec.id], execucao, resumo, ordem)
+            else:
+                _lancar_um(rec, scpi, execucao, resumo, ordem)
             resumo.processadas += 1
             _salvar_resumo(execucao, resumo)
 

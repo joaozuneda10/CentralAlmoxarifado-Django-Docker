@@ -471,6 +471,12 @@ class Importacao(models.Model):
         blank=True,
         help_text="Só nas importações de pedidos de compra: o exercício em que foram gravadas.",
     )
+    de_arquivo = models.BooleanField(
+        "de um arquivo",
+        default=False,
+        help_text="Só nas importações de pedidos de compra: lida de um CSV já baixado, e não do "
+        "SCPI na hora. Não se sabe quando o arquivo foi exportado.",
+    )
 
     class Meta:
         ordering = ["-inicio"]
