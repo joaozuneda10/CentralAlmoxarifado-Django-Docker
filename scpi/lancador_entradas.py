@@ -111,17 +111,43 @@ class NavegadorEntradas(Sessao):
         self._abrir_tela_de_entrada()
 
     def _abrir_tela_de_entrada(self) -> None:
-        """Movimento → Entrada de Material (R25: o nome do item do menu)."""
+        """Movimento → a tela de entrada (R25). O nome provável é "Requisição de Entrada", irmã da
+        "Requisição de Saída" das saídas; os outros são alternativas. Sem nenhum, o erro lista o que
+        o menu mostrava, para o nome certo poder ser conferido na tela."""
         frame = self.frame
-        menu = frame.locator("div").filter(has_text=re.compile(r"^Entrada de Material$")).first
-        menu.wait_for(state="attached", timeout=TIMEOUT)
-        if not menu.is_visible():
-            frame.locator("div").filter(has_text=re.compile(r"^Movimento$")).first.click()
-        menu.click()
-        frame.get_by_role("button", name="Inserir", exact=True).wait_for(
-            state="visible", timeout=TIMEOUT
+        nomes = ("Requisição de Entrada", "Entrada de Material", "Entrada por Pedido")
+        frame.locator("div").filter(has_text=re.compile(r"^Movimento$")).first.wait_for(
+            state="attached", timeout=TIMEOUT
         )
-        aguardar_mascara(frame)
+        for nome in nomes:
+            menu = frame.locator("div").filter(has_text=re.compile(rf"^{re.escape(nome)}$")).first
+            try:
+                menu.wait_for(state="attached", timeout=3000)
+            except Exception:
+                frame.locator("div").filter(has_text=re.compile(r"^Movimento$")).first.click()
+                try:
+                    menu.wait_for(state="attached", timeout=3000)
+                except Exception:
+                    continue
+            if not menu.is_visible():
+                frame.locator("div").filter(has_text=re.compile(r"^Movimento$")).first.click()
+            menu.click()
+            frame.get_by_role("button", name="Inserir", exact=True).wait_for(
+                state="visible", timeout=TIMEOUT
+            )
+            aguardar_mascara(frame)
+            log(f"  tela de entrada aberta pelo item de menu '{nome}'")
+            return
+        visiveis = frame.evaluate(
+            """() => [...new Set([...document.querySelectorAll('div')]
+                .filter(e => e.offsetParent !== null && !e.children.length)
+                .map(e => e.textContent.trim())
+                .filter(t => t && t.length < 40))].slice(0, 60)"""
+        )
+        raise ErroSCPI(
+            "não achei a tela de entrada no menu Movimento (tentei "
+            f"{', '.join(nomes)}); itens à vista: {', '.join(visiveis) or 'nenhum'}"
+        )
 
     def reabrir_modulo(self) -> None:
         log("  reabrindo módulo Compras")
