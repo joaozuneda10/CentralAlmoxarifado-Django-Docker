@@ -4,6 +4,7 @@ from collections import defaultdict
 from dataclasses import dataclass
 from decimal import Decimal
 
+from django.db.models import Q
 from django.utils import timezone
 
 from catalogo.models import Importacao, Material
@@ -20,15 +21,17 @@ ESTADOS = {
 }
 
 
-def ultima_importacao_pedidos() -> Importacao | None:
-    """A última importação de pedidos de compra que deu certo."""
-    return (
-        Importacao.objects.filter(
-            tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO
-        )
-        .order_by("-inicio")
-        .first()
+def ultima_importacao_pedidos(exercicio: int | None = None) -> Importacao | None:
+    """A última importação de pedidos de compra que deu certo. Com `exercicio`, só as desse
+    exercício: uma importação de outro (um CSV de outro ano) não atualiza o saldo dos pedidos
+    deste e não pode liberar as reservas dele. As de antes do registro do exercício (sem ele)
+    valem para qualquer um."""
+    importacoes = Importacao.objects.filter(
+        tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO
     )
+    if exercicio is not None:
+        importacoes = importacoes.filter(Q(exercicio=exercicio) | Q(exercicio__isnull=True))
+    return importacoes.order_by("-inicio").first()
 
 
 def reservado_por_item(
@@ -38,7 +41,7 @@ def reservado_por_item(
     {id do item → lista de quantidades}. Cancelado não reserva; lançado reserva até uma importação
     começada depois do `visivel_desde`. `ignorar` é o id de um recebimento que não conta (o que
     está sendo editado)."""
-    ultima = ultima_importacao_pedidos()
+    ultima = ultima_importacao_pedidos(pedido.exercicio)
     inicio = ultima.inicio if ultima else None
     reservado: dict[int, list[Decimal]] = defaultdict(list)
     linhas = ItemRecebimento.objects.filter(recebimento__pedido=pedido).select_related(
@@ -154,8 +157,11 @@ def estados_dos_pedidos(pedidos: list[PedidoCompra]) -> dict[int, str]:
             "pedido_id", flat=True
         )
     )
-    ultima = ultima_importacao_pedidos()
-    inicio = ultima.inicio if ultima else None
+    inicio_por_exercicio = {}
+    for exercicio_do_pedido in {p.exercicio for p in pedidos}:
+        ultima = ultima_importacao_pedidos(exercicio_do_pedido)
+        inicio_por_exercicio[exercicio_do_pedido] = ultima.inicio if ultima else None
+    exercicio_do_pedido_por_id = {p.pk: p.exercicio for p in pedidos}
     reservado: dict[int, Decimal] = defaultdict(Decimal)
     for linha in ItemRecebimento.objects.filter(recebimento__pedido_id__in=ids).select_related(
         "recebimento"
@@ -164,7 +170,9 @@ def estados_dos_pedidos(pedidos: list[PedidoCompra]) -> dict[int, str]:
         if regras.reserva_de(
             recebimento.status,
             visivel_desde=recebimento.visivel_desde,
-            inicio_ultima_importacao=inicio,
+            inicio_ultima_importacao=inicio_por_exercicio[
+                exercicio_do_pedido_por_id[recebimento.pedido_id]
+            ],
         ):
             reservado[linha.item_id] += linha.quantidade
     com_conferencia = {

@@ -141,6 +141,15 @@ def preparar_recebimento(
 
         existente = Recebimento.objects.filter(envio=envio).first()
         if existente is not None:
+            if existente.status == Recebimento.Status.CANCELADO:
+                return Resposta(
+                    False,
+                    f"{existente.rotulo} foi cancelado: nada foi preparado de novo. "
+                    "Faça um recebimento novo se ainda for preciso.",
+                    recebimento=existente,
+                    divergente=True,
+                    motivo="cancelado",
+                )
             if _mesmo_conteudo(
                 existente,
                 nf=nf,
@@ -350,7 +359,7 @@ def destravar_pedido(pedido_id: int, usuario, *, motivo: str) -> Resposta:
         if not motivo:
             return Resposta(False, "Informe o motivo do destravamento.", motivo="motivo")
         mais_recente = max(t.criada_em for t in abertas)
-        ultima = consultas.ultima_importacao_pedidos()
+        ultima = consultas.ultima_importacao_pedidos(pedido.exercicio)
         if ultima is None or ultima.inicio <= mais_recente:
             return Resposta(
                 False,

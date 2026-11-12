@@ -81,7 +81,7 @@ def pedidos(request):
             "busca": busca,
             "filtro": filtro,
             "filtros": FILTROS,
-            "ultima_importacao": consultas.ultima_importacao_pedidos(),
+            "ultima_importacao": consultas.ultima_importacao_pedidos(timezone.localdate().year),
         },
     )
 
@@ -108,7 +108,7 @@ def pedido(request, pk):
             "recusa": consultas.recusa_do_pedido(estado),
             "recebimentos": pedido.recebimentos.select_related("preparado_por"),
             "travas": consultas.travas_abertas(pedido),
-            "ultima_importacao": consultas.ultima_importacao_pedidos(),
+            "ultima_importacao": consultas.ultima_importacao_pedidos(pedido.exercicio),
             "pode_receber": estado in ("disponivel", "precisa_conferencia")
             and any(linha.motivo is None and linha.saldo_livre > 0 for linha in linhas),
         },

@@ -15,7 +15,7 @@ from tests.relacao_pedidos_compra import ItemPedidoCSV, csv_pedidos
 
 ANO = timezone.localdate().year
 NUMPED = f"00514/{ANO % 100:02d}"
-DATA_DO_PEDIDO = date(ANO, 1, 12)
+DATA_DO_PEDIDO = date(ANO, 1, 1)  # nunca depois de hoje
 
 
 def importar_pedido(

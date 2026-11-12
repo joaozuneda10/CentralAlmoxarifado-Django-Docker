@@ -94,7 +94,10 @@ def test_nf_normalizada_tira_os_zeros_a_esquerda(texto, esperado):
     assert regras.nf_normalizada(texto) == esperado
 
 
-@pytest.mark.parametrize("texto", ["", "  ", "0", "0000", "50a", "5-01", "1234567890123", "1,5"])
+@pytest.mark.parametrize(
+    "texto",
+    ["", "  ", "0", "0000", "50a", "5-01", "1234567890123", "1,5", "٠٥٠١", "５０１"],
+)
 def test_nf_invalida_levanta_value_error(texto):
     with pytest.raises(ValueError):
         regras.nf_normalizada(texto)

@@ -212,12 +212,14 @@ def eh_solicitante(usuario) -> bool:
 
 def ponto_de_partida(usuario) -> str:
     """O nome da rota para onde o usuário vai depois de entrar ou quando abre uma página que não é
-    dele: a fila de autorizações (Segurança do Trabalho), "Meus pedidos" (solicitante) ou o
-    painel."""
+    dele: a fila de autorizações (Segurança do Trabalho), "Meus pedidos" (solicitante), Compras
+    (quem recebe compras sem atender pedidos) ou o painel."""
     if da_seguranca_trabalho(usuario):
         return "pedidos:autorizacoes"
     if eh_solicitante(usuario):
         return "pedidos:meus_pedidos"
+    if not usuario.has_perm(ATENDER) and usuario.has_perm(RECEBER):
+        return "compras:pedidos"  # o painel exige ATENDER: quem só recebe compras abre Compras
     return "pedidos:painel"
 
 

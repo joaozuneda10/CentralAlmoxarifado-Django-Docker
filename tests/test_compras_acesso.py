@@ -107,3 +107,22 @@ def test_a_migration_deu_receber_compras_aos_grupos_atendimento_e_gestao():
     for nome in (GRUPO_ATENDIMENTO, GRUPO_GESTAO):
         grupo = Group.objects.get(name=nome)
         assert grupo.permissions.filter(codename="receber_compras").exists(), nome
+
+
+def test_quem_so_recebe_compras_comeca_em_compras_no_login_e_no_menu():
+    from contas.acesso import ponto_de_partida
+
+    usuario = get_user_model().objects.create_user(username="40009", password="senha-de-teste-123")
+    usuario.user_permissions.add(Permission.objects.get(codename="receber_compras"))
+    assert ponto_de_partida(usuario) == "compras:pedidos"
+    client = Client()
+    r = client.post(reverse("login"), {"username": "40009", "password": "senha-de-teste-123"})
+    assert r.status_code == 302 and r.url == reverse("compras:pedidos")
+    assert client.get(r.url).status_code == 200
+    assert f'href="{reverse("compras:pedidos")}"' in client.get(r.url).text
+
+
+def test_quem_atende_continua_comecando_no_painel():
+    from contas.acesso import ponto_de_partida
+
+    assert ponto_de_partida(dar_papeis(usuario_com(username="40010"))) == "pedidos:painel"

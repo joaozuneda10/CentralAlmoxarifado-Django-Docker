@@ -67,7 +67,7 @@ def disponibilidade(item, *, material_visivel: bool | None, exercicio_atual: int
 
 # --- Nota fiscal, reservas e saldo livre (US1) -----------------------------------------------
 
-RE_NF = re.compile(r"^\d{1,12}$")
+RE_NF = re.compile(r"^[0-9]{1,12}$")  # ASCII: o \d do Python aceita dígitos de outros alfabetos
 RESERVAM_SEMPRE = ("PREPARADO", "ERRO", "EM_LANCAMENTO", "VERIFICAR")
 
 

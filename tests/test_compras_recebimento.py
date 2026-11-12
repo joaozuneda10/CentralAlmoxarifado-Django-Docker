@@ -274,6 +274,16 @@ def test_editar_um_erro_o_devolve_a_fila(pedido, usuario):
 # --- reenvio com o mesmo `envio` ------------------------------------------------------------
 
 
+def test_reenvio_de_recebimento_cancelado_nao_informa_sucesso(pedido, usuario):
+    envio = uuid.uuid4()
+    primeiro = _preparar_resp(pedido, usuario, envio=envio)
+    assert servicos.cancelar_recebimento(primeiro.recebimento.pk, usuario, motivo="NF devolvida").ok
+    segundo = _preparar_resp(pedido, usuario, envio=envio)
+    assert not segundo.ok and segundo.motivo == "cancelado"
+    assert "foi cancelado" in segundo.mensagem and segundo.recebimento == primeiro.recebimento
+    assert Recebimento.objects.count() == 1 and _livre(pedido, 1) == 50
+
+
 def test_reenvio_igual_devolve_o_mesmo_recebimento(pedido, usuario):
     envio = uuid.uuid4()
     primeiro = _preparar_resp(pedido, usuario, envio=envio)
@@ -386,3 +396,44 @@ def test_duas_pessoas_ao_mesmo_tempo_nunca_reservam_mais_que_o_saldo():
     assert any("o saldo livre é 0" in e.mensagem for e in recusa.erros)
     reservado = sum(i.quantidade for i in ItemRecebimento.objects.all())
     assert reservado <= item_do_pedido(pedido, 1).saldo_scpi
+
+
+# --- a importação de outro exercício não libera a reserva ---------------------------------------
+
+
+def _lancado_visivel_agora(pedido, usuario):
+    """Lançado e visível no SCPI depois da importação que criou o pedido: só uma importação
+    começada daqui em diante o libera."""
+    r = preparar(pedido, usuario, {1: "10"})
+    Recebimento.objects.filter(pk=r.pk).update(
+        status="LANCADO",
+        requisicao_scpi="000123/26",
+        visivel_desde=timezone.now(),
+    )
+    return r
+
+
+def test_importacao_de_outro_exercicio_nao_libera_a_reserva_do_lancado(pedido, usuario):
+    _lancado_visivel_agora(pedido, usuario)
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.PEDIDOS_COMPRA,
+        situacao=Importacao.Situacao.SUCESSO,
+        exercicio=ANO - 1,
+    )
+    assert _livre(pedido, 1) == 40
+
+
+def test_importacao_do_mesmo_exercicio_libera_a_reserva_do_lancado(pedido, usuario):
+    _lancado_visivel_agora(pedido, usuario)
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO, exercicio=ANO
+    )
+    assert _livre(pedido, 1) == 50
+
+
+def test_importacao_sem_exercicio_registrado_vale_para_qualquer_um(pedido, usuario):
+    _lancado_visivel_agora(pedido, usuario)
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO
+    )
+    assert _livre(pedido, 1) == 50

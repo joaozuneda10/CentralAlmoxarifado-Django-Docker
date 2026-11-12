@@ -69,8 +69,8 @@
               <td>
                 {% if not l.motivo %}
                 {% with erros_item=erros_por_campo|obter:l.campo_erro %}
-                <input id="qtd-{{ l.item_id }}" class="campo-entrada mono" type="text" name="qtd-{{ l.item_id }}" inputmode="decimal" autocomplete="off" value="{% if l.item_id in formulario.quantidades %}{{ formulario.quantidades|obter:l.item_id }}{% endif %}" aria-label="Quantidade do item {{ l.numero }}"{% if erros_item %} aria-invalid="true"{% endif %}>
-                {% for m in erros_item %}<p class="campo-erro">{{ m }}</p>{% endfor %}
+                <input id="qtd-{{ l.item_id }}" class="campo-entrada mono" type="text" name="qtd-{{ l.item_id }}" inputmode="decimal" autocomplete="off" value="{% if l.item_id in formulario.quantidades %}{{ formulario.quantidades|obter:l.item_id }}{% endif %}" aria-label="Quantidade do item {{ l.numero }}"{% if erros_item %} aria-invalid="true" aria-describedby="qtd-erro-{{ l.item_id }}"{% endif %}>
+                {% if erros_item %}<div id="qtd-erro-{{ l.item_id }}">{% for m in erros_item %}<p class="campo-erro">{{ m }}</p>{% endfor %}</div>{% endif %}
                 {% endwith %}
                 {% endif %}
               </td>
