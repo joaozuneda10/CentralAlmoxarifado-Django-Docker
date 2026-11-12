@@ -3,6 +3,7 @@ from django.core.management import BaseCommand, CommandError
 from catalogo.models import Importacao
 from compras import importacao
 from compras.models import ItemPedidoCompra, PedidoCompra
+from pedidos.models import ExecucaoRobo
 from scpi import execucao, relatorios
 from scpi.management.comum import NOMES, descartar_arquivo, obter_csv
 
@@ -36,6 +37,11 @@ class Command(BaseCommand):
         self, *args, arquivo=None, apagar_arquivo=False, forcar=False, exercicio=None, **opcoes
     ):
         with descartar_arquivo(arquivo, apagar_arquivo):
+            if ExecucaoRobo.em_andamento(robo=ExecucaoRobo.Robo.ENTRADAS).exists():
+                raise CommandError(
+                    "Um lançamento de entradas está em andamento: a importação de pedidos espera "
+                    "ele terminar."
+                )
             if exercicio and not arquivo:
                 raise CommandError("--exercicio só vale com --arquivo.")
             try:

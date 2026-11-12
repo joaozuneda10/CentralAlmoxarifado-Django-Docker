@@ -14,9 +14,8 @@ class Command(BaseCommand):
     def handle(self, *args, **options):
         linhas = []
         for execucao in ExecucaoRobo.em_andamento().order_by("inicio"):
-            tipo = "Simulação" if execucao.simulacao else "Lançamento"
             hora = timezone.localtime(execucao.inicio)
-            linhas.append(f"- {tipo} #{execucao.pk} desde {hora:%H:%M}")
+            linhas.append(f"- {execucao} desde {hora:%H:%M}")
         for importacao in Importacao.em_andamento().order_by("inicio"):
             hora = timezone.localtime(importacao.inicio)
             linhas.append(f"- Importação de {importacao.get_tipo_display()} desde {hora:%H:%M}")

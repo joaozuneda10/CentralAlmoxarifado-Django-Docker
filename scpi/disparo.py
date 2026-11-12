@@ -138,6 +138,45 @@ def iniciar_lancamento(usuario, *, simulacao: bool, lotes: list[str]) -> Execuca
     return execucao
 
 
+def iniciar_lancamento_entradas(
+    usuario, *, simulacao: bool, recebimentos: list[str]
+) -> ExecucaoRobo | None:
+    """Cria a `ExecucaoRobo` (robô de entradas) e inicia `manage.py lancar_entradas` num processo
+    separado, com o log em `lancar_entradas.log`.
+
+    O robô processa só os recebimentos de `recebimentos` (`--recebimento` de cada um). Devolve
+    None, sem criar nada, se qualquer robô já estiver rodando (a trava do lançamento é uma só).
+    Como no lançamento das saídas, a trava (`GET_LOCK`) faz a segunda execução terminar como
+    falha sem tocar em nenhum recebimento."""
+    # Segunda barreira, além da rota (spec 012, FR-007): o lançamento é irreversível no SCPI.
+    if not usuario.has_perm(AUTOMACOES):
+        registrar_recusa_de(usuario, "scpi.disparo.iniciar_lancamento_entradas", "-", AUTOMACOES)
+        raise PermissionDenied("Lançar no SCPI é de quem opera as automações.")
+    if ExecucaoRobo.em_andamento().exists():
+        return None
+    execucao = ExecucaoRobo.objects.create(
+        iniciada_por=usuario, simulacao=simulacao, robo=ExecucaoRobo.Robo.ENTRADAS
+    )
+    argumentos = ["lancar_entradas", "--execucao", str(execucao.pk)]
+    if simulacao:
+        argumentos.append("--dry-run")
+    for rotulo in recebimentos:
+        argumentos += ["--recebimento", rotulo]
+    try:
+        _iniciar_comando(
+            argumentos,
+            "lancar_entradas.log",
+            "Simular entradas no SCPI" if simulacao else "Lançar entradas no SCPI",
+        )
+    except Exception as exc:
+        # O processo não subiu: a execução não pode ficar "em andamento" à toa.
+        ExecucaoRobo.objects.filter(pk=execucao.pk).update(
+            situacao=ExecucaoRobo.Situacao.FALHA, erro=str(exc), fim=timezone.now()
+        )
+        raise
+    return execucao
+
+
 def _iniciar_comando(argumentos: list[str], arquivo_log: str, titulo: str) -> None:
     """Inicia `manage.py <argumentos>` num processo separado, com a saída em `LOG_DIR`."""
     # No Windows, o processo precisa de grupo próprio e sem console para sobreviver ao fim da
