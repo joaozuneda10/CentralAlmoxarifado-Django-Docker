@@ -46,25 +46,28 @@ log = logging.getLogger("scpi.lancamento_entradas").info
 
 ESPERA_ESCOLHA_MS = 30000  # a janela "Escolha os Itens" e as linhas dela
 
-# Colunas de "Escolha os Itens", pelo cabeçalho (R25: confirmar os rótulos no --dry-run).
-COLUNAS_TELA = ("Item", "Código", "Qtd.", "Já Entrou", "Já Pedida", "Qtd. Saldo")
+# Colunas de "Escolha os Itens", pelo texto do cabeçalho (SCPI, 12/11/2026): `exato` para os nomes
+# que são prefixo de outros ("Qtd." também começa "Qtd. Já Entrou"). R25: confirmar "Qtd. Saldo".
+COLUNAS_TELA = (
+    ("item", "Item", True),
+    ("codigo", "Código", True),
+    ("quantidade", "Qtd.", True),
+    ("ja_entrou", "Qtd. Já Entrou", False),
+    ("ja_pedida", "Qtd. Já Ped", False),
+    ("saldo", "Qtd. Saldo", False),
+)
 
 JS_LER_ESCOLHA_DOS_ITENS = """
-(colunas) => {
-    // As linhas visíveis da grade "Escolha os Itens": cada uma é a lista dos textos das células,
-    // na ordem das colunas pedidas (pelo texto do cabeçalho).
+() => {
+    // A grade do painel "Escolha os Itens": os cabeçalhos e, por linha, o texto de cada célula.
     const vis = e => e.offsetParent !== null;
-    const grades = [...document.querySelectorAll('.x-grid')].filter(vis);
-    for (const grade of grades) {
+    for (const grade of [...document.querySelectorAll('.x-grid')].filter(vis)) {
         const cabecalhos = [...grade.querySelectorAll('.x-column-header')]
             .filter(vis).map(h => h.textContent.trim());
-        const indices = colunas.map(c => cabecalhos.indexOf(c));
-        if (indices.some(i => i < 0)) continue;
-        return [...grade.querySelectorAll('.x-grid-row')].filter(vis).map(linha => {
-            const celulas = [...linha.querySelectorAll('.x-grid-cell')]
-                .map(c => c.textContent.trim());
-            return indices.map(i => celulas[i] ?? '');
-        });
+        if (!cabecalhos.includes('Item') || !cabecalhos.includes('Código')) continue;
+        const linhas = [...grade.querySelectorAll('.x-grid-row')].filter(vis).map(linha =>
+            [...linha.querySelectorAll('.x-grid-cell')].map(c => c.textContent.trim()));
+        return {cabecalhos, linhas};
     }
     return null;
 }
@@ -76,25 +79,39 @@ def _numero_pedido(rec: RecebimentoParaLancar) -> tuple[str, str]:
     return f"{rec.pedido_numero:05d}", str(rec.pedido_ano)
 
 
-def ler_escolha_dos_itens(linhas: list[list[str]] | None) -> TelaItens:
-    """As linhas lidas da grade (textos) como `TelaItens`; vazio é erro (a tela não abriu)."""
-    if not linhas:
-        raise ErroSCPI('a janela "Escolha os Itens" não trouxe nenhuma linha')
+def _indice(cabecalhos: list[str], texto: str, exato: bool) -> int:
+    for i, cabecalho in enumerate(cabecalhos):
+        if cabecalho == texto or (not exato and cabecalho.startswith(texto)):
+            return i
+    raise ErroSCPI(
+        f"a grade de Escolha os Itens não tem a coluna '{texto}' (cabeçalhos: "
+        f"{', '.join(cabecalhos)})"
+    )
+
+
+def ler_escolha_dos_itens(dados: dict | None) -> TelaItens:
+    """A grade lida (`cabecalhos` e `linhas` de texto) como `TelaItens`; vazia é erro (a tela não
+    abriu ou ainda não carregou)."""
+    if not dados or not dados.get("linhas"):
+        raise ErroSCPI('a grade de "Escolha os Itens" não trouxe nenhuma linha')
+    cabecalhos = dados["cabecalhos"]
+    onde = {nome: _indice(cabecalhos, texto, exato) for nome, texto, exato in COLUNAS_TELA}
     lidas = []
-    for item, codigo, quantidade, ja_entrou, ja_pedida, saldo in linhas:
+    for celulas in dados["linhas"]:
         try:
+            valor = {nome: celulas[i] for nome, i in onde.items()}
             lidas.append(
                 LinhaTela(
-                    item=int(re.sub(r"\D", "", item)),
-                    codigo=codigo,
-                    quantidade=parse_decimal_br(quantidade),
-                    ja_entrou=parse_decimal_br(ja_entrou),
-                    ja_pedida=parse_decimal_br(ja_pedida),
-                    saldo=parse_decimal_br(saldo),
+                    item=int(re.sub(r"\D", "", valor["item"])),
+                    codigo=valor["codigo"],
+                    quantidade=parse_decimal_br(valor["quantidade"]),
+                    ja_entrou=parse_decimal_br(valor["ja_entrou"]),
+                    ja_pedida=parse_decimal_br(valor["ja_pedida"]),
+                    saldo=parse_decimal_br(valor["saldo"]),
                 )
             )
-        except (ValueError, ArithmeticError) as exc:
-            raise ErroSCPI(f"linha ilegível em Escolha os Itens: {linhas!r}") from exc
+        except (ValueError, ArithmeticError, IndexError) as exc:
+            raise ErroSCPI(f"linha ilegível em Escolha os Itens: {celulas!r}") from exc
     return TelaItens(tuple(lidas))
 
 
@@ -202,15 +219,15 @@ class NavegadorEntradas(Sessao):
             pesquisa.locator(".x-grid-row").filter(visible=True).first.dblclick()  # R25
             # Depois do duplo clique o SCPI mostra "Aguarde…" e só então abre "Escolha os Itens":
             # espera a janela e a grade carregarem (as linhas chegam depois da janela).
-            frame.get_by_label(re.compile("Escolha os Itens", re.I)).first.wait_for(
+            frame.get_by_text("Escolha os Itens", exact=True).filter(visible=True).first.wait_for(
                 state="visible", timeout=ESPERA_ESCOLHA_MS
             )
             aguardar_mascara(frame)
             checar_mensagem(frame, "abrir pedido")
             linhas = None
             for _ in range(ESPERA_ESCOLHA_MS // 500):
-                linhas = frame.evaluate(JS_LER_ESCOLHA_DOS_ITENS, list(COLUNAS_TELA))
-                if linhas:
+                linhas = frame.evaluate(JS_LER_ESCOLHA_DOS_ITENS)
+                if linhas and linhas.get("linhas"):
                     break
                 frame.page.wait_for_timeout(500)
             return ler_escolha_dos_itens(linhas)
