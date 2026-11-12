@@ -29,6 +29,8 @@ def test_atualizar_roda_os_tres_e_segue_depois_de_uma_falha(monkeypatch, capsys,
         "importar_estoque",
         "importar_saidas_scpi",
         "conciliar_lancamentos",
+        "conciliar_entradas",
+        "importar_pedidos_compra",
     ]
     assert "Cadastro: o CSV não tem nenhum material" in capsys.readouterr().err
     assert any(
@@ -120,7 +122,16 @@ def test_carga_inicial_pede_o_cadastro_inteiro_e_as_saidas_desde_o_inicio(monkey
         ("importar_estoque", {}),
         ("importar_saidas_scpi", {"desde": "01/01/2026"}),
         ("conciliar_lancamentos", {"diaria": True}),
+        ("conciliar_entradas", {"diaria": True}),
+        ("importar_pedidos_compra", {}),
     ]
     chamados.clear()
     call_command("atualizar_catalogo")
-    assert [extras for _, extras in chamados] == [{}, {}, {}, {"diaria": True}]
+    assert [extras for _, extras in chamados] == [
+        {},
+        {},
+        {},
+        {"diaria": True},
+        {"diaria": True},
+        {},
+    ]

@@ -564,8 +564,8 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Purpose**: a atualização diária sem intervenção e a limpeza de 60 dias. Fecha a FR-021 (diária) e o SC-005 ("até a próxima atualização diária").
 
-- [ ] T095 Criar a branch `claude/entradas-7-diaria` a partir de `claude/entradas-6-vereditos`
-- [ ] T096 [P] Escrever `tests/test_compras_diaria.py`. Casos:
+- [X] T095 Criar a branch `claude/entradas-7-diaria` a partir de `claude/entradas-6-vereditos`
+- [X] T096 [P] Escrever `tests/test_compras_diaria.py`. Casos:
   - o `atualizar_catalogo` roda Entradas (`conciliar_entradas --diaria`) e depois Pedidos de compra, na mesma sessão;
   - um passo que falha não desfaz os anteriores nem impede o seguinte;
   - `--carga-inicial` roda os dois;
@@ -573,11 +573,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a limpeza esvazia o bruto de mais de 60 dias, inclusive o de quem aponta para ele, e apaga as requisições sem conferência que as ligue ou as liste como candidatas;
   - a limpeza com a trava ocupada fica para a próxima;
   - `--sem-limpeza`.
-- [ ] T097 Implementar `compras/limpeza.py`, com `limpar(agora=None)`, como `conciliacao.limpeza`: retenção de 60 dias, a trava da extração `ENTRADAS` e a da conciliação de entradas. A `RequisicaoEntradaOficial` ligada a uma `EntradaForaDoCentral` nunca é apagada. Chamá-la no fim do `conciliar_entradas`, salvo com `--sem-limpeza`
-- [ ] T098 Acrescentar os passos Entradas e Pedidos de compra, nessa ordem, ao comando `atualizar_catalogo` (`scpi/management/commands/atualizar_catalogo.py`), depois de Requisições e dentro de `relatorios.sessao_compartilhada`, com o resumo dos seis passos. O `deploy/crontab` não muda. A T096 passa
-- [ ] T099 Atualizar o `CLAUDE.md`: os seis passos do `atualizar_catalogo` e a limpeza das entradas
+- [X] T097 Implementar `compras/limpeza.py`, com `limpar(agora=None)`, como `conciliacao.limpeza`: retenção de 60 dias, a trava da extração `ENTRADAS` e a da conciliação de entradas. A `RequisicaoEntradaOficial` ligada a uma `EntradaForaDoCentral` nunca é apagada. Chamá-la no fim do `conciliar_entradas`, salvo com `--sem-limpeza`
+- [X] T098 Acrescentar os passos Entradas e Pedidos de compra, nessa ordem, ao comando `atualizar_catalogo` (`scpi/management/commands/atualizar_catalogo.py`), depois de Requisições e dentro de `relatorios.sessao_compartilhada`, com o resumo dos seis passos. O `deploy/crontab` não muda. A T096 passa
+- [X] T099 Atualizar o `CLAUDE.md`: os seis passos do `atualizar_catalogo` e a limpeza das entradas
 - [ ] T100 Marcar a spec como implementada (`specs/014-entrada-por-pedido/spec.md`, status) e este `tasks.md`
-- [ ] T101 Portões finais: `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run python manage.py makemigrations --check --dry-run` e `DEBUG=0 uv run python manage.py check --deploy --fail-level WARNING`. Anotar no PR o [quickstart, passo 8](quickstart.md#8-primeiro-lançamento-real-depois-do-pr-4-em-produção-manual-a-pedido-do-usuário) como pendência do usuário (L3 e L8). Commit
+- [ ] T101 (portões automáticos prontos; **falta o passo 8 do quickstart, do usuário**) Portões finais: `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run python manage.py makemigrations --check --dry-run` e `DEBUG=0 uv run python manage.py check --deploy --fail-level WARNING`. Anotar no PR o [quickstart, passo 8](quickstart.md#8-primeiro-lançamento-real-depois-do-pr-4-em-produção-manual-a-pedido-do-usuário) como pendência do usuário (L3 e L8). Commit
 
 ---
 

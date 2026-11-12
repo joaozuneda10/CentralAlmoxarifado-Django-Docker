@@ -113,9 +113,13 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
 Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`),
-`importar_pedidos_compra` (07.13, `--forcar`) e `atualizar_catalogo` (os três em sequência e,
-por último, `conciliar_lancamentos --diaria`, a
-extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
+`importar_pedidos_compra` (07.13, `--forcar`), `conciliar_entradas` e `atualizar_catalogo` (os três
+em sequência e, depois, três passos da conciliação: `conciliar_lancamentos --diaria`, a extração
+diária das requisições de saída com a conciliação e a limpeza de 60 dias; `conciliar_entradas
+--diaria`, o mesmo para as entradas por pedido (`compras/limpeza.py`: o bruto e as requisições sem
+ligação de mais de 60 dias, sem apagar a requisição de uma `EntradaForaDoCentral`); e, por último, o
+`importar_pedidos_compra`, que reflete tudo no saldo; seis passos num navegador só, e um que falha não
+impede os seguintes; com
 `--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
 botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
 SCPI só é estável das 7h às 17h) abrem o SCPI pelo Playwright; com `--arquivo`
@@ -921,7 +925,8 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
   mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
   entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da
-  primeira execução.
+  primeira execução. A rotina diária (PR 7) é o `atualizar_catalogo`, que ganhou `conciliar_entradas
+  --diaria` e `importar_pedidos_compra`, nessa ordem; o `deploy/crontab` não muda.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela
