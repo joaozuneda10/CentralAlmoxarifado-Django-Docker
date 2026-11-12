@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-12
 
-**Status**: Rascunho, aguardando as decisões Q1 e Q2 do usuário
+**Status**: Rascunho, com as decisões Q1 e Q2 do usuário registradas (pronta para o plano)
 
 **Input**: User description: trocar o design system Clean por uma linguagem visual inspirada no
 Material 3 (M3), implementada no CSS próprio do projeto, sem biblioteca externa. A base são os
@@ -48,9 +48,17 @@ Fatos do código em 2026-11-12 (branch `develop`, `d011594`):
 | Web Awesome 3 (sucessor do Shoelace) | Ativo, com uma parte paga | Web components com Shadow DOM |
 | **M3 como linguagem visual no CSS próprio** | — | **Escolhida**: nenhuma dependência nova, os scripts e o HTMX continuam iguais, e o projeto controla o resultado |
 
-## Decisões que dependem do usuário
+## Clarifications
 
-Q1 e Q2 estão marcadas abaixo como `[NEEDS CLARIFICATION]`, nos requisitos que dependem delas.
+### Session 2026-11-12
+
+- Q1: Os comportamentos novos que o protótipo do painel mostra entram nesta spec (o menu ⋮ por
+  linha, "o mais antigo há N dias", as requisições travadas no cartão do robô e "+N aguardando
+  autorização")? → A: **sim, todos** (opção B). Regras em FR-018 a FR-018d. Na (c), as travadas
+  ficam no mesmo cartão, mas numa nota à parte, sem somar com as que aguardam o robô (ver FR-018c).
+- Q2: Nos campos dos formulários públicos, rótulo flutuante dentro da caixa ou rótulo fixo acima?
+  → A: **rótulo flutuante** (opção A). O exemplo do campo passa a ser texto de apoio fixo embaixo
+  dele (FR-020).
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -104,6 +112,11 @@ depois.
 3. **Given** o chip de situação "Atendido parcialmente", **When** é clicado, **Then** a lista mostra só os parciais, com o mesmo parâmetro na URL de hoje (`?situacao=parcial`), também sem JavaScript.
 4. **Given** um cartão de indicador, **When** é clicado, **Then** aplica o filtro que já existe para ele (por exemplo, `?recibo=pendente` para recibos).
 5. **Given** avisos de saúde do catálogo, **When** o painel abre, **Then** o 4º cartão mostra quantos erros e avisos há, e a lista completa continua na página.
+6. **Given** um pedido atendido com o lote ainda pendente, **When** a equipe abre o ⋮ da linha, **Then** vê "Abrir pedido", "Imprimir recibo" e "Editar atendimento"; num pedido aguardando atendimento, só "Abrir pedido"; com o lote já lançado, sem "Editar atendimento".
+7. **Given** "Imprimir recibo" escolhido no ⋮, **When** o detalhe abre, **Then** a impressão começa e a confirmação "O recibo saiu na impressora?" aparece no detalhe; nada é marcado como impresso sem essa confirmação.
+8. **Given** o pedido aguardando mais antigo enviado há 3 dias, **When** o painel abre, **Then** o cartão de atendimento mostra "há 3 dias".
+9. **Given** 1 requisição aguardando o robô e 1 em verificar, **When** o painel abre, **Then** o cartão do robô mostra 1 como número principal e a nota "1 para verificar no SCPI", e o menu mostra 1 em Automações.
+10. **Given** 2 pedidos de EPI aguardando autorização, **When** o painel abre, **Then** o cartão de atendimento mostra "+2 aguardando autorização", com link para o filtro; com zero, a nota some.
 
 ---
 
@@ -208,7 +221,7 @@ com os formulários na revisão visual do chefe.
 
 **Compatibilidade**
 
-- **FR-006**: Nenhum comportamento muda. Ficam iguais os endereços, os nomes de rota, os textos (salvo os listados nesta spec), os campos de formulário, os atributos do HTMX, os `data-*`, as regras de negócio e as respostas do servidor.
+- **FR-006**: Nenhum comportamento muda, salvo os do painel em FR-018 a FR-018d e o lugar dos exemplos dos campos públicos em FR-020. Ficam iguais os endereços, os nomes de rota, os textos (salvo os listados nesta spec), os campos de formulário, os atributos do HTMX, os `data-*`, as regras de negócio e as respostas do servidor.
 - **FR-007**: Onde o componente continua existindo, o vocabulário de classes atual é preservado. Renomear uma classe só com motivo escrito e na mesma entrega que ajusta os scripts e os testes que dependem dela (F5, F6). Componente novo (indicador, chip, menu estreito, botão flutuante) ganha classe nova, documentada no `DESIGN.md`.
 - **FR-008**: Nenhuma dependência nova: nada de biblioteca de componentes, npm, CDN ou etapa de build de CSS. O CSS continua escrito à mão no repositório.
 - **FR-009**: Sem JavaScript, a área interna continua utilizável (navegação, filtros, ações). Os formulários públicos continuam exigindo JavaScript, como hoje.
@@ -233,12 +246,29 @@ com os formulários na revisão visual do chefe.
   Clicar num cartão aplica o filtro que já existe para ele. O atalho "Registrar uma saída avulsa" vira o botão flutuante "Saída avulsa". A saúde do catálogo ganha um cartão com a contagem por nível, e a lista completa continua na página.
 - **FR-016**: Os filtros viram chips. A situação fica em chips de um clique; origem, SCPI, recibo, autorização e período ficam em chips com menu; a busca por material vira um campo na mesma linha. Ficam iguais todos os parâmetros e o funcionamento sem JavaScript (F8).
 - **FR-017**: A tabela tem as colunas Nº com a origem, Enviado em, Pessoa, Destino ou centro de custo, Situação e SCPI, com Situação e SCPI separadas. A linha inteira leva ao detalhe, e o "Recibo não impresso" aparece na linha (o dado já existe).
-- **FR-018**: [NEEDS CLARIFICATION Q1: os comportamentos novos que o protótipo do painel mostra entram nesta spec? São quatro: (a) o menu ⋮ por linha, com Abrir, Imprimir recibo e Editar atendimento; (b) a nota "o mais antigo há N dias" no cartão de atendimento; (c) as requisições travadas na mesma conta do cartão do robô; (d) a nota "+N aguardando autorização".]
+- **FR-018**: Comportamentos novos do painel (decisão Q1). Cada um mostra só dados que o sistema já guarda, não grava nada e tem teste próprio. Abaixo, de FR-018a a FR-018d.
+- **FR-018a**: **Menu ⋮ por linha da tabela.** O menu tem só atalhos para ações que já existem; cada uma continua acontecendo na tela onde acontece hoje:
+  - **Abrir pedido**: sempre presente; leva ao detalhe.
+  - **Imprimir recibo**: só no pedido com atendimento registrado. Leva ao detalhe e abre a impressão, como o botão "Imprimir recibo" de lá; depois vem a confirmação "O recibo saiu na impressora?" no próprio detalhe, como hoje. O recibo nunca é impresso nem marcado como impresso a partir da lista.
+  - **Editar atendimento** ("Editar saída" na saída avulsa): só quando a edição está permitida pelas linhas do lote (a mesma regra do detalhe). Leva à tela de edição de sempre.
+
+  Cada item só aparece para quem tem a permissão que a ação já exige (spec 012), e o servidor continua recusando quem não a tem. Pedido de EPI não autorizado não ganha "Imprimir recibo" nem "Editar atendimento", porque não tem atendimento. Sem JavaScript, o menu vira os mesmos links visíveis na linha. O ⋮ tem rótulo acessível ("Ações do pedido P-000123"), abre e fecha pelo teclado e fecha com Esc.
+- **FR-018b**: **"O mais antigo há N dias"** no cartão "Aguardando atendimento". É o pedido mais antigo pela data de envio, entre os que o filtro "Aguardando atendimento" já conta (fora os que aguardam autorização e os recusados). N são os dias de calendário entre a data do envio e hoje, no fuso do servidor: "enviado hoje", "enviado ontem" ou "há N dias". Some quando não há pedido aguardando.
+- **FR-018c**: **Requisições travadas no cartão do robô.** O número principal continua o de hoje: as requisições aguardando o robô. As travadas (em verificar, em lançamento ou com erro; o mesmo número que o sistema já conta) aparecem no mesmo cartão, numa nota de alerta à parte ("1 para verificar no SCPI"), com ícone e link para a lista filtrada por "Verificar / erro" (o filtro de hoje). Os dois números **não** se somam: um é fila, o outro exige ação de alguém, e a soma esconderia o travado dentro da fila. O protótipo somava, e a spec corrige. O contador do item Automações no menu é o mesmo número das travadas.
+- **FR-018d**: **"+N aguardando autorização"** no cartão "Aguardando atendimento". N são os pedidos de EPI aguardando a decisão da Segurança do Trabalho (o mesmo do filtro Autorização). É um link para a lista filtrada por esse estado e some quando N é zero. Não entra no número principal, porque esses pedidos ainda não podem ser atendidos.
 
 **Formulários públicos**
 
 - **FR-019**: A página inicial tem um cartão por formulário, com os textos e a ordem de hoje. A consulta pública fica em destaque no topo, e o formulário geral fica à parte, depois da pergunta de sempre.
-- **FR-020**: Os campos são caixas no padrão M3, com o erro na borda e no texto de apoio, com ícone. O resumo de erros do topo não muda. [NEEDS CLARIFICATION Q2: rótulo flutuante dentro da caixa (o exemplo do campo, como "Setor ou posto de trabalho", passa a ser texto de apoio fixo embaixo) ou rótulo fixo acima da caixa (como hoje, com o exemplo dentro do campo)?]
+- **FR-020**: Os campos de texto dos formulários públicos, da consulta pública e do login de solicitante são caixas no padrão M3, com **rótulo flutuante** (decisão Q2):
+  - vazio e sem foco, o rótulo fica dentro da caixa; com foco ou com valor, sobe para a borda e continua visível;
+  - o exemplo que hoje fica dentro do campo (por exemplo, "Setor ou posto de trabalho" e "Centro de custo da equipe") passa a ser **texto de apoio fixo embaixo do campo**, com o mesmo texto, sempre visível e ligado ao campo pelo `aria-describedby`;
+  - com erro, a borda e o rótulo ficam vermelhos, e o texto de apoio dá lugar à mensagem de erro, com ícone;
+  - o resumo de erros do topo não muda;
+  - o rótulo continua um `<label>` ligado ao campo, sem perder o nome de classe que os testes usam (FR-007);
+  - a lista de sugestões do destino (o painel do `dropdown.js`) continua funcionando no campo com rótulo flutuante.
+
+  A busca de materiais não é um desses campos: continua a pílula de busca, com o exemplo dentro dela. Os campos da área interna mantêm o rótulo fixo acima, pela densidade do ritmo compacto.
 - **FR-021**: Os passos ficam numerados em blocos tonais, e a busca de materiais vira uma pílula. O painel de resultados mantém o comportamento atual: abre na busca, fica no fluxo da página, tem a altura do cabeçalho mais 5 linhas e mostra os bloqueados no fim.
 - **FR-022**: A quantidade usa o controle − / + em pílula. O fluxo de dois passos (tocar na linha, confirmar), o "Atualizar", o selo "N no pedido" e o teto no estoque não mudam.
 - **FR-023**: O "Seu pedido" fica num cartão lateral preso ao rolar a partir de 960px, e vira a barra com a gaveta abaixo disso, nos limites de hoje.
@@ -256,14 +286,15 @@ com os formulários na revisão visual do chefe.
   - a lista de resultados do protótipo dos formulários fica sempre aberta;
   - a mensagem "nome completo, com sobrenome" é ilustrativa;
   - a barra de baixo do painel no celular escondia destinos;
-  - o painel mostra comportamentos ainda pendentes de Q1.
+  - o cartão do robô somava as travadas com as que aguardam o robô (FR-018c corrige);
+  - o menu ⋮ do protótipo aparece em todas as linhas, sem as condições de FR-018a.
 - **FR-029**: Telas da spec 014: se forem integradas antes da etapa que cobre a área interna (US4), são convertidas nela; se vierem depois da fundação, já nascem no desenho novo.
 
 ## Success Criteria *(mandatory)*
 
 ### Measurable Outcomes
 
-- **SC-001**: A suíte de testes passa em todas as entregas sem mudar nenhuma asserção de comportamento. Só podem mudar as asserções sobre nome de classe renomeada pela FR-007.
+- **SC-001**: A suíte de testes passa em todas as entregas sem mudar nenhuma asserção de comportamento. Só podem mudar as asserções sobre nome de classe renomeada pela FR-007 e sobre o lugar do exemplo dos campos públicos (FR-020). Cada item de FR-018a a FR-018d ganha testes próprios: quando aparece, o número certo e quando some.
 - **SC-002**: Nenhuma das telas listadas nas US1 a US4 rola de lado a 320, 375, 768, 1280 e 1440px.
 - **SC-003**: Todos os pares de texto e fundo dos tokens atingem o contraste AA (verificável por cálculo sobre os tokens).
 - **SC-004**: A 1366×768, o painel mostra sem rolar ao menos tantos pedidos quanto hoje, medidos antes da troca com os mesmos dados.
@@ -303,5 +334,5 @@ Cada entrega é um pull request para `develop` com deploy separado, nesta ordem:
 - Biblioteca de componentes de qualquer tipo, e etapa de build de CSS.
 - Tema escuro.
 - Mudança de regra de negócio, fluxo, texto (além dos listados) ou URL.
-- Os comportamentos novos do painel, salvo o que Q1 decidir incluir.
+- Qualquer ação nova que grave a partir da lista do painel: o menu ⋮ só leva às telas onde as ações já existem (FR-018a).
 - Admin do Django e páginas 404/500.

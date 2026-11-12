@@ -13,7 +13,7 @@
 
 ## Requirement Completeness
 
-- [ ] No [NEEDS CLARIFICATION] markers remain
+- [x] No [NEEDS CLARIFICATION] markers remain
 - [x] Requirements are testable and unambiguous
 - [x] Success criteria are measurable
 - [x] Success criteria are technology-agnostic (no implementation details)
@@ -31,8 +31,9 @@
 
 ## Notes
 
-- Restam duas marcas: Q1 (FR-018, comportamentos novos do painel) e Q2 (FR-020, rótulo flutuante
-  ou fixo nos campos públicos). Precisam da decisão do usuário antes do `/speckit-plan`.
+- Q1 (B: os quatro comportamentos novos do painel entram) e Q2 (A: rótulo flutuante nos campos
+  públicos) foram respondidas em 2026-11-12 e estão na seção Clarifications da spec. Na Q1, a soma
+  das travadas no cartão do robô foi trocada por uma nota à parte (FR-018c), com o motivo escrito.
 - Detalhes de implementação: por ser uma troca de design system, a spec cita tokens, o
   vocabulário de classes, `aria-*` e arquivos de documentação. Isso é o objeto da mudança, não uma
   escolha de implementação, e segue o padrão das specs anteriores do projeto, que citam o código
