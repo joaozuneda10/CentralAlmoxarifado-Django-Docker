@@ -138,13 +138,16 @@ def _tabela(
     *,
     opcionais: tuple[str, ...] = (),
     completos: bool = False,
+    exatos: bool = False,
 ):
     """Linhas do CSV como dicionários {coluna pedida → texto}. Aceita o CSV do SCPI (";") e o
     mesmo relatório salvo por uma planilha (",").
 
     `opcionais` são colunas lidas quando existem (vazias quando faltam). Com `completos`, um
     registro com menos campos que o cabeçalho (relatório cortado) é `ErroImportacao`; sem ele, os
-    campos que faltam viram vazios."""
+    campos que faltam viram vazios. Com `exatos`, o registro com campos a mais também é
+    `ErroImportacao`: a recolagem juntou dois registros (o segundo sem o começo que a separa) ou
+    um texto livre trouxe o separador, e nos dois casos as colunas não são mais confiáveis."""
     try:
         texto = conteudo.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -179,6 +182,12 @@ def _tabela(
             raise ErroImportacao(
                 f"{rotulo}: o relatório está cortado no registro {numero} "
                 f"({len(linha)} de {len(cabecalho)} campos); nada foi gravado."
+            )
+        if exatos and any(c.strip() for c in linha[len(cabecalho) :]):
+            raise ErroImportacao(
+                f"{rotulo}: o registro {numero} tem {len(linha)} campos e o cabeçalho, "
+                f"{len(cabecalho)} (dois registros colados ou um texto com o separador); "
+                "nada foi gravado."
             )
         registro = {c: (linha[i].strip() if i < len(linha) else "") for c, i in indices.items()}
         registro.update({c: "" for c in opcionais if c not in indices})
@@ -657,6 +666,7 @@ def ler_entradas(conteudo: bytes) -> Leitura:
         obrigatorias,
         opcionais=("UNID1", "RESPONSA", "OBS"),
         completos=True,
+        exatos=True,
     )
     if not tabela:
         raise ErroImportacao(f"{rotulo}: o relatório não tem nenhuma entrada; nada foi gravado.")
