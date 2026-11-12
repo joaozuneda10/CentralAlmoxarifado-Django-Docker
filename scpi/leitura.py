@@ -298,15 +298,23 @@ CASAS_QUANTIDADE = 4
 TETO_QUANTIDADE = Decimal(10) ** (14 - CASAS_QUANTIDADE)
 
 
-def _quantidade_que_cabe(valor: Decimal) -> Decimal:
+# Limite de `compras.ItemPedidoCompra` (18 dígitos com 6 casas): o 07.13 traz quantidades com 5
+# casas (1,66651 no pedido 00060/25, 12/11/2026), que não cabem nos 4 das requisições.
+CASAS_QUANTIDADE_PEDIDO = 6
+TETO_QUANTIDADE_PEDIDO = Decimal(10) ** (18 - CASAS_QUANTIDADE_PEDIDO)
+
+
+def _quantidade_que_cabe(
+    valor: Decimal, casas: int = CASAS_QUANTIDADE, teto: Decimal = TETO_QUANTIDADE
+) -> Decimal:
     """A quantidade como veio, se cabe exata no campo do banco; senão, ValueError.
 
-    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado a 4 casas é exato
+    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado às `casas` é exato
     (o `normalize()` arredondaria pela precisão do contexto e aceitaria uma fração longa)."""
-    if abs(valor) >= TETO_QUANTIDADE:
+    if abs(valor) >= teto:
         raise ValueError(f"quantidade fora do limite: {valor}")
-    if valor != valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE)):
-        raise ValueError(f"quantidade com mais de {CASAS_QUANTIDADE} casas: {valor}")
+    if valor != valor.quantize(Decimal(1).scaleb(-casas)):
+        raise ValueError(f"quantidade com mais de {casas} casas: {valor}")
     return valor
 
 
@@ -514,7 +522,9 @@ def ler_pedidos_compra(conteudo: bytes) -> Leitura:
             try:
                 lido = decimal_br(r[coluna])
                 valores[coluna] = (
-                    _preco_que_cabe(lido) if coluna == "PRCUNT" else _quantidade_que_cabe(lido)
+                    _preco_que_cabe(lido)
+                    if coluna == "PRCUNT"
+                    else _quantidade_que_cabe(lido, CASAS_QUANTIDADE_PEDIDO, TETO_QUANTIDADE_PEDIDO)
                 )
             except ValueError as exc:
                 raise ErroImportacao(
