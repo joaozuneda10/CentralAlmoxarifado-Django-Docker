@@ -23,6 +23,8 @@ def _garantir_grupos() -> None:
         return
     papeis = import_module("contas.migrations.0004_papeis")
     papeis.criar_grupos(apps, papeis.criar_permissoes(apps))
+    compras = import_module("contas.migrations.0007_receber_compras")
+    compras.dar_aos_grupos(apps, compras.criar_permissao(apps))
 
 
 def _grupos(nomes) -> list[Group]:

@@ -1,0 +1,95 @@
+{% extends "interface/base_almoxarifado.html" %}
+{% load interface_extras %}
+{% block title %}{{ pedido.rotulo }} — Compras — Central Almoxarifado{% endblock %}
+{% block voltar %}<a class="link-voltar" href="{% url 'compras:pedidos' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar aos pedidos</a>{% endblock %}
+{% block rotulo %}Compras{% endblock %}
+{% block heading %}Pedido <span class="mono">{{ pedido.rotulo }}</span>{% endblock %}
+{% block sub %}Os saldos são os do SCPI na última importação, menos o que já está reservado por recebimentos do Central.{% endblock %}
+
+{% block page %}
+<div class="pilha-larga">
+  <section class="cartao" aria-labelledby="titulo-pedido">
+    <h2 class="cartao-titulo" id="titulo-pedido">Pedido</h2>
+    <dl class="dados">
+      <div><dt>Data</dt><dd>{{ pedido.data|date:"d/m/Y" }}</dd></div>
+      <div><dt>Fornecedor</dt><dd><span class="mono">{{ pedido.fornecedor_codigo }}</span> {{ pedido.fornecedor_nome }}</dd></div>
+      <div><dt>Situação</dt><dd>{% include "compras/_estado.html" %}</dd></div>
+      <div><dt>Saldos de</dt><dd>{% if ultima_importacao %}{{ ultima_importacao.inicio|date:"d/m/Y H:i" }}{% else %}—{% endif %}</dd></div>
+    </dl>
+    {% if recusa %}<div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<p>Este pedido não aceita recebimento: {{ recusa }}.</p></div>{% endif %}
+    {% if estado == "precisa_conferencia" %}<div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<p>Precisa de conferência: o SCPI reduziu o saldo de algum item depois de o recebimento ser preparado. Confira os recebimentos abaixo antes de lançar.</p></div>{% endif %}
+    {% if travas %}
+    <div class="aviso aviso-erro" role="status">{% include "interface/_icone.html" with nome="cadeado" %}<div>
+      {% for t in travas %}<p><strong>{{ t.get_motivo_display }}</strong> desde {{ t.criada_em|date:"d/m/Y H:i" }}.{% if t.detalhe %} {{ t.detalhe }}{% endif %}</p>{% endfor %}
+    </div></div>
+    {% endif %}
+    {% if pode_receber %}
+    <div class="acoes">
+      <a class="botao botao-primario" href="{% url 'compras:receber' pedido.pk %}?modo=total">{% include "interface/_icone.html" with nome="caixa-check" %}Receber total</a>
+      <a class="botao botao-secundario" href="{% url 'compras:receber' pedido.pk %}?modo=parcial">{% include "interface/_icone.html" with nome="caixa" %}Receber parcial</a>
+    </div>
+    {% endif %}
+  </section>
+
+  <section class="cartao" aria-labelledby="titulo-itens">
+    <h2 class="cartao-titulo" id="titulo-itens">Itens</h2>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead>
+          <tr>
+            <th scope="col">Item</th>
+            <th scope="col">Material</th>
+            <th scope="col">Pedido</th>
+            <th scope="col">Anulado</th>
+            <th scope="col">Já entrou</th>
+            <th scope="col">Saldo do SCPI</th>
+            <th scope="col">Reservado</th>
+            <th scope="col">Saldo livre</th>
+            <th scope="col">Situação</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for l in linhas %}
+          <tr>
+            <td class="mono">{{ l.numero }}</td>
+            <td><span class="mono">{{ l.item.codigo }}</span>{% if l.material %} {{ l.material.nome }}{% endif %}</td>
+            <td>{{ l.item.quantidade|quantidade }} {{ l.item.unidade }}</td>
+            <td>{{ l.item.anulado|quantidade }}</td>
+            <td>{{ l.item.ja_entrou|quantidade }}</td>
+            <td>{{ l.saldo_scpi|quantidade }}</td>
+            <td>{{ l.reservado|quantidade }}</td>
+            <td><strong>{{ l.saldo_livre|quantidade }}</strong></td>
+            <td>{% if l.motivo %}Indisponível: {{ l.motivo }}{% elif l.precisa_conferencia %}Precisa de conferência{% else %}Disponível{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cartao" aria-labelledby="titulo-recebimentos">
+    <h2 class="cartao-titulo" id="titulo-recebimentos">Recebimentos</h2>
+    {% if recebimentos %}
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th scope="col">Recebimento</th><th scope="col">NF</th><th scope="col">Data</th><th scope="col">Situação</th><th scope="col">Requisição</th><th scope="col">Preparado por</th></tr></thead>
+        <tbody>
+          {% for recebimento in recebimentos %}
+          <tr>
+            <td><a href="{% url 'compras:recebimento' recebimento.pk %}"><span class="mono">{{ recebimento.rotulo }}</span></a></td>
+            <td class="mono">{{ recebimento.nf }}</td>
+            <td class="tabela-data">{{ recebimento.data_recebimento|date:"d/m/Y" }}</td>
+            <td>{% include "compras/_status.html" %}</td>
+            <td class="mono">{{ recebimento.requisicao_scpi|default:"—" }}</td>
+            <td>{{ recebimento.preparado_por.get_full_name|default:recebimento.preparado_por.username }}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <div class="vazio"><p class="vazio-titulo">Nenhum recebimento neste pedido.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

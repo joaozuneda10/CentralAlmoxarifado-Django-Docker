@@ -1,0 +1,90 @@
+{% extends "interface/base_almoxarifado.html" %}
+{% load interface_extras pedidos_extras %}
+{% block title %}{% if recebimento %}Editar {{ recebimento.rotulo }}{% else %}Receber{% endif %} — {{ pedido.rotulo }} — Central Almoxarifado{% endblock %}
+{% block voltar %}<a class="link-voltar" href="{% if recebimento %}{% url 'compras:recebimento' recebimento.pk %}{% else %}{% url 'compras:pedido' pedido.pk %}{% endif %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar</a>{% endblock %}
+{% block rotulo %}Compras{% endblock %}
+{% block heading %}{% if recebimento %}Editar <span class="mono">{{ recebimento.rotulo }}</span>{% else %}Receber do pedido <span class="mono">{{ pedido.rotulo }}</span>{% endif %}{% endblock %}
+{% block sub %}Um recebimento é uma nota fiscal de um pedido. As quantidades vão até o saldo livre de cada item.{% endblock %}
+
+{% block page %}
+<div class="pilha-larga">
+  {% if recusa %}<div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<p>Este pedido não aceita recebimento: {{ recusa }}.</p></div>{% endif %}
+  {% if erros %}
+  <div class="aviso aviso-erro" role="alert" id="resumo-erros" tabindex="-1">
+    {% include "interface/_icone.html" with nome="alerta" %}
+    <div><p><strong>Não foi possível gravar o recebimento.</strong></p>
+      <ul>{% for erro in erros %}<li>{% if erro.campo == "nf" %}<a href="#nf">{{ erro.mensagem }}</a>{% elif erro.campo == "data_recebimento" %}<a href="#data_recebimento">{{ erro.mensagem }}</a>{% elif erro.item %}<a href="#qtd-{{ erro.item }}">{{ erro.mensagem }}</a>{% else %}{{ erro.mensagem }}{% endif %}</li>{% endfor %}</ul>
+    </div>
+  </div>
+  {% endif %}
+
+  <form method="post" class="pilha-larga" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="envio" value="{{ formulario.envio }}">
+    {% if formulario.versao %}<input type="hidden" name="versao" value="{{ formulario.versao }}">{% endif %}
+
+    <section class="cartao" aria-labelledby="titulo-nota">
+      <h2 class="cartao-titulo" id="titulo-nota">Nota fiscal</h2>
+      <div class="dados">
+        <div class="campo{% if erros_por_campo.nf %} campo-com-erro{% endif %}">
+          <label class="campo-rotulo" for="nf">Número da NF</label>
+          <input id="nf" class="campo-entrada mono" type="text" name="nf" inputmode="numeric" maxlength="12" autocomplete="off" value="{{ formulario.nf }}" aria-describedby="dica-nf{% if erros_por_campo.nf %} erro-nf{% endif %}"{% if erros_por_campo.nf %} aria-invalid="true"{% endif %}>
+          <p class="campo-dica" id="dica-nf">Só algarismos, até 12. Os zeros à esquerda não contam.</p>
+          {% for m in erros_por_campo.nf %}<p class="campo-erro" id="erro-nf">{{ m }}</p>{% endfor %}
+        </div>
+        <div class="campo{% if erros_por_campo.data_recebimento %} campo-com-erro{% endif %}">
+          <label class="campo-rotulo" for="data_recebimento">Data do recebimento</label>
+          <input id="data_recebimento" class="campo-entrada" type="date" name="data_recebimento" min="{{ pedido.data|date:'Y-m-d' }}" max="{{ hoje|date:'Y-m-d' }}" value="{{ formulario.data_texto }}"{% if erros_por_campo.data_recebimento %} aria-invalid="true" aria-describedby="erro-data"{% endif %}>
+          {% for m in erros_por_campo.data_recebimento %}<p class="campo-erro" id="erro-data">{{ m }}</p>{% endfor %}
+        </div>
+      </div>
+      <div class="campo{% if erros_por_campo.observacao %} campo-com-erro{% endif %}">
+        <label class="campo-rotulo" for="observacao">Observação <span class="texto-secundario">(opcional)</span></label>
+        <input id="observacao" class="campo-entrada" type="text" name="observacao" maxlength="500" autocomplete="off" value="{{ formulario.observacao }}">
+        {% for m in erros_por_campo.observacao %}<p class="campo-erro">{{ m }}</p>{% endfor %}
+      </div>
+    </section>
+
+    <section class="cartao" aria-labelledby="titulo-itens">
+      <h2 class="cartao-titulo" id="titulo-itens">Itens a receber</h2>
+      {% for m in erros_por_campo.itens %}<p class="campo-erro" role="alert">{{ m }}</p>{% endfor %}
+      <div class="tabela-rolagem">
+        <table class="tabela">
+          <thead>
+            <tr>
+              <th scope="col">Receber</th>
+              <th scope="col">Item</th>
+              <th scope="col">Material</th>
+              <th scope="col">Saldo livre</th>
+              <th scope="col">Quantidade</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for l in linhas %}
+            <tr>
+              <td>{% if l.motivo %}—{% else %}<input type="checkbox" id="marcar-{{ l.item_id }}" name="marcar-{{ l.item_id }}" value="1" aria-label="Receber o item {{ l.numero }}"{% if l.item_id in formulario.marcados %} checked{% endif %}>{% endif %}</td>
+              <td class="mono">{{ l.numero }}</td>
+              <td><span class="mono">{{ l.item.codigo }}</span>{% if l.material %} {{ l.material.nome }}{% endif %}{% if l.motivo %}<br><span class="texto-secundario texto-pequeno">Indisponível: {{ l.motivo }}.</span>{% endif %}</td>
+              <td>{{ l.saldo_livre|quantidade }} {{ l.item.unidade }}</td>
+              <td>
+                {% if not l.motivo %}
+                {% with erros_item=erros_por_campo|obter:l.campo_erro %}
+                <input id="qtd-{{ l.item_id }}" class="campo-entrada mono" type="text" name="qtd-{{ l.item_id }}" inputmode="decimal" autocomplete="off" value="{% if l.item_id in formulario.quantidades %}{{ formulario.quantidades|obter:l.item_id }}{% endif %}" aria-label="Quantidade do item {{ l.numero }}"{% if erros_item %} aria-invalid="true" aria-describedby="qtd-erro-{{ l.item_id }}"{% endif %}>
+                {% if erros_item %}<div id="qtd-erro-{{ l.item_id }}">{% for m in erros_item %}<p class="campo-erro">{{ m }}</p>{% endfor %}</div>{% endif %}
+                {% endwith %}
+                {% endif %}
+              </td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <div class="acoes">
+      <button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="check" %}{% if recebimento %}Salvar alterações{% else %}Preparar recebimento{% endif %}</button>
+      <a class="botao botao-texto" href="{% if recebimento %}{% url 'compras:recebimento' recebimento.pk %}{% else %}{% url 'compras:pedido' pedido.pk %}{% endif %}">Cancelar</a>
+    </div>
+  </form>
+</div>
+{% endblock %}

@@ -1,0 +1,2 @@
+{# O estado do recebimento em texto, com o selo. Espera `recebimento`. #}
+<span class="selo {% if recebimento.status == 'LANCADO' %}selo-ok{% elif recebimento.status == 'ERRO' or recebimento.status == 'VERIFICAR' %}selo-erro{% elif recebimento.status == 'CANCELADO' %}selo-neutro{% else %}selo-info{% endif %}">{{ recebimento.get_status_display }}</span>

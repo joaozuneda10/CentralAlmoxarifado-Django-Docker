@@ -23,8 +23,10 @@ class Entrar(LoginView):
     def get_default_redirect_url(self):
         """Sem `next`: o solicitante vai a "Meus pedidos"; a equipe, ao painel (a Segurança do
         Trabalho é levada à fila pelo middleware dela)."""
-        if eh_solicitante(self.request.user):
-            return reverse(ponto_de_partida(self.request.user))
+        usuario = self.request.user
+        destino = ponto_de_partida(usuario)
+        if eh_solicitante(usuario) or destino == "compras:pedidos":
+            return reverse(destino)
         return reverse(settings.LOGIN_REDIRECT_URL)
 
 

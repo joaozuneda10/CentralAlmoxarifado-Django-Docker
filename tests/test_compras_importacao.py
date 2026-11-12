@@ -64,6 +64,12 @@ def test_quantidade_com_5_casas_e_gravada_exata():
     assert (item.quantidade, item.saldo_scpi) == (Decimal("1.66651"), Decimal("1.66651"))
 
 
+def test_a_importacao_registra_o_exercicio_em_que_gravou():
+    assert _importar([_item()]).exercicio == ANO
+    outro = _importar([_item("00100/25", data=date(2025, 5, 2))], exercicio=2025)
+    assert outro.exercicio == 2025
+
+
 def test_a_segunda_importacao_atualiza_e_guarda_o_ja_entrou_anterior():
     _importar([_item(quantidade="100", ja_entrou="30"), _item(item=2, codigo="023.003.004")])
     segunda = _importar(

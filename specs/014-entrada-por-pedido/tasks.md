@@ -181,17 +181,17 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### Tests for User Story 1
 
-- [ ] T023 [US1] Criar a branch `claude/entradas-2-recebimento` a partir de `claude/entradas-1-pedidos`
-- [ ] T024 [P] [US1] Criar `tests/compras_cenario.py`, com:
+- [X] T023 [US1] Criar a branch `claude/entradas-2-recebimento` a partir de `claude/entradas-1-pedidos`
+- [X] T024 [P] [US1] Criar `tests/compras_cenario.py`, com:
   - `importar_pedido(itens, *, data, fornecedor="19502", exercicio=None) -> PedidoCompra`, que importa pelo CSV da T009 e cria o `Material` de cada código;
   - `preparar(pedido, usuario, itens: dict[int, str], nf="501", data=None, **kw) -> Recebimento`;
   - `usuario_recebedor()`, com `tests/papeis.py`.
-- [ ] T025 [P] [US1] Acrescentar a `tests/test_compras_regras.py` os casos de NF, saldo livre e validação:
+- [X] T025 [P] [US1] Acrescentar a `tests/test_compras_regras.py` os casos de NF, saldo livre e validação:
   - NF: `nf_normalizada("000000000501") == "501"`; vazio, zero, letra e mais de 12 dígitos recusados; `chave_nf("19502", "501") == "19502:501"`;
   - saldo livre no exemplo 100 → 30 → 20, com as reservas por estado da [tabela do data-model](data-model.md#recebimento-pr-2); o lançado reserva até uma importação começada depois do `visivel_desde`;
   - `sugestao_total` = o saldo livre de cada item disponível;
   - `validar_recebimento`: data futura, data antes do pedido, nenhum item, `1.5`, 4 casas, ≤ 0, acima do saldo livre (com o valor na mensagem), item de outro pedido; os erros juntados.
-- [ ] T026 [P] [US1] Escrever `tests/test_compras_recebimento.py`, os cenários 1 a 8 da US1, pelo serviço:
+- [X] T026 [P] [US1] Escrever `tests/test_compras_recebimento.py`, os cenários 1 a 8 da US1, pelo serviço:
   - "total" sugere 50;
   - 51 é recusado e nada é gravado;
   - parcial;
@@ -204,12 +204,12 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o pedido travado, ausente ou de outro exercício recusa;
   - a anulação depois do preparado (o reservado fica maior que o saldo do SCPI) deixa o pedido "precisa de conferência", com o saldo livre zero;
   - a edição e o cancelamento depois de uma tentativa `VERIFICAR` recusados.
-- [ ] T027 [P] [US1] Acrescentar a `tests/test_compras_recebimento.py` o teste de concorrência do cenário 7 (`pytest.mark.django_db(transaction=True)`, duas threads com conexões próprias, como os testes de travas de `tests/test_lancamento.py`): as duas preparam "total" do mesmo item; uma grava e a outra recebe a recusa com o saldo livre atualizado; a soma reservada ≤ saldo
-- [ ] T028 [P] [US1] Escrever `tests/test_compras_acesso.py`:
+- [X] T027 [P] [US1] Acrescentar a `tests/test_compras_recebimento.py` o teste de concorrência do cenário 7 (`pytest.mark.django_db(transaction=True)`, duas threads com conexões próprias, como os testes de travas de `tests/test_lancamento.py`): as duas preparam "total" do mesmo item; uma grava e a outra recebe a recusa com o saldo livre atualizado; a soma reservada ≤ saldo
+- [X] T028 [P] [US1] Escrever `tests/test_compras_acesso.py`:
   - as seis rotas `compras:*` com o usuário sem papel (403), o Atendimento e a Gestão (abrem), o solicitante (recusa pública) e a Segurança do Trabalho (bloqueada pelo middleware);
   - o item "Compras" do menu só para quem tem `receber_compras`;
   - a migration deu `receber_compras` aos grupos Atendimento e Gestão.
-- [ ] T029 [P] [US1] Escrever `tests/test_compras_telas.py`:
+- [X] T029 [P] [US1] Escrever `tests/test_compras_telas.py`:
   - a lista com a busca por número, fornecedor e código;
   - o detalhe com o saldo livre e o motivo de indisponibilidade;
   - o formulário "total" preenchido e o "parcial" vazio;
@@ -220,11 +220,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### Implementation for User Story 1
 
-- [ ] T030 [US1] Acrescentar `("receber_compras", "Receber compras (preparar, editar e cancelar recebimentos)")` a `Usuario.Meta.permissions` (`contas/models.py`) e `RECEBER = "contas.receber_compras"` a `PERMISSOES_INTERNAS` (`contas/acesso.py`); criar `contas/migrations/0007_receber_compras.py`.
+- [X] T030 [US1] Acrescentar `("receber_compras", "Receber compras (preparar, editar e cancelar recebimentos)")` a `Usuario.Meta.permissions` (`contas/models.py`) e `RECEBER = "contas.receber_compras"` a `PERMISSOES_INTERNAS` (`contas/acesso.py`); criar `contas/migrations/0007_receber_compras.py`.
   - A migration é RunPython: cria a permissão, a dá aos grupos `"Atendimento"` e `"Gestão"` (literais) e levanta erro se algum dos dois ficar sem ela.
   - Na volta, `noop`.
   - Depende de `contas/0006_solicitante`.
-- [ ] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0002_recebimento.py`.
+- [X] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0003_recebimento.py`.
   - **`Recebimento`**:
     - `envio` (UUID, único), `pedido` (FK, `PROTECT`);
     - `nf` (char 12, "só dígitos, sem os zeros à esquerda, diferente de zero"), `fornecedor_codigo` (char 20);
@@ -238,14 +238,14 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - `CheckConstraint`: com `LANCADO`, `requisicao_scpi` preenchido; com `VERIFICAR` ou `EM_LANCAMENTO`, `chave_nf` não nula.
   - **`ItemRecebimento`**: `quantidade` decimal(14,3), `CheckConstraint` `quantidade > 0`, único (`recebimento`, `item`).
   - **`TravaPedido`**: `motivo` com os choices `TELA`, `JA_ENTROU`, `FORA_DO_CENTRAL` e `MARCA_SEM_LANCAMENTO`; FKs nulas para `execucao`, `importacao`, `extracao` (esta acrescentada na T047) e `recebimento`; e `destravada_em`, `destravada_por` e `motivo_destrave`.
-- [ ] T032 [US1] Implementar em `compras/regras.py` `nf_normalizada`, `chave_nf`, `reserva_de(status, *, visivel_desde, inicio_ultima_importacao)`, `saldo_livre(saldo_scpi, reservas)`, `sugestao_total` e `validar_recebimento(...) -> list[Erro]`. `Erro` traz `campo` e `item` para a tela. As mensagens são as de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#formulário-do-recebimento), e a quantidade é lida por `pedidos.regras.interpretar_quantidade(texto, True)`. A T025 passa
-- [ ] T033 [US1] Implementar em `compras/consultas.py`:
+- [X] T032 [US1] Implementar em `compras/regras.py` `nf_normalizada`, `chave_nf`, `reserva_de(status, *, visivel_desde, inicio_ultima_importacao)`, `saldo_livre(saldo_scpi, reservas)`, `sugestao_total` e `validar_recebimento(...) -> list[Erro]`. `Erro` traz `campo` e `item` para a tela. As mensagens são as de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#formulário-do-recebimento), e a quantidade é lida por `pedidos.regras.interpretar_quantidade(texto, True)`. A T025 passa
+- [X] T033 [US1] Implementar em `compras/consultas.py`:
   - `ultima_importacao_pedidos()`, a última `PEDIDOS_COMPRA` com `SUCESSO`;
   - `reservado_por_item(pedido)`, uma consulta por tabela;
   - `saldos_do_pedido(pedido) -> list[LinhaSaldo]`, com o item, o material, a disponibilidade, o saldo do SCPI, o reservado e o saldo livre;
   - `travas_abertas(pedido)`;
   - `estado_do_pedido(pedido)`: disponível, travado, precisa de conferência (algum item com o reservado maior que o saldo do SCPI), ausente ou fora do exercício.
-- [ ] T034 [US1] Implementar `compras/servicos.py`.
+- [X] T034 [US1] Implementar `compras/servicos.py`.
   - **Operações**, cada uma em `transaction.atomic()` com `select_for_update` no `PedidoCompra`, refazendo o saldo livre dentro da trava:
     - `preparar_recebimento(pedido_id, usuario, *, envio, nf, data_recebimento, observacao, itens) -> Resposta`;
     - `editar_recebimento(recebimento_id, usuario, *, versao, ...)`;
@@ -260,22 +260,22 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - **Gravação**: a edição recria os itens e soma 1 na `versao`; o cancelamento sem tentativa põe `chave_nf=None`.
   - **Resposta**: o padrão de `pedidos.servicos` (sucesso, objeto e erros).
   - As T026 e T027 passam.
-- [ ] T035 [US1] Criar `compras/forms.py`, com `FormularioRecebimento` (NF, data, observação, `envio`, `versao` e um par caixa/quantidade por item disponível, montado a partir de `saldos_do_pedido` e do modo `total`/`parcial`) e `FormularioCancelamento` (motivo, `confirmado`)
-- [ ] T036 [US1] Criar `compras/views.py` e `compras/urls.py` (`app_name = "compras"`) com `pedidos`, `pedido`, `receber`, `recebimento`, `editar_recebimento` e `cancelar_recebimento`, nas URLs de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#compras-permissão-contasreceber_compras-atendimento-e-gestão).
+- [X] T035 [US1] Criar `compras/forms.py`, com `FormularioRecebimento` (NF, data, observação, `envio`, `versao` e um par caixa/quantidade por item disponível, montado a partir de `saldos_do_pedido` e do modo `total`/`parcial`) e `FormularioCancelamento` (motivo, `confirmado`)
+- [X] T036 [US1] Criar `compras/views.py` e `compras/urls.py` (`app_name = "compras"`) com `pedidos`, `pedido`, `receber`, `recebimento`, `editar_recebimento` e `cancelar_recebimento`, nas URLs de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#compras-permissão-contasreceber_compras-atendimento-e-gestão).
   - A view só lê e chama `compras.servicos`; a lista tem 50 por página com `_paginacao.html`.
   - Incluir `path("painel/compras/", include("compras.urls"))` em `config/urls.py`.
   - Acrescentar as seis rotas a `REGRAS_POR_ROTA` (`contas/acesso.py`), com `Regra` exigindo `contas.receber_compras` e o motivo "Receber compras é do Atendimento e da Gestão.".
-- [ ] T037 [US1] Criar os templates em `compras/templates/compras/`, sobre `base_almoxarifado.html`, com as skills `clean-design`, `ui-ux-pro-max` e `frontend-design`:
+- [X] T037 [US1] Criar os templates em `compras/templates/compras/`, sobre `base_almoxarifado.html`, com as skills `clean-design`, `ui-ux-pro-max` e `frontend-design`:
   - `pedidos.html`;
   - `pedido.html`, com os itens, o saldo livre, os recebimentos e as travas abertas em texto, e o estado "precisa de conferência" em texto (também na lista);
   - `receber.html`, o formulário com o resumo de erros no topo, o erro no campo e no item, e `inputmode="numeric"` na NF;
   - `recebimento.html`, com o histórico e o cancelamento num `<details>` com `confirmado=1`.
-- [ ] T038 [US1] Acrescentar o item "Compras" a `ITENS_MENU` em `interface/navegacao.py`, com um ícone já existente em `interface/templates/interface/_icone.html` (ou o SVG Lucide `package` acrescentado lá) e a rota `compras:pedidos`; a T028 e a T029 passam
+- [X] T038 [US1] Acrescentar o item "Compras" a `ITENS_MENU` em `interface/navegacao.py`, com um ícone já existente em `interface/templates/interface/_icone.html` (ou o SVG Lucide `package` acrescentado lá) e a rota `compras:pedidos`; a T028 e a T029 passam
 - [ ] T039 [US1] Conferir à mão no navegador local (servidor da porta 8000; dizer de qual checkout e branch ele serve), com screenshots:
   - a lista, o pedido, o "total" de 30 itens (SC-002) e o "parcial" com erro;
   - a 375 px, pelo teclado e sem depender de cor.
-- [ ] T040 [US1] Atualizar o `CLAUDE.md`: a permissão `receber_compras` na seção de papéis, a área Compras (rotas, saldo livre, reservas, NF única com `chave_nf` nula, `envio` e `versao`) e `compras/servicos.py` como porta única
-- [ ] T041 [US1] Portões do PR 2 (`pytest`, `ruff`, `makemigrations --check`, `DEBUG=0 check --deploy --fail-level WARNING`); commit
+- [X] T040 [US1] Atualizar o `CLAUDE.md`: a permissão `receber_compras` na seção de papéis, a área Compras (rotas, saldo livre, reservas, NF única com `chave_nf` nula, `envio` e `versao`) e `compras/servicos.py` como porta única
+- [X] T041 [US1] Portões do PR 2 (`pytest`, `ruff`, `makemigrations --check`, `DEBUG=0 check --deploy --fail-level WARNING`); commit
 
 **Checkpoint**: o recebimento é preparado, editado e cancelado com o saldo certo. Ele ainda não vai ao SCPI.
 
@@ -682,3 +682,12 @@ Esse corte já tem valor em produção: o saldo livre e a NF única, sem o robô
 - **[P]**: arquivos diferentes, sem dependência de tarefa incompleta.
 - **Commits**: um ao fim de cada fase, na branch do PR. Push, PR e merge só a pedido do usuário. O merge
   é de baixo para cima, um de cada vez, nunca pelo botão de stack nem pelo `merge-async`.
+
+---
+
+## Phase 9: Convergence
+
+- [X] T102 Alinhar o filtro SQL da lista de pedidos (`compras/views.py`) à `regras.disponibilidade`: só entra o pedido com item de código no cadastro e visível, ou com recebimento aberto, per contracts/tela-e-acoes.md `compras:pedidos` (partial)
+- [ ] T103 Trocar `compras.servicos.tem_tentativa` (hoje pelo `status`) pela existência de uma `TentativaEntrada` real que chegou ao `EM_LANCAMENTO`, sem contar a que parou antes do Salvar nem a simulação, quando o modelo existir no PR 4, per R6 (partial)
+- [ ] T104 (o resultado do passo 2 do quickstart já está registrado na T022, feito em 12/11/2026; **falta só a conferência visual da T039**) Registrar no PR 1 o resultado do passo 2 do quickstart e fazer a conferência visual da T039 (375 px, teclado, sem depender de cor) com o usuário, per US1/AC1 e SC-002 (missing)
+

@@ -465,6 +465,12 @@ class Importacao(models.Model):
     erro = models.TextField(blank=True)
     periodo_de = models.DateField("período de", null=True, blank=True)
     periodo_ate = models.DateField("período até", null=True, blank=True)
+    exercicio = models.PositiveSmallIntegerField(
+        "exercício",
+        null=True,
+        blank=True,
+        help_text="Só nas importações de pedidos de compra: o exercício em que foram gravadas.",
+    )
 
     class Meta:
         ordering = ["-inicio"]

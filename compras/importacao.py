@@ -202,6 +202,11 @@ def importar(
     criada: list[Importacao] = []
     vazio: list[bool] = []
 
+    def registrar(importacao: Importacao) -> None:
+        importacao.exercicio = exercicio
+        importacao.save(update_fields=["exercicio"])
+        criada.append(importacao)
+
     def obter() -> bytes:
         try:
             conteudo = obter_csv()
@@ -219,4 +224,4 @@ def importar(
         linhas = [] if vazio else ler_pedidos_compra(conteudo).linhas
         return gravar(linhas, criada[0], exercicio=exercicio, forcar=forcar)
 
-    return executar(Importacao.Tipo.PEDIDOS_COMPRA, obter, gravar_csv, ao_criar=criada.append)
+    return executar(Importacao.Tipo.PEDIDOS_COMPRA, obter, gravar_csv, ao_criar=registrar)
