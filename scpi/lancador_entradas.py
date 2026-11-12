@@ -180,7 +180,11 @@ class NavegadorEntradas(Sessao):
             log("  etapa: abrir pedido")
             numero, ano = _numero_pedido(rec)
             frame.get_by_role("button", name="Inserir", exact=True).click()
-            frame.get_by_role("menuitem", name=re.compile("por pedido", re.I)).click()  # R25
+            # O diálogo "Nova Requisição de Entrada" tem os botões Por Pedido, Por Produto, Por
+            # Subpedido, Por Devolução e Copiar Existente (SCPI, 12/11/2026).
+            frame.get_by_role("button", name=re.compile(r"^\s*Por Pedido\s*$", re.I)).filter(
+                visible=True
+            ).first.click()
             pesquisa = frame.get_by_label(re.compile("Pesquisa Pedido de Compra", re.I))
             pesquisa.wait_for(state="visible", timeout=TIMEOUT)
             pesquisa.get_by_label(re.compile(r"N[úu]mero", re.I)).fill(numero)  # R25
