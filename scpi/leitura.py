@@ -8,8 +8,9 @@ import csv
 import io
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from compras.regras import CONTROLE_QUANTIDADE, CONTROLES, chave_pedido
 from conciliacao.regras import chave
 from pedidos.regras import norm_u
 from scpi.normalizadores import registros_produtos, registros_saidas
@@ -70,6 +71,18 @@ def decimal_br(texto: str) -> Decimal:
     if not valor.is_finite():
         raise ValueError(f"número inválido: {texto!r}")
     return valor
+
+
+def _preco_que_cabe(valor: Decimal) -> Decimal:
+    """O preço unitário do 07.13 arredondado a 4 casas (meio para cima). O SCPI o escreve com mais
+    casas (1,66651 no pedido 00060/25, 12/11/2026), mas o preço só informa: nada do saldo nem do
+    recebimento depende dele, então arredondar não vale uma importação recusada."""
+    if abs(valor) >= TETO_QUANTIDADE:
+        raise ValueError(f"preço fora do limite: {valor}")
+    arredondado = valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE), rounding=ROUND_HALF_UP)
+    if abs(arredondado) >= TETO_QUANTIDADE:  # 9999999999,99995 sobe para 10000000000,0000
+        raise ValueError(f"preço fora do limite: {valor}")
+    return arredondado
 
 
 def data_br(texto: str) -> date:
@@ -288,15 +301,23 @@ CASAS_QUANTIDADE = 4
 TETO_QUANTIDADE = Decimal(10) ** (14 - CASAS_QUANTIDADE)
 
 
-def _quantidade_que_cabe(valor: Decimal) -> Decimal:
+# Limite de `compras.ItemPedidoCompra` (18 dígitos com 6 casas): o 07.13 traz quantidades com 5
+# casas (1,66651 no pedido 00060/25, 12/11/2026), que não cabem nos 4 das requisições.
+CASAS_QUANTIDADE_PEDIDO = 6
+TETO_QUANTIDADE_PEDIDO = Decimal(10) ** (18 - CASAS_QUANTIDADE_PEDIDO)
+
+
+def _quantidade_que_cabe(
+    valor: Decimal, casas: int = CASAS_QUANTIDADE, teto: Decimal = TETO_QUANTIDADE
+) -> Decimal:
     """A quantidade como veio, se cabe exata no campo do banco; senão, ValueError.
 
-    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado a 4 casas é exato
+    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado às `casas` é exato
     (o `normalize()` arredondaria pela precisão do contexto e aceitaria uma fração longa)."""
-    if abs(valor) >= TETO_QUANTIDADE:
+    if abs(valor) >= teto:
         raise ValueError(f"quantidade fora do limite: {valor}")
-    if valor != valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE)):
-        raise ValueError(f"quantidade com mais de {CASAS_QUANTIDADE} casas: {valor}")
+    if valor != valor.quantize(Decimal(1).scaleb(-casas)):
+        raise ValueError(f"quantidade com mais de {casas} casas: {valor}")
     return valor
 
 
@@ -404,3 +425,141 @@ def ler_requisicoes(conteudo: bytes) -> Leitura:
             )
         )
     return Leitura(requisicoes, [])
+
+
+@dataclass(frozen=True)
+class LinhaPedidoCompra:
+    """Um item de um pedido de compra, como o 07.13 o traz (spec 014)."""
+
+    ano: int
+    numero: int
+    data: date
+    fornecedor_codigo: str
+    fornecedor_nome: str
+    item: int
+    codigo: str
+    unidade: str
+    controle: str
+    quantidade: Decimal
+    anulado: Decimal
+    ja_entrou: Decimal
+    pedida: Decimal
+    saldo: Decimal
+    preco: Decimal
+
+
+def ler_pedidos_compra(conteudo: bytes) -> Leitura:
+    """07.13 "Relação de Pedidos (Condição da Entrega)" → `LinhaPedidoCompra`, uma por item.
+
+    Tudo ou nada (contrato `specs/014-entrada-por-pedido/contracts/relatorios-scpi.md`): relatório
+    cortado, número ilegível, item repetido, mais de um fornecedor por pedido, controle de saldo
+    desconhecido ou `QTDFALTA` fora da conta num item de quantidade é `ErroImportacao`, e nada da
+    leitura é aproveitado."""
+    rotulo = "Pedidos de compra do SCPI"
+    obrigatorias = [
+        "NUMPED",
+        "DATPED",
+        "CODIF",
+        "NOME",
+        "ITEM",
+        "CADPRO",
+        "UNID1",
+        "TPCONTROLE_SALDO",
+        "QTD",
+        "PRCUNT",
+        "QTDANU",
+        "QTDENT",
+        "QTDFALTA",
+        "QTDPEDIDA",
+    ]
+    tabela = _tabela(conteudo, rotulo, registros_saidas, "GRUPO", obrigatorias, completos=True)
+    if not tabela:
+        raise ErroImportacao(f"{rotulo}: o relatório não tem nenhum item; nada foi gravado.")
+
+    linhas: list[LinhaPedidoCompra] = []
+    vistos: set[tuple[int, int, int]] = set()
+    cabecalho_do_pedido: dict[tuple[int, int], tuple[str, date, str]] = {}
+    for posicao, r in enumerate(tabela, start=1):
+        try:
+            ano, numero = chave_pedido(r["NUMPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: número de pedido inválido na linha {posicao} ('{r['NUMPED']}')."
+            ) from None
+        try:
+            item = int(r["ITEM"])
+            data = data_br(r["DATPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: item ou data inválidos no pedido {r['NUMPED']} (linha {posicao})."
+            ) from None
+        if (ano, numero, item) in vistos:
+            raise ErroImportacao(
+                f"{rotulo}: o item {item} do pedido {r['NUMPED']} está repetido no relatório."
+            )
+        vistos.add((ano, numero, item))
+        for coluna in ("CODIF", "CADPRO"):
+            if not r[coluna].strip():
+                raise ErroImportacao(
+                    f"{rotulo}: {coluna} vazio no item {item} do pedido {r['NUMPED']}; "
+                    "nada foi gravado."
+                )
+        primeiro = cabecalho_do_pedido.setdefault((ano, numero), (r["CODIF"], data, r["NOME"]))
+        if primeiro[0] != r["CODIF"]:
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem mais de um fornecedor no relatório."
+            )
+        if primeiro[1:] != (data, r["NOME"]):
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem data ou nome de fornecedor diferentes "
+                f"entre os itens (item {item}); nada foi gravado."
+            )
+        controle = r["TPCONTROLE_SALDO"]
+        if controle not in CONTROLES:
+            raise ErroImportacao(
+                f"{rotulo}: TPCONTROLE_SALDO desconhecido ('{controle}') no item {item} do "
+                f"pedido {r['NUMPED']}; esperado Q ou T."
+            )
+        valores: dict[str, Decimal] = {}
+        for coluna in ("QTD", "QTDANU", "QTDENT", "QTDPEDIDA", "QTDFALTA", "PRCUNT"):
+            try:
+                lido = decimal_br(r[coluna])
+                valores[coluna] = (
+                    _preco_que_cabe(lido)
+                    if coluna == "PRCUNT"
+                    else _quantidade_que_cabe(lido, CASAS_QUANTIDADE_PEDIDO, TETO_QUANTIDADE_PEDIDO)
+                )
+            except ValueError as exc:
+                raise ErroImportacao(
+                    f"{rotulo}: {coluna} inválido no item {item} do pedido {r['NUMPED']} ({exc})."
+                ) from None
+        quantidade, anulado, ja_entrou, pedida, saldo, preco = (
+            valores[c] for c in ("QTD", "QTDANU", "QTDENT", "QTDPEDIDA", "QTDFALTA", "PRCUNT")
+        )
+        if controle == CONTROLE_QUANTIDADE and saldo != quantidade - anulado - ja_entrou - pedida:
+            raise ErroImportacao(
+                f"{rotulo}: QTDFALTA do item {item} do pedido {r['NUMPED']} é {saldo}, mas "
+                f"QTD − QTDANU − QTDENT − QTDPEDIDA dá "
+                f"{quantidade - anulado - ja_entrou - pedida}; "
+                "nada foi gravado."
+            )
+        linhas.append(
+            LinhaPedidoCompra(
+                ano=ano,
+                numero=numero,
+                data=data,
+                fornecedor_codigo=r["CODIF"],
+                fornecedor_nome=r["NOME"],
+                item=item,
+                codigo=r["CADPRO"],
+                unidade=r["UNID1"],
+                controle=controle,
+                quantidade=quantidade,
+                anulado=anulado,
+                ja_entrou=ja_entrou,
+                pedida=pedida,
+                saldo=saldo,
+                preco=preco,
+            )
+        )
+    return Leitura(linhas, [])

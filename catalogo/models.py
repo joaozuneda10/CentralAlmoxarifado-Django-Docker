@@ -446,6 +446,8 @@ class Importacao(models.Model):
         SAIDAS = "SAIDAS", "Saídas do SCPI"
         DEPARA = "DEPARA", "Pares de/para"
         REQUISICOES = "REQUISICOES", "Requisições do SCPI"
+        PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"
+        ENTRADAS = "ENTRADAS", "Entradas do SCPI"
 
     class Situacao(models.TextChoices):
         ANDAMENTO = "ANDAMENTO", "Em andamento"

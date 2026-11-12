@@ -528,9 +528,11 @@ def _demais(
         )
     else:
         saude += _destinos_e_excecoes(ab, catalogos)
+    from compras.saude import avisos as avisos_das_compras  # o app depende deste
     from conciliacao.saude import avisos as avisos_da_conciliacao  # o app depende deste
 
     saude += avisos_da_conciliacao(agora)
+    saude += avisos_das_compras(agora)
     return saude
 
 

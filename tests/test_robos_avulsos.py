@@ -207,11 +207,12 @@ def test_automacoes_tem_uma_aba_por_robo(client, usuario_logado):
         "cadastro",
         "estoque",
         "saidas",
+        "pedidos_compra",
     ]
-    for robo in ("cadastro", "estoque", "saidas"):
+    for robo in ("cadastro", "estoque", "saidas", "pedidos_compra"):
         assert f'action="{reverse("automacoes:importar", args=[robo])}"' in texto
     ids = re.findall(r'\sid="([^"]+)"', texto)
-    assert len(ids) == len(set(ids))  # os três formulários não repetem ids
+    assert len(ids) == len(set(ids))  # os formulários não repetem ids
 
 
 def test_aba_ativa_vem_da_url(client, usuario_logado):
@@ -307,7 +308,7 @@ def test_csv_enviado_e_descartado_se_o_disparo_quebra(
 def test_botoes_dos_robos_ficam_desabilitados_com_importacao_em_andamento(client, usuario_logado):
     Importacao.objects.create(tipo="CADASTRO")
     texto = client.get(reverse("automacoes:pagina")).text
-    assert len(re.findall(r"<button[^>]*data-robo-rodar[^>]*disabled", texto)) == 3
+    assert len(re.findall(r"<button[^>]*data-robo-rodar[^>]*disabled", texto)) == 4
     assert 'data-em-andamento="1"' in texto
 
 

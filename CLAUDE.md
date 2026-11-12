@@ -112,8 +112,9 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 (`docker compose ... exec web python manage.py ...`), não pelo `uv run`, sempre com o projeto e os
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
-Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`)
-e `atualizar_catalogo` (os três em sequência e, por último, `conciliar_lancamentos --diaria`, a
+Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`),
+`importar_pedidos_compra` (07.13, `--forcar`) e `atualizar_catalogo` (os três em sequência e,
+por último, `conciliar_lancamentos --diaria`, a
 extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
 `--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
 botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
@@ -788,6 +789,27 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   pode estar apontando para o bruto) e a da conciliação (nenhuma liga uma requisição no meio da
   exclusão); com alguma ocupada, fica para a próxima. Uma falha da conciliação, prevista ou não, não
   impede a limpeza, e as duas falhas saem juntas no erro do comando.
+- Entrada de materiais por pedido de compra (spec `specs/014-entrada-por-pedido/`, entregue em PRs
+  empilhados; o plano diz o que cada um traz). O app `compras` (PR 1) guarda os **pedidos de compra
+  do SCPI**: `PedidoCompra` (exercício, ano e número do `NUMPED` `00514/26`, fornecedor, e o
+  `ausente_desde`) e `ItemPedidoCompra` (quantidade, anulado, `ja_entrou` e o `ja_entrou_anterior`,
+  nulo na primeira importação, que é a base; `saldo_scpi`, `controle` `Q`/`T`). A fonte é o **07.13**
+  "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar"
+  (`scpi.relatorios.baixar_pedidos_compra`, perfil `pedidos_compra`): **nunca o 01.08.03 Imprimir
+  Pedidos**, que grava a Data Emissão e um contador no pedido. `scpi.leitura.ler_pedidos_compra` é
+  pura e tudo ou nada (`QTDFALTA` conferido nos itens `Q`, item repetido, dois fornecedores no
+  pedido, `NUMPED` fora de `00000/00` e relatório cortado são `ErroImportacao`).
+  `compras.importacao.importar` roda sobre `scpi.execucao.executar` (tipo `PEDIDOS_COMPRA`, trava
+  própria): cria e atualiza, e o pedido e o item que somem ficam com `ausente_desde` (volta a nulo
+  se reaparecem), nunca são apagados; marcar ausentes mais de 20% dos itens presentes aborta sem
+  `--forcar` (Princípio IV, como o cadastro). O exercício é o ano corrente e o pedido de outro
+  exercício nunca é tocado. `compras/regras.py` (puro) tem `chave_pedido`, `rotulo_pedido` e
+  `disponibilidade` (o motivo em pt-BR de o item não poder ser recebido, ou `None`: controle `Q`,
+  código no cadastro e visível, pedido do exercício atual e presente, até 3 casas e saldo > 0).
+  `importar_pedidos_compra [--arquivo] [--apagar-arquivo] [--forcar]` e a aba "Pedidos de compra" de
+  Automações (`catalogo.forms.RoboPedidosCompraForm`, com a caixa "Gravar mesmo que muitos itens
+  sumam") a rodam; o admin de `PedidoCompra` é só leitura e `compras.saude` avisa importação com
+  falha ou sem sucesso há mais de um dia útil.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

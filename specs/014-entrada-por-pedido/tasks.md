@@ -95,10 +95,10 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T005 Criar a branch `claude/entradas-1-pedidos` a partir de `claude/entrada-por-pedido`
-- [ ] T006 Criar o app `compras` com `compras/__init__.py`, `compras/apps.py` (`name = "compras"`, `verbose_name = "Compras"`), `compras/models.py`, `compras/admin.py` e `compras/migrations/__init__.py`; acrescentar `"compras"` em `INSTALLED_APPS` de `config/settings.py`
-- [ ] T007 Acrescentar a `catalogo.Importacao.Tipo` (`catalogo/models.py`) os valores `PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"` e `ENTRADAS = "ENTRADAS", "Entradas do SCPI"`; gerar `catalogo/migrations/0009_importacao_compras.py`, só com os `choices`
-- [ ] T008 Criar `PedidoCompra` e `ItemPedidoCompra` em `compras/models.py`, conforme [data-model.md](data-model.md#pedidocompra-pr-1), e gerar `compras/migrations/0001_initial.py`.
+- [X] T005 Criar a branch `claude/entradas-1-pedidos` a partir de `claude/entrada-por-pedido`
+- [X] T006 Criar o app `compras` com `compras/__init__.py`, `compras/apps.py` (`name = "compras"`, `verbose_name = "Compras"`), `compras/models.py`, `compras/admin.py` e `compras/migrations/__init__.py`; acrescentar `"compras"` em `INSTALLED_APPS` de `config/settings.py`
+- [X] T007 Acrescentar a `catalogo.Importacao.Tipo` (`catalogo/models.py`) os valores `PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"` e `ENTRADAS = "ENTRADAS", "Entradas do SCPI"`; gerar `catalogo/migrations/0009_importacao_compras.py`, só com os `choices`
+- [X] T008 Criar `PedidoCompra` e `ItemPedidoCompra` em `compras/models.py`, conforme [data-model.md](data-model.md#pedidocompra-pr-1), e gerar `compras/migrations/0001_initial.py`.
   - **`PedidoCompra`**:
     - `exercicio` (smallint), `ano` (smallint, "o ano de origem do `NUMPED`"), `numero` (int);
     - `data` (date), `fornecedor_codigo` (char 20), `fornecedor_nome` (char 200);
@@ -112,11 +112,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - `ja_entrou_anterior` (decimal(14,4), nulo: "nulo na primeira, que é a base");
     - `ausente_desde` (FK nula → `Importacao`);
     - único (`pedido`, `item`) e índice em (`pedido`, `codigo`).
-- [ ] T009 [P] Criar `tests/relacao_pedidos_compra.py`: um gerador de CSV sintético do 07.13 no formato real de [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#0713-relação-de-pedidos-condição-da-entrega).
+- [X] T009 [P] Criar `tests/relacao_pedidos_compra.py`: um gerador de CSV sintético do 07.13 no formato real de [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#0713-relação-de-pedidos-condição-da-entrega).
   - Formato: as 79 colunas na ordem real, `;`, sem aspas, `\r\n`, com BOM e com `GRUPO`/`GRUPO_1` iguais a `DATPED`.
   - Função: `csv_pedidos(itens: list[dict]) -> bytes`, com padrões para as colunas não usadas e a opção `quebrar_registro=True`, que põe uma quebra de linha dentro de `OBSITEM`.
   - Sem nome de pessoa real.
-- [ ] T010 [P] Escrever `tests/test_scpi_leitura_pedidos_compra.py`. Casos:
+- [X] T010 [P] Escrever `tests/test_scpi_leitura_pedidos_compra.py`. Casos:
   - a leitura correta de `Q` e `T`;
   - `QTDFALTA` diferente de `QTD − QTDANU − QTDENT − QTDPEDIDA` num item `Q` → `ErroImportacao`;
   - relatório cortado (contagem de campos);
@@ -128,13 +128,13 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - coluna obrigatória faltando;
   - CSV sem itens;
   - quantidade com 4 casas lida sem perda.
-- [ ] T011 Implementar em `scpi/leitura.py` a dataclass `LinhaPedidoCompra` (ano, numero, data, fornecedor_codigo, fornecedor_nome, item, codigo, unidade, controle, quantidade, anulado, ja_entrou, pedida, saldo, preco) e `ler_pedidos_compra(conteudo: bytes) -> Leitura`, pura, tudo ou nada, sobre `_tabela`, `decimal_br` e `data_br`, com as colunas e regras do contrato; a T010 passa
-- [ ] T012 [P] Escrever a parte de disponibilidade em `tests/test_compras_regras.py`. Casos:
+- [X] T011 Implementar em `scpi/leitura.py` a dataclass `LinhaPedidoCompra` (ano, numero, data, fornecedor_codigo, fornecedor_nome, item, codigo, unidade, controle, quantidade, anulado, ja_entrou, pedida, saldo, preco) e `ler_pedidos_compra(conteudo: bytes) -> Leitura`, pura, tudo ou nada, sobre `_tabela`, `decimal_br` e `data_br`, com as colunas e regras do contrato; a T010 passa
+- [X] T012 [P] Escrever a parte de disponibilidade em `tests/test_compras_regras.py`. Casos:
   - `chave_pedido("00514/26") == (2026, 514)`, e o inválido levanta `ValueError`;
   - `rotulo_pedido(2026, 514) == "00514/26"`;
   - `disponibilidade` com cada motivo: `T`, código fora do cadastro, material oculto, pedido de outro exercício, pedido ausente, item ausente, quantidade com 4 casas, saldo zero; e o disponível.
-- [ ] T013 Implementar em `compras/regras.py` (puro, sem ORM) `chave_pedido`, `rotulo_pedido` e `disponibilidade(item, *, material_visivel: bool, exercicio_atual: int) -> str | None`. Devolve `None` se o item é disponível ou o motivo em pt-BR ([R4](research.md#r4-item-disponível-para-recebimento)). A T012 passa
-- [ ] T014 [P] Escrever `tests/test_compras_importacao.py`, com o CSV da T009 e um `obter_csv` falso. Casos:
+- [X] T013 Implementar em `compras/regras.py` (puro, sem ORM) `chave_pedido`, `rotulo_pedido` e `disponibilidade(item, *, material_visivel: bool, exercicio_atual: int) -> str | None`. Devolve `None` se o item é disponível ou o motivo em pt-BR ([R4](research.md#r4-item-disponível-para-recebimento)). A T012 passa
+- [X] T014 [P] Escrever `tests/test_compras_importacao.py`, com o CSV da T009 e um `obter_csv` falso. Casos:
   - a primeira importação cria pedidos e itens com `ja_entrou_anterior` nulo;
   - a segunda atualiza e guarda o `ja_entrou_anterior`;
   - o item e o pedido que somem ficam `ausente_desde` e nada é apagado;
@@ -143,31 +143,31 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o exercício vem do ano corrente, e o pedido igual noutro exercício é outro `PedidoCompra`;
   - a falha de leitura deixa a `Importacao` `FALHA` sem mudar nada;
   - a trava do tipo ocupada levanta `ImportacaoEmAndamento`.
-- [ ] T015 Implementar `compras/importacao.py`, com `gravar(linhas, importacao, *, exercicio, forcar=False) -> Resultado` (`scpi.execucao.Resultado`) e `importar(obter_csv, *, forcar=False) -> Importacao`, sobre `scpi.execucao.executar(Importacao.Tipo.PEDIDOS_COMPRA, ...)`.
+- [X] T015 Implementar `compras/importacao.py`, com `gravar(linhas, importacao, *, exercicio, forcar=False) -> Resultado` (`scpi.execucao.Resultado`) e `importar(obter_csv, *, forcar=False) -> Importacao`, sobre `scpi.execucao.executar(Importacao.Tipo.PEDIDOS_COMPRA, ...)`.
   - Na gravação: `bulk_create` e `bulk_update` em blocos, `ausente_desde` e o corte de 20% ([R3](research.md#r3-fonte-dos-pedidos-o-0713-com-saldo-a-entregar)).
   - Os avisos em `Resultado.avisos`.
   - A T014 passa.
-- [ ] T016 Implementar `baixar_pedidos_compra() -> bytes` em `scpi/relatorios.py`, conforme [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md).
+- [X] T016 Implementar `baixar_pedidos_compra() -> bytes` em `scpi/relatorios.py`, conforme [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md).
   - Navegação: Relatórios › 07.13 "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar" e Salvar Arquivo › CSV (Dados), pelo `interceptar_csv`.
   - Os campos são achados pelo rótulo (`JS_CAMPO_ABAIXO_DO_ROTULO` e a legenda do quadro), nunca pelo ID.
   - O relatório termina com "Fechar relatório" e "Sair", e o perfil é `pedidos_compra`.
   - Sem teste de navegação (Princípio V). Num comentário no topo da função: nunca o 01.08.03.
-- [ ] T017 Criar o comando `importar_pedidos_compra` (`--arquivo`, `--apagar-arquivo`, `--forcar`) em `compras/management/commands/importar_pedidos_compra.py`, conforme [contracts/comandos.md](contracts/comandos.md#importar_pedidos_compra-pr-1).
+- [X] T017 Criar o comando `importar_pedidos_compra` (`--arquivo`, `--apagar-arquivo`, `--forcar`) em `compras/management/commands/importar_pedidos_compra.py`, conforme [contracts/comandos.md](contracts/comandos.md#importar_pedidos_compra-pr-1).
   - Lê o arquivo enviado ou chama `baixar_pedidos_compra`, dentro de `relatorios.sessao_compartilhada` quando for chamado pelo `atualizar_catalogo`.
   - A saída lista as contagens.
   - A `FALHA` sai com `CommandError`.
   - A recusa com execução de entradas em andamento depende de `ExecucaoRobo.robo` e entra no PR 4 (T064). Até lá, a trava do tipo é a barreira.
   - Testes em `tests/test_compras_importacao.py`: o comando com `--arquivo` e o `--apagar-arquivo`, mesmo quando falha.
-- [ ] T018 Ligar a importação a Automações:
+- [X] T018 Ligar a importação a Automações:
   - `Robo("pedidos_compra", "Pedidos de compra", ...)` com um `RoboPedidosCompraForm(RoboForm)`, que tem o campo `forcar` "Gravar mesmo que muitos itens sumam", em `catalogo/forms.py` (a aba vem do `ABAS`);
   - `"pedidos_compra": "importar_pedidos_compra"` em `COMANDOS_IMPORTACAO` (`scpi/disparo.py`);
   - os rótulos do tipo em `automacoes/historico.py`.
 
   Testes em `tests/test_automacoes.py`: a aba aparece, o POST com CSV inicia o comando e o histórico mostra "Pedidos de compra".
-- [ ] T019 [P] Registrar `PedidoCompra` (com os itens em linha) só para leitura em `compras/admin.py`, com `has_add_permission`, `has_change_permission` e `has_delete_permission` falsos; teste em `tests/test_compras_admin.py`: a lista abre, e adicionar, alterar e apagar são recusados
-- [ ] T020 [P] Criar `compras/saude.py`, com `avisos() -> list[str]` (importação de pedidos com falha na última execução ou sem sucesso há mais de um dia útil, como `conciliacao.saude.um_dia_util_depois`), e chamá-la em `catalogo.saude._demais`; testes em `tests/test_compras_saude.py`
-- [ ] T021 Atualizar o `CLAUDE.md`: o app `compras` (pedidos de compra, 07.13, nunca o 01.08.03, ausentes e o corte de 20%), o comando `importar_pedidos_compra` e a aba "Pedidos de compra"
-- [ ] T022 Portões do PR 1: `uv run pytest`, `ruff check`, `ruff format --check` e `makemigrations --check --dry-run`; pedir ao usuário o [quickstart, passo 2](quickstart.md#2-pedidos-de-compra-do-scpi-real-pr-1-manual) (o Log do pedido sem alteração) e anotar o resultado no PR; commit
+- [X] T019 [P] Registrar `PedidoCompra` (com os itens em linha) só para leitura em `compras/admin.py`, com `has_add_permission`, `has_change_permission` e `has_delete_permission` falsos; teste em `tests/test_compras_admin.py`: a lista abre, e adicionar, alterar e apagar são recusados
+- [X] T020 [P] Criar `compras/saude.py`, com `avisos() -> list[str]` (importação de pedidos com falha na última execução ou sem sucesso há mais de um dia útil, como `conciliacao.saude.um_dia_util_depois`), e chamá-la em `catalogo.saude._demais`; testes em `tests/test_compras_saude.py`
+- [X] T021 Atualizar o `CLAUDE.md`: o app `compras` (pedidos de compra, 07.13, nunca o 01.08.03, ausentes e o corte de 20%), o comando `importar_pedidos_compra` e a aba "Pedidos de compra"
+- [X] T022 (portões automáticos verdes em 12/11/2026, 2609 testes; **passo manual 2 do quickstart feito pelo usuário em 12/11/2026, contra o SCPI real**: importação de 693 pedidos e 2877 itens, a repetição com 0 itens novos e nenhum ausente, itens `T`, de serviço (grupo 800) e de combustível fora dos disponíveis e o Log do pedido 00545/26 sem nenhuma alteração nos horários das importações. O teste achou quatro ajustes na navegação e na leitura do 07.13: o item do menu ("07.13. Relação de Pedidos Entregues e Não Entregues"), o rádio Analítico pelo nome exato, o formulário como aba e quantidades com 5 casas, que ganharam a migration `compras/0002`) Portões do PR 1: `uv run pytest`, `ruff check`, `ruff format --check` e `makemigrations --check --dry-run`; pedir ao usuário o [quickstart, passo 2](quickstart.md#2-pedidos-de-compra-do-scpi-real-pr-1-manual) (o Log do pedido sem alteração) e anotar o resultado no PR; commit
 
 **Checkpoint**: os pedidos e os itens disponíveis estão no banco, e a importação é segura.
 
