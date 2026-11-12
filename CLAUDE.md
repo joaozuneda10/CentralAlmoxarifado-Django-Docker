@@ -864,7 +864,12 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `TentativaEntrada` `VERIFICAR` com a foto e a tela lida; fecha antes do clique), journal
   `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
   → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
-  com `FalhaCritica` e o número está no journal). Roda sob `TRAVA_LANCAMENTO` **e** a trava da
+  com `FalhaCritica` e o número está no journal). O journal de antes do Salvar e o do número são
+  críticos: sem conseguir gravá-los a execução para, com o recebimento travado (o número ainda vai
+  ao banco e ao log). A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
+  marca) ela já achou numa requisição (`compras.robo.ja_no_scpi`: `ERRO`, nada salvo), e o `ERRO`
+  de antes do Salvar só é gravado se o recebimento continua `PREPARADO` na versão selecionada. O
+  `_travar` trava o pedido e depois o recebimento, a ordem de `compras.servicos`. Roda sob `TRAVA_LANCAMENTO` **e** a trava da
   importação de pedidos (nenhuma importação de pedidos durante o lançamento); o
   `importar_pedidos_compra` recusa com uma execução de entradas em andamento. A simulação
   (`--dry-run`) abre, confere, preenche e cancela, sem tentativa, estado nem extração (a divergência
@@ -896,7 +901,9 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   recebimento em verificação exigem as três provas (`consultas.liberacao` sobre `regras.tres_provas`:
   extração de entradas posterior que não seja de arquivo, nenhuma candidata em nenhuma conferência
   da tentativa e o "Já Entrou" da tela antes do Salvar, gravado na foto, igual na importação de
-  pedidos posterior). `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
+  pedidos posterior, que tem de ser lida do SCPI na hora: a de um CSV, `Importacao.de_arquivo`,
+  migration `catalogo/0011`, não prova nada enquanto for a última). O recebimento liberado e depois
+  cancelado pelo serviço comum mantém a NF reservada. `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
   `TRAVA_LANCAMENTO`, recusa com robô rodando) liga a candidata como `LANCADO` (`via=ROBO`,
   `visivel_desde` = início da extração), devolve **o mesmo** recebimento a `PREPARADO` com
   `versao + 1` e a NF ainda reservada (a tentativa antiga passa a `IGNORADA`, para não travar a
@@ -915,7 +922,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   conclusiva `LANCAMENTO`, depois `REVISAO` com `alterado_depois`; `ARQUIVO` só dá o primeiro
   veredito; o recebimento lançado nunca muda). **Entrada fora do Central**: a requisição de um pedido
   conhecido, sem a marca, ainda não ligada e com número **acima do marco** (`consultas.marco`, o
-  `maior_requisicao` da primeira extração bem-sucedida) liga à mão o recebimento aberto com a mesma NF
+  `maior_requisicao` da primeira extração bem-sucedida, ou `MARCO_VAZIO` se ela veio sem entradas) liga à mão o recebimento aberto com a mesma NF
   e o mesmo fornecedor (`servicos.ligar_a_mao`, `via=MANUAL`) ou vira `EntradaForaDoCentral`
   (reserva o saldo por código até a importação a refletir e trava o pedido `FORA_DO_CENTRAL`); a marca
   de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
