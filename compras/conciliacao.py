@@ -8,17 +8,22 @@ grava `ConferenciaRecebimento` e `CandidataEntrada`.
 
 import logging
 from contextlib import contextmanager
+from datetime import date
+from decimal import Decimal
 
 from django.db import Error, connection, transaction
 
 from catalogo.models import Importacao
-from compras import regras
+from compras import consultas, regras
 from compras.models import (
     CandidataEntrada,
     ConferenciaRecebimento,
+    EntradaForaDoCentral,
     ExtracaoEntradas,
+    PedidoCompra,
     Recebimento,
     TentativaEntrada,
+    TravaPedido,
 )
 from conciliacao import regras as regras_saidas
 
@@ -207,9 +212,323 @@ def conciliar_verificar(extracao: ExtracaoEntradas, falhas: list[str] | None = N
     return gravadas
 
 
+def _oficial(requisicao) -> regras.EntradaOficial:
+    return regras.EntradaOficial(
+        requisicao=requisicao.requisicao,
+        recebimento_observado=requisicao.recebimento_observado,
+        fornecedor_codigo=requisicao.fornecedor_codigo,
+        nf=requisicao.nf,
+        pedido_ano=requisicao.pedido_ano,
+        pedido_numero=requisicao.pedido_numero,
+        data_entrada=requisicao.data_entrada,
+        itens=tuple((i.codigo, i.quantidade) for i in requisicao.itens.all()),
+    )
+
+
+def _entrega(recebimento: Recebimento, tentativa) -> regras.EntregaEntrada:
+    """O que o recebimento deveria ter feito no SCPI: a foto da tentativa (o que o robô digitou) ou,
+    sem ela, o próprio recebimento (um lançado à mão ou de antes da conciliação)."""
+    foto = tentativa.foto if tentativa and tentativa.foto else None
+    pedido = recebimento.pedido
+    if foto:
+        itens = tuple((i["codigo"], Decimal(str(i["quantidade"]))) for i in foto["itens"])
+        dia = date.fromisoformat(foto["data"])
+    else:
+        itens = tuple(
+            (linha.item.codigo, linha.quantidade)
+            for linha in recebimento.itens.select_related("item")
+        )
+        dia = recebimento.data_recebimento
+    return regras.EntregaEntrada(
+        fornecedor_codigo=recebimento.fornecedor_codigo,
+        nf=recebimento.nf,
+        pedido_ano=pedido.ano,
+        pedido_numero=pedido.numero,
+        data=dia,
+        itens=itens,
+    )
+
+
+def _primeira_conclusiva(recebimento):
+    from compras.consultas import _conclusivas
+
+    return (
+        _conclusivas(recebimento).select_related("requisicao").order_by("criada_em", "pk").first()
+    )
+
+
+def conciliar_lancados(
+    extracao: ExtracaoEntradas, falhas: list[str] | None = None
+) -> dict[str, int]:
+    """Grava o veredito de cada recebimento lançado coberto pela extração (R17).
+
+    Só conta a extração bem-sucedida que começou depois do lançamento do recebimento. Enquanto ele
+    não tem conferência conclusiva, a conferência é do tipo `LANCAMENTO` (as `AGUARDANDO` são
+    provisórias); depois da primeira conclusiva, as seguintes são `REVISAO`, com o "alterado no
+    SCPI depois do lançamento" contra a requisição daquela. Devolve a contagem por veredito. Nunca
+    muda o recebimento (FR-027). Com `falhas`, o que quebra vai para a lista e os seguintes
+    continuam; sem ela, sobe."""
+    contagem: dict[str, int] = {}
+    if not extracao.bem_sucedida:
+        return contagem
+    imp = extracao.importacao
+    oficiais = [
+        _oficial(requisicao) for requisicao in extracao.requisicoes_lidas.prefetch_related("itens")
+    ]
+    pk_por_numero = dict(extracao.requisicoes_lidas.values_list("requisicao", "pk"))
+    lancados = Recebimento.objects.filter(
+        status=Recebimento.Status.LANCADO,
+        data_recebimento__range=(imp.periodo_de, imp.periodo_ate),
+    ).select_related("pedido")
+    for recebimento in lancados.order_by("pk"):
+        try:
+            lancado = recebimento.lancado_em
+            if lancado is None or imp.inicio <= lancado:
+                continue  # a extração começou antes do lançamento: não pode trazê-lo
+            if ConferenciaRecebimento.objects.filter(
+                recebimento=recebimento,
+                extracao=extracao,
+                tipo__in=(
+                    ConferenciaRecebimento.Tipo.LANCAMENTO,
+                    ConferenciaRecebimento.Tipo.REVISAO,
+                ),
+            ).exists():
+                continue
+            primeira = _primeira_conclusiva(recebimento)
+            if primeira is not None and extracao.motivo == ExtracaoEntradas.Motivo.ARQUIVO:
+                continue  # um arquivo antigo não revisa um veredito: não se sabe quando saiu
+            tentativa = (
+                TentativaEntrada.objects.filter(
+                    recebimento=recebimento,
+                    foto__isnull=False,
+                    resultado__in=(
+                        TentativaEntrada.Resultado.LANCADA,
+                        TentativaEntrada.Resultado.VERIFICAR,
+                    ),
+                )
+                .order_by("-momento", "-pk")
+                .first()
+            )
+            em_outro = (
+                Recebimento.objects.filter(requisicao_scpi=recebimento.requisicao_scpi)
+                .exclude(pk=recebimento.pk)
+                .exclude(status=Recebimento.Status.CANCELADO)
+                .exists()
+            )
+            resultado = regras.veredito_entrada(
+                recebimento.rotulo,
+                recebimento.requisicao_scpi,
+                oficiais,
+                _entrega(recebimento, tentativa),
+                fornecedor=recebimento.fornecedor_codigo,
+                nf=recebimento.nf,
+                maior=extracao.maior_requisicao,
+                numero_em_outro_recebimento=em_outro,
+                ja_vista=bool(primeira and primeira.requisicao_id),
+            )
+            tipo = (
+                ConferenciaRecebimento.Tipo.REVISAO
+                if primeira
+                else ConferenciaRecebimento.Tipo.LANCAMENTO
+            )
+            alterado = False
+            diferencas = list(resultado.diferencas)
+            if primeira is not None and primeira.requisicao:
+                if resultado.requisicao:
+                    mudou = regras.alteracoes_entrada(
+                        _oficial(primeira.requisicao), resultado.requisicao
+                    )
+                else:  # a requisição conferida no lançamento sumiu do relatório (excluída)
+                    mudou = [
+                        {
+                            "campo": "requisição",
+                            "antes": primeira.requisicao.requisicao,
+                            "agora": "(ausente no relatório)",
+                        }
+                    ]
+                alterado = bool(mudou)
+                diferencas += [
+                    {
+                        "campo": m["campo"],
+                        "esperado": m["antes"],
+                        "oficial": m["agora"],
+                        "alteracao": True,
+                    }
+                    for m in mudou
+                ]
+            ConferenciaRecebimento.objects.create(
+                recebimento=recebimento,
+                extracao=extracao,
+                tipo=tipo,
+                veredito=resultado.veredito,
+                requisicao_id=pk_por_numero.get(resultado.requisicao.requisicao)
+                if resultado.requisicao
+                else None,
+                outra_requisicao_id=pk_por_numero.get(resultado.outra.requisicao)
+                if resultado.outra
+                else None,
+                vinculos=list(resultado.vinculos),
+                diferencas=diferencas,
+                notas=list(resultado.notas),
+                alterado_depois=alterado,
+                tentativa=tentativa,
+            )
+            contagem[resultado.veredito] = contagem.get(resultado.veredito, 0) + 1
+        except Exception as exc:
+            if falhas is None:
+                raise
+            logger.exception("⚠ não foi possível conferir o recebimento %s (lançado)", recebimento)
+            falhas.append(f"recebimento {recebimento.rotulo} (lançado): {exc}")
+    return contagem
+
+
+def conciliar_fora(extracao: ExtracaoEntradas, falhas: list[str] | None = None) -> dict[str, int]:
+    """As entradas por pedido feitas direto no SCPI (R18): a requisição de um pedido conhecido,
+    sem a marca do Central, ainda não ligada e com número acima do marco.
+
+    Com um recebimento aberto do mesmo pedido, NF e fornecedor, ele é ligado à requisição como
+    lançado à mão; senão vira uma `EntradaForaDoCentral`, que reserva o saldo e trava o pedido. A
+    marca de um recebimento que não está lançado nem em verificação trava o pedido. Um arquivo
+    (`ARQUIVO`) não entra: a hora real da entrada é desconhecida. Devolve as contagens."""
+    contagem: dict[str, int] = {}
+    if not extracao.bem_sucedida or extracao.motivo == ExtracaoEntradas.Motivo.ARQUIVO:
+        return contagem
+    marco = consultas.marco()
+    if marco is None:
+        return contagem
+    for requisicao in extracao.requisicoes_lidas.prefetch_related("itens").order_by(
+        "ano", "numero"
+    ):
+        try:
+            if regras_saidas.chave(requisicao.requisicao) <= regras_saidas.chave(marco):
+                continue  # história anterior ao Central: já está no "Já Entrou" da base
+            resultado = _entrada_de_fora(extracao, requisicao)
+            if resultado:
+                contagem[resultado] = contagem.get(resultado, 0) + 1
+        except Exception as exc:
+            if falhas is None:
+                raise
+            logger.exception("⚠ não foi possível conferir a entrada %s", requisicao.requisicao)
+            falhas.append(f"entrada {requisicao.requisicao} (fora do Central): {exc}")
+    return contagem
+
+
+def _entrada_de_fora(extracao, requisicao) -> str:
+    """Trata uma requisição acima do marco; devolve o que fez (vazio: nada)."""
+    from compras.servicos import ligar_a_mao, travar_pedido
+
+    pedido = (
+        PedidoCompra.objects.filter(ano=requisicao.pedido_ano, numero=requisicao.pedido_numero)
+        .order_by("-exercicio")
+        .first()
+        if requisicao.pedido_numero
+        else None
+    )
+    if pedido is None:
+        return ""  # entrada sem pedido, ou de um pedido que o Central não conhece
+    marca = requisicao.recebimento_observado
+    if marca:
+        dono = Recebimento.objects.filter(
+            pk=int(marca.split("-")[1]) if marca.split("-")[1].isdigit() else 0
+        ).first()
+        if dono is not None and dono.status in (
+            Recebimento.Status.LANCADO,
+            Recebimento.Status.VERIFICAR,
+            Recebimento.Status.EM_LANCAMENTO,
+        ):
+            return ""  # entrada do próprio Central: o veredito dela é de outra etapa
+        travar_pedido(
+            pedido.pk,
+            TravaPedido.Motivo.MARCA_SEM_LANCAMENTO,
+            f"A requisição {requisicao.requisicao} tem a marca {marca}, mas o recebimento "
+            + ("não está lançado." if dono else "não existe."),
+            extracao=extracao,
+            recebimento=dono,
+        )
+        return "MARCA_SEM_LANCAMENTO"
+    numero = requisicao.requisicao
+    if (
+        Recebimento.objects.filter(requisicao_scpi=numero)
+        .exclude(status=Recebimento.Status.CANCELADO)
+        .exists()
+        or EntradaForaDoCentral.objects.filter(
+            ano=requisicao.ano, numero=requisicao.numero
+        ).exists()
+    ):
+        return ""  # já ligada
+    aberto = (
+        Recebimento.objects.filter(
+            pedido=pedido,
+            nf=requisicao.nf,
+            fornecedor_codigo=requisicao.fornecedor_codigo,
+            status__in=(
+                Recebimento.Status.PREPARADO,
+                Recebimento.Status.ERRO,
+                Recebimento.Status.VERIFICAR,
+            ),
+        )
+        .order_by("pk")
+        .first()
+        if requisicao.nf
+        else None
+    )
+    if aberto is not None:
+        resposta = ligar_a_mao(aberto.pk, requisicao.requisicao, extracao.importacao.inicio)
+        return "LIGADO_A_MAO" if resposta.ok else ""
+    EntradaForaDoCentral.objects.create(
+        pedido=pedido,
+        requisicao=requisicao,
+        ano=requisicao.ano,
+        numero=requisicao.numero,
+        visivel_desde=extracao.importacao.inicio,
+        itens=[
+            {"codigo": i.codigo, "quantidade": format(i.quantidade.normalize(), "f")}
+            for i in requisicao.itens.all()
+        ],
+    )
+    travar_pedido(
+        pedido.pk,
+        TravaPedido.Motivo.FORA_DO_CENTRAL,
+        f"A requisição {numero} (NF {requisicao.nf or 'sem NF'}) foi feita direto no SCPI.",
+        extracao=extracao,
+    )
+    return "FORA_DO_CENTRAL"
+
+
+class ConciliacaoIncompleta(Exception):
+    """Alguma etapa ou algum recebimento falhou: o que deu certo ficou gravado (`contagem`)."""
+
+    def __init__(self, contagem: dict[str, int], falhas: list[str]):
+        self.contagem = contagem
+        self.falhas = falhas
+        super().__init__("Conciliação das entradas incompleta: " + "; ".join(falhas))
+
+
 def conciliar(extracao: ExtracaoEntradas) -> dict[str, int]:
-    """O que se concilia depois de uma extração de entradas bem-sucedida: neste PR, os
-    recebimentos em verificação. Devolve as contagens (para o resumo do comando e o log)."""
+    """Toda a conciliação de uma extração, sob a trava: primeiro os recebimentos em verificação
+    (a que protege contra lançar duas vezes), depois as entradas fora do Central e os lançados. Uma
+    falha não impede as outras etapas, mas não fica escondida: no fim, `ConciliacaoIncompleta`
+    leva a contagem do que ficou gravado e o que falhou."""
+    contagem: dict[str, int] = {}
+    falhas: list[str] = []
+    etapas = (
+        ("VERIFICAR", "recebimentos em verificação", conciliar_verificar, True),
+        ("fora", "entradas fora do Central", conciliar_fora, False),
+        ("lancados", "recebimentos lançados", conciliar_lancados, False),
+    )
     with trava_conciliacao():
-        verificar = conciliar_verificar(extracao)
-    return {"VERIFICAR": verificar} if verificar else {}
+        for chave_etapa, nome, etapa, e_inteiro in etapas:
+            try:
+                resultado = etapa(extracao, falhas)
+            except Exception as exc:
+                logger.exception("⚠ não foi possível conferir: %s", nome)
+                falhas.append(f"{nome}: {exc}")
+                continue
+            if e_inteiro:
+                if resultado:
+                    contagem[chave_etapa] = resultado
+            else:
+                contagem = {**resultado, **contagem}
+    if falhas:
+        raise ConciliacaoIncompleta(contagem, falhas)
+    return contagem

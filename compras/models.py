@@ -509,3 +509,31 @@ class CandidataEntrada(models.Model):
 
     def __str__(self):
         return f"{self.conferencia} · {self.requisicao}"
+
+
+class EntradaForaDoCentral(models.Model):
+    """Uma entrada por pedido feita direto no SCPI, sem o Central: reserva o saldo até a importação
+    de pedidos a refletir e trava o pedido (`FORA_DO_CENTRAL`; spec 014, R18)."""
+
+    pedido = models.ForeignKey(
+        PedidoCompra, on_delete=models.PROTECT, related_name="entradas_fora_do_central"
+    )
+    requisicao = models.ForeignKey(
+        RequisicaoEntradaOficial,
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="a primeira requisição em que apareceu",
+    )
+    ano = models.PositiveSmallIntegerField()
+    numero = models.PositiveIntegerField("número")
+    visivel_desde = models.DateTimeField("visível desde")
+    itens = models.JSONField(default=list, help_text="[{codigo, quantidade}] da requisição.")
+
+    class Meta:
+        ordering = ["-visivel_desde", "-id"]
+        verbose_name = "entrada fora do Central"
+        verbose_name_plural = "entradas fora do Central"
+        constraints = [models.UniqueConstraint(fields=["ano", "numero"], name="entrada_fora_unica")]
+
+    def __str__(self):
+        return f"{self.numero:06d}/{self.ano % 100:02d} ({self.pedido})"

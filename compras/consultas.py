@@ -64,7 +64,30 @@ def reservado_por_item(
             inicio_ultima_importacao=inicio,
         ):
             reservado[linha.item_id].append(linha.quantidade)
+    _reserva_das_entradas_fora_do_central(pedido, inicio, reservado)
     return reservado
+
+
+def _reserva_das_entradas_fora_do_central(pedido, inicio, reservado) -> None:
+    """As entradas feitas direto no SCPI reservam o saldo, por **código**, até uma importação de
+    pedidos começada depois do `visivel_desde` (a mesma regra do lançado). Com o código repetido
+    no pedido, reservam em cada item."""
+    from compras.models import EntradaForaDoCentral
+
+    entradas = list(EntradaForaDoCentral.objects.filter(pedido=pedido))
+    if not entradas:
+        return
+    por_codigo: dict[str, list[ItemPedidoCompra]] = defaultdict(list)
+    for item in pedido.itens.all():
+        por_codigo[norm_u(item.codigo)].append(item)
+    for entrada in entradas:
+        if not regras.reserva_de(
+            "LANCADO", visivel_desde=entrada.visivel_desde, inicio_ultima_importacao=inicio
+        ):
+            continue
+        for linha in entrada.itens:
+            for item in por_codigo.get(norm_u(linha["codigo"]), []):
+                reservado[item.pk].append(Decimal(str(linha["quantidade"])))
 
 
 @dataclass(frozen=True)
@@ -376,3 +399,81 @@ def verificacoes_entradas() -> list[RecebimentoParaResolver]:
                 )
         resultado.append(RecebimentoParaResolver(recebimento, em_verificacao, candidatas, faltas))
     return resultado
+
+
+def marco() -> str | None:
+    """O `maior_requisicao` da primeira extração de entradas bem-sucedida: o que tem número até ele
+    é história anterior ao Central (R18). None sem nenhuma extração ainda."""
+    from compras.models import ExtracaoEntradas
+
+    primeira = (
+        ExtracaoEntradas.objects.filter(importacao__situacao=Importacao.Situacao.SUCESSO)
+        .exclude(maior_requisicao__isnull=True)
+        .order_by("importacao__inicio", "pk")
+        .first()
+    )
+    return primeira.maior_requisicao if primeira else None
+
+
+def _conclusivas(recebimento):
+    from compras.models import ConferenciaRecebimento
+
+    return ConferenciaRecebimento.objects.filter(
+        recebimento=recebimento,
+        tipo__in=(
+            ConferenciaRecebimento.Tipo.LANCAMENTO,
+            ConferenciaRecebimento.Tipo.REVISAO,
+        ),
+    ).exclude(veredito=ConferenciaRecebimento.Veredito.AGUARDANDO)
+
+
+def veredito_atual(recebimento):
+    """A última conferência conclusiva do recebimento lançado (o veredito atual); None é
+    "Aguardando"."""
+    return _conclusivas(recebimento).order_by("-criada_em", "-pk").first()
+
+
+FILTROS_VEREDITO = (
+    ("divergencias", "Divergências"),
+    ("aguardando", "Aguardando"),
+    ("comprovados", "Comprovados"),
+    ("todos", "Todos"),
+)
+POR_PAGINA_VEREDITOS = 50
+PROBLEMAS = ("DIVERGENTE", "NAO_ENCONTRADO", "DUPLICADO", "CONFLITO")
+
+
+def vereditos(filtro: str = "divergencias", pagina: int | str = 1):
+    """Os recebimentos lançados com o veredito atual, filtrados e paginados (50 por página)."""
+    from django.core.paginator import Paginator
+
+    lancados = (
+        Recebimento.objects.filter(status=Recebimento.Status.LANCADO)
+        .select_related("pedido")
+        .order_by("-lancado_em", "-pk")
+    )
+    linhas = []
+    for recebimento in lancados:
+        atual = veredito_atual(recebimento)
+        veredito = atual.veredito if atual else "AGUARDANDO"
+        if (
+            filtro == "divergencias"
+            and veredito not in PROBLEMAS
+            or filtro == "aguardando"
+            and veredito != "AGUARDANDO"
+            or filtro == "comprovados"
+            and veredito != "COMPROVADO"
+        ):
+            continue
+        linhas.append({"recebimento": recebimento, "conferencia": atual, "veredito": veredito})
+    return Paginator(linhas, POR_PAGINA_VEREDITOS).get_page(pagina)
+
+
+def ultima_extracao_entradas():
+    from compras.models import ExtracaoEntradas
+
+    return (
+        ExtracaoEntradas.objects.select_related("importacao")
+        .order_by("-importacao__inicio", "-pk")
+        .first()
+    )

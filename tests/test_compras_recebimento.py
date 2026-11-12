@@ -353,7 +353,12 @@ def test_destravar_exige_motivo_e_importacao_posterior(pedido, usuario):
     antes = servicos.destravar_pedido(pedido.pk, usuario, motivo="conferi no SCPI")
     assert not antes.ok and antes.motivo == "importacao"
     assert "antes da trava" in antes.mensagem
-    importar_pedido([{"item": 1, "codigo": "006.011.020"}])  # uma importação depois da trava
+    importar_pedido(  # uma importação depois da trava, sem mudar o "Já Entrou"
+        [
+            {"item": 1, "codigo": "006.011.020", "quantidade": "100", "ja_entrou": "50"},
+            {"item": 2, "codigo": "023.003.004", "quantidade": "20"},
+        ]
+    )
     depois = servicos.destravar_pedido(pedido.pk, usuario, motivo="conferi no SCPI")
     assert depois.ok and not consultas.travas_abertas(pedido)
 
