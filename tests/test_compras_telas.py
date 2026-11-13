@@ -144,8 +144,15 @@ def test_a_recusa_do_total_continua_travada_so_se_nada_foi_alterado(client, pedi
     assert r.status_code == 422 and "data-total-travado" in r.text
     editado = client.post(url, inteiro | {f"qtd-{item1.pk}": "49"})
     assert editado.status_code == 422 and "data-total-travado" not in editado.text
+    # solto, mas com o "Voltar ao total" e o sugerido separado do que foi enviado
+    assert "data-total-voltar" in editado.text and 'value="49"' in editado.text
+    assert 'data-sugerido="50"' in editado.text and 'data-sugerido="20"' in editado.text
     sem_item = {k: v for k, v in inteiro.items() if k != f"marcar-{item2.pk}"}
-    assert "data-total-travado" not in client.post(url, sem_item).text
+    solto = client.post(url, sem_item).text
+    assert "data-total-travado" not in solto and "data-total-voltar" in solto
+    assert len(re.findall(r'name="marcar-\d+"[^>]* data-sugerido="1"', solto)) == 2
+    parcial = client.post(reverse("compras:receber", args=[pedido.pk]), inteiro).text
+    assert "data-total-voltar" not in parcial  # o parcial nunca tem os controles do total
 
 
 def test_post_com_erro_mostra_resumo_e_erro_no_campo_e_nao_grava(client, pedido):

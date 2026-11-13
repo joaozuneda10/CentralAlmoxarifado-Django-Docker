@@ -19,7 +19,7 @@
   </div>
   {% endif %}
 
-  <form method="post" class="pilha-larga" novalidate{% if total_travado %} data-total-travado{% endif %}>
+  <form method="post" class="pilha-larga" novalidate{% if total_modo %} data-total{% endif %}{% if total_travado %} data-total-travado{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="envio" value="{{ formulario.envio }}">
     {% if formulario.versao %}<input type="hidden" name="versao" value="{{ formulario.versao }}">{% endif %}
@@ -48,11 +48,13 @@
 
     <section class="cartao" aria-labelledby="titulo-itens">
       <h2 class="cartao-titulo" id="titulo-itens">Itens a receber</h2>
-      {% if total_travado %}
-      <div class="aviso aviso-info" id="total-aviso" data-total-aviso>
+      {% if total_modo %}
+      {# Escondido até o JavaScript o mostrar: sem ele os campos ficam livres e o aviso não vale. #}
+      <div class="aviso {% if total_travado %}aviso-info{% else %}aviso-atencao{% endif %}" id="total-aviso" data-total-aviso hidden>
         {% include "interface/_icone.html" with nome="cadeado" %}
         <div>
-          <p data-total-texto><strong>Recebimento total.</strong> Todos os itens disponíveis entram com o saldo livre de cada um, e os itens e as quantidades ficam travados.</p>
+          <p data-total-texto-travado><strong>Recebimento total.</strong> Todos os itens disponíveis entram com o saldo livre de cada um, e os itens e as quantidades ficam travados.</p>
+          <p data-total-texto-liberado hidden><strong>Itens e quantidades liberados.</strong> O que ficar abaixo do saldo livre continua livre para outra nota fiscal.</p>
           <div class="acoes">
             <button type="button" class="botao botao-secundario" data-total-alterar aria-controls="total-itens" hidden>{% include "interface/_icone.html" with nome="lapis" %}Alterar itens e quantidades</button>
             <button type="button" class="botao botao-texto" data-total-voltar hidden>Voltar ao total</button>
@@ -76,14 +78,14 @@
           <tbody>
             {% for l in linhas %}
             <tr>
-              <td>{% if l.motivo %}—{% else %}<input type="checkbox" id="marcar-{{ l.item_id }}" name="marcar-{{ l.item_id }}" value="1" aria-label="Receber o item {{ l.numero }}"{% if l.item_id in formulario.marcados %} checked{% endif %}>{% endif %}</td>
+              <td>{% if l.motivo %}—{% else %}<input type="checkbox" id="marcar-{{ l.item_id }}" name="marcar-{{ l.item_id }}" value="1" aria-label="Receber o item {{ l.numero }}"{% if l.item_id in formulario.marcados %} checked{% endif %}{% if l.item_id in total_sugerido %} data-sugerido="1"{% endif %}>{% endif %}</td>
               <td class="mono">{{ l.numero }}</td>
               <td><span class="mono">{{ l.item.codigo }}</span>{% if l.material %} {{ l.material.nome }}{% endif %}{% if l.motivo %}<br><span class="texto-secundario texto-pequeno">Indisponível: {{ l.motivo }}.</span>{% endif %}</td>
               <td>{{ l.saldo_livre|quantidade }} {{ l.item.unidade }}</td>
               <td>
                 {% if not l.motivo %}
                 {% with erros_item=erros_por_campo|obter:l.campo_erro %}
-                <input id="qtd-{{ l.item_id }}" class="campo-entrada mono" type="text" name="qtd-{{ l.item_id }}" inputmode="decimal" autocomplete="off" value="{% if l.item_id in formulario.quantidades %}{{ formulario.quantidades|obter:l.item_id }}{% endif %}" aria-label="Quantidade do item {{ l.numero }}"{% if erros_item %} aria-invalid="true" aria-describedby="qtd-erro-{{ l.item_id }}"{% endif %}>
+                <input id="qtd-{{ l.item_id }}" class="campo-entrada mono" type="text" name="qtd-{{ l.item_id }}" inputmode="decimal" autocomplete="off" value="{% if l.item_id in formulario.quantidades %}{{ formulario.quantidades|obter:l.item_id }}{% endif %}" aria-label="Quantidade do item {{ l.numero }}"{% if l.item_id in total_sugerido %} data-sugerido="{{ total_sugerido|obter:l.item_id }}"{% endif %}{% if erros_item %} aria-invalid="true" aria-describedby="qtd-erro-{{ l.item_id }}"{% endif %}>
                 {% if erros_item %}<div id="qtd-erro-{{ l.item_id }}">{% for m in erros_item %}<p class="campo-erro">{{ m }}</p>{% endfor %}</div>{% endif %}
                 {% endwith %}
                 {% endif %}

@@ -54,6 +54,7 @@ input[type="date"].campo-entrada::-webkit-date-and-time-value { text-align: left
 .campo-entrada[readonly]:hover { border-color: var(--borda); }
 input[type="checkbox"][aria-readonly="true"] { cursor: default; opacity: 0.6; }
 .botao[hidden] { display: none; }
+.aviso[hidden] { display: none; }
 textarea.campo-entrada { min-height: 96px; resize: vertical; }
 select.campo-entrada { padding-right: 36px; }
 .campo-dica { font-size: 0.85em; color: var(--texto-secundario); }
