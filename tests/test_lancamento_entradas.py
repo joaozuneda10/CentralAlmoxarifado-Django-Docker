@@ -290,6 +290,41 @@ def test_nf_de_entrada_excluida_no_scpi_depois_nao_impede_o_lancamento(pedido, u
     assert r.status == "LANCADO"
 
 
+def test_nf_corrigida_no_scpi_depois_nao_impede_o_lancamento(pedido, usuario, scpi):
+    """A requisição tinha a NF 501 e foi corrigida para 777 no SCPI: vale a foto mais recente
+    dela, e o recebimento da NF 501 é lançado."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    scpi.entrada_manual((pedido.ano, pedido.numero), {2: "10"}, data=antiga, nf="501")
+    periodo = (antiga - timedelta(days=1), antiga + timedelta(days=1))
+    _extrair(scpi, *periodo)
+    scpi.salvas[0].nf = "777"
+    _extrair(scpi, *periodo)
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.resumo["lancadas"] == 1
+
+
+def test_entrada_excluida_e_reconhecida_com_outras_requisicoes_de_mesmo_ano_e_numero_soltos(
+    pedido, usuario, scpi
+):
+    """A extração posterior não traz a requisição excluída, mas traz uma com o mesmo ano e outra
+    com o mesmo número: as duas condições têm de valer para a mesma requisição."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    excluida = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="501")
+    periodo = (antiga - timedelta(days=1), antiga + timedelta(days=1))
+    _extrair(scpi, *periodo)
+    mesmo_ano = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="601")
+    mesmo_numero = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="602")
+    scpi.salvas = [s for s in scpi.salvas if s.requisicao != excluida]
+    scpi.salvas[-1].requisicao = f"{excluida[:6]}/25"  # o mesmo número, do ano anterior
+    assert mesmo_ano[-2:] == excluida[-2:] and mesmo_numero != excluida
+    _extrair(scpi, *periodo)
+    scpi.pedidos[(pedido.ano, pedido.numero)][2]["ja_entrou"] = Decimal("0")
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.resumo["lancadas"] == 1
+
+
 def test_journal_que_falha_antes_do_salvar_interrompe_sem_salvar(
     pedido, usuario, scpi, monkeypatch
 ):

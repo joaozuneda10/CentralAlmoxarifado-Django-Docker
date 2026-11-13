@@ -14,7 +14,7 @@ from datetime import date
 from decimal import Decimal
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from catalogo.models import Importacao
@@ -249,24 +249,37 @@ def ja_no_scpi(extracao: ExtracaoEntradas, aptos) -> dict[int, str]:
 
     Vale a extração de antes e, além dela, as extrações já guardadas (60 dias): a entrada feita à
     mão com uma data fora do período desta execução não vem na de antes, mas alguma anterior pode
-    tê-la visto. A requisição que só uma extração antiga viu e que sumiu de uma posterior que
-    cobre a data dela (excluída no SCPI) não conta."""
+    tê-la visto. De cada requisição vale a foto mais recente: a que teve a NF corrigida no SCPI
+    deixa de casar, e a que sumiu de uma extração posterior que cobre a data dela (excluída no
+    SCPI) não conta."""
+    lidas = RequisicaoEntradaOficial.objects.filter(
+        extracao__importacao__situacao=Importacao.Situacao.SUCESSO
+    ).select_related("extracao__importacao")
     achados: dict[int, str] = {}
     for rec in aptos:
-        vistas = (
-            RequisicaoEntradaOficial.objects.filter(
-                extracao__importacao__situacao=Importacao.Situacao.SUCESSO
+
+        def casa(foto, rec=rec) -> bool:
+            return foto.recebimento_observado == rec.rotulo or bool(
+                foto.nf and foto.nf == rec.nf and foto.fornecedor_codigo == rec.fornecedor_codigo
             )
-            .filter(
+
+        numeros = (
+            lidas.filter(
                 Q(recebimento_observado=rec.rotulo)
                 | (Q(fornecedor_codigo=rec.fornecedor_codigo, nf=rec.nf) & ~Q(nf=""))
             )
-            .select_related("extracao__importacao")
-            .order_by("ano", "numero", "-extracao__importacao__inicio")
+            .values_list("ano", "numero")
+            .distinct()
+            .order_by("ano", "numero")
         )
-        for vista in vistas:
-            if vista.extracao_id == extracao.pk or not _sumiu_depois(vista):
-                achados[rec.id] = vista.requisicao
+        for ano, numero in numeros:
+            vigente = (
+                lidas.filter(ano=ano, numero=numero)
+                .order_by("-extracao__importacao__inicio", "-extracao__pk")
+                .first()
+            )
+            if casa(vigente) and (vigente.extracao_id == extracao.pk or not _sumiu_depois(vigente)):
+                achados[rec.id] = vigente.requisicao
                 break
     return achados
 
@@ -274,6 +287,9 @@ def ja_no_scpi(extracao: ExtracaoEntradas, aptos) -> dict[int, str]:
 def _sumiu_depois(vista: RequisicaoEntradaOficial) -> bool:
     """Se uma extração bem-sucedida, lida do SCPI depois da que viu esta requisição e cobrindo a
     data de entrada dela, já não a traz: a entrada foi excluída no SCPI."""
+    a_mesma = RequisicaoEntradaOficial.objects.filter(
+        extracao=OuterRef("pk"), ano=vista.ano, numero=vista.numero
+    )
     return (
         ExtracaoEntradas.objects.filter(
             importacao__situacao=Importacao.Situacao.SUCESSO,
@@ -282,7 +298,7 @@ def _sumiu_depois(vista: RequisicaoEntradaOficial) -> bool:
             importacao__periodo_ate__gte=vista.data_entrada,
         )
         .exclude(motivo=ExtracaoEntradas.Motivo.ARQUIVO)
-        .exclude(requisicoes_lidas__ano=vista.ano, requisicoes_lidas__numero=vista.numero)
+        .filter(~Exists(a_mesma))
         .exists()
     )
 
