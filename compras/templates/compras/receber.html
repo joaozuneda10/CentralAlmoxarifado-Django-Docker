@@ -1,6 +1,7 @@
 {% extends "interface/base_almoxarifado.html" %}
-{% load interface_extras pedidos_extras %}
+{% load static interface_extras pedidos_extras %}
 {% block title %}{% if recebimento %}Editar {{ recebimento.rotulo }}{% else %}Receber{% endif %} — {{ pedido.rotulo }} — Central Almoxarifado{% endblock %}
+{% block extra_head %}<script src="{% static 'compras/js/receber.js' %}" defer></script>{% endblock %}
 {% block voltar %}<a class="link-voltar" href="{% if recebimento %}{% url 'compras:recebimento' recebimento.pk %}{% else %}{% url 'compras:pedido' pedido.pk %}{% endif %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar</a>{% endblock %}
 {% block rotulo %}Compras{% endblock %}
 {% block heading %}{% if recebimento %}Editar <span class="mono">{{ recebimento.rotulo }}</span>{% else %}Receber do pedido <span class="mono">{{ pedido.rotulo }}</span>{% endif %}{% endblock %}
@@ -18,7 +19,7 @@
   </div>
   {% endif %}
 
-  <form method="post" class="pilha-larga" novalidate>
+  <form method="post" class="pilha-larga" novalidate{% if total_travado %} data-total-travado{% endif %}>
     {% csrf_token %}
     <input type="hidden" name="envio" value="{{ formulario.envio }}">
     {% if formulario.versao %}<input type="hidden" name="versao" value="{{ formulario.versao }}">{% endif %}
@@ -47,9 +48,22 @@
 
     <section class="cartao" aria-labelledby="titulo-itens">
       <h2 class="cartao-titulo" id="titulo-itens">Itens a receber</h2>
+      {% if total_travado %}
+      <div class="aviso aviso-info" id="total-aviso" data-total-aviso>
+        {% include "interface/_icone.html" with nome="cadeado" %}
+        <div>
+          <p data-total-texto><strong>Recebimento total.</strong> Todos os itens disponíveis entram com o saldo livre de cada um, e os itens e as quantidades ficam travados.</p>
+          <div class="acoes">
+            <button type="button" class="botao botao-secundario" data-total-alterar aria-controls="total-itens" hidden>{% include "interface/_icone.html" with nome="lapis" %}Alterar itens e quantidades</button>
+            <button type="button" class="botao botao-texto" data-total-voltar hidden>Voltar ao total</button>
+          </div>
+        </div>
+      </div>
+      <p class="visually-hidden" role="status" data-total-anuncio></p>
+      {% endif %}
       {% for m in erros_por_campo.itens %}<p class="campo-erro" role="alert">{{ m }}</p>{% endfor %}
       <div class="tabela-rolagem">
-        <table class="tabela">
+        <table class="tabela" id="total-itens">
           <thead>
             <tr>
               <th scope="col">Receber</th>

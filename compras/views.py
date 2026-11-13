@@ -133,6 +133,8 @@ def _contexto_formulario(
         "erros_por_campo": por_campo,
         "recebimento": recebimento,
         "modo": modo,
+        # O "total" abre travado (itens e quantidades) até a pessoa pedir para alterar.
+        "total_travado": modo == "total" and recebimento is None and formulario.eh_o_total(linhas),
         "hoje": timezone.localdate(),
     }
 

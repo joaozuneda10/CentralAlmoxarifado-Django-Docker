@@ -832,6 +832,12 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   devolve o mesmo recebimento, diferente é "divergente"; a edição confere a `versao` (concorrência
   otimista) e recria os itens; edição e cancelamento recusam o recebimento com tentativa do robô.
   Destravar exige motivo e uma importação de pedidos começada depois da trava.
+  **Formulário do "total"**: `?modo=total` abre com os itens e as quantidades travados
+  (`form[data-total-travado]`, `compras/static/compras/js/receber.js`): só se alteram pelo botão
+  "Alterar itens e quantidades", e "Voltar ao total" restaura o sugerido. O servidor só trava o
+  formulário que é exatamente o total (`FormularioRecebimento.eh_o_total`): a recusa devolvida com
+  uma quantidade editada abre livre; sem JavaScript, os campos ficam livres; o recebimento não
+  guarda o modo, e a edição (`compras:editar_recebimento`) não trava.
   **Registro oficial das entradas (PR 3)**: cada extração da "Relação de Requisições" de Entrada
   (`scpi.relatorios.baixar_entradas(de, ate)`, rádio "Requisições de Entrada", o período filtra a
   `DATAE`; só lê o SCPI, e a função das saídas não muda) é uma `Importacao` do tipo `ENTRADAS` com
