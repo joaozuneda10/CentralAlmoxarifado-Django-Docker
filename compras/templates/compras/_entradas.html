@@ -14,19 +14,19 @@ motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os bot
       <div class="fila-barra">
         <p class="fila-contagem" data-fila-contagem aria-live="polite">{% if fila_entradas.aptos %}{{ fila_entradas.aptos }} {{ fila_entradas.aptos|pluralize:"recebimento aguardando o robô,recebimentos aguardando o robô" }}<small>Marque na lista o que o robô deve processar.</small>{% else %}Nenhum recebimento aguardando o robô.{% endif %}</p>
         <div class="lancar-botoes">
-          <button type="submit" name="modo" value="simular" data-requer-selecao class="botao {% if pode_executar_entradas and not lancamento_real %}botao-primario{% else %}botao-secundario{% endif %}"{% if not pode_executar_entradas %} disabled{% endif %}>{% include "interface/_icone.html" with nome="olho" %}Simular</button>
-          {% if lancamento_real %}
+          <button type="submit" name="modo" value="simular" data-requer-selecao class="botao {% if pode_executar_entradas and not lancamento_real_entradas %}botao-primario{% else %}botao-secundario{% endif %}"{% if not pode_executar_entradas %} disabled{% endif %}>{% include "interface/_icone.html" with nome="olho" %}Simular</button>
+          {% if lancamento_real_entradas %}
           <button type="submit" name="modo" value="lancar" data-requer-selecao data-confirmar-lancamento class="botao {% if pode_executar_entradas %}botao-primario{% else %}botao-secundario{% endif %}"{% if not pode_executar_entradas %} disabled{% endif %}>{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI</button>
           {% else %}
           <span class="dica-flutuante">
             <button type="button" class="botao botao-secundario" aria-disabled="true" aria-describedby="dica-lancamento-real-entradas">{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI{% include "interface/_icone.html" with nome="cadeado" %}</button>
-            <span class="dica-flutuante-texto" role="tooltip" id="dica-lancamento-real-entradas">Lançamento real bloqueado neste ambiente: só a simulação roda.</span>
+            <span class="dica-flutuante-texto" role="tooltip" id="dica-lancamento-real-entradas">Lançamento real das entradas bloqueado neste ambiente: só a simulação roda.</span>
           </span>
           {% endif %}
         </div>
         {% if saidas_lancando %}<p class="lancar-motivo">O robô de saídas está lançando.</p>{% elif entradas_em_andamento %}<p class="lancar-motivo">Há uma execução em andamento.</p>{% endif %}
       </div>
-      <p class="campo-dica">A simulação abre o pedido no SCPI, confere a tela e preenche a entrada, sem salvar: nenhum recebimento muda de estado.{% if not lancamento_real %} O lançamento real é liberado pelo LANCAMENTO_REAL no .env.{% endif %}</p>
+      <p class="campo-dica">A simulação abre o pedido no SCPI, confere a tela e preenche a entrada, sem salvar: nenhum recebimento muda de estado.{% if not lancamento_real_entradas %} O lançamento real das entradas é liberado pelo LANCAMENTO_REAL e pelo LANCAMENTO_REAL_ENTRADAS no .env.{% endif %}</p>
       <div class="fila-robo" id="fila-entradas">
         {% if fila_entradas.linhas %}
         <div class="tabela-rolagem">
@@ -62,7 +62,7 @@ motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os bot
         {% endif %}
       </div>
     </form>
-    {% if lancamento_real %}
+    {% if lancamento_real_entradas %}
     <dialog class="dialogo-confirmacao" id="dialogo-lancar-entradas" aria-labelledby="dialogo-lancar-entradas-titulo">
       <div class="dialogo-confirmacao-corpo">
         <div class="dialogo-confirmacao-texto">

@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from catalogo.models import Importacao
@@ -22,6 +24,7 @@ from compras.models import (
     ExtracaoEntradas,
     ItemRecebimento,
     Recebimento,
+    RequisicaoEntradaOficial,
     TentativaEntrada,
 )
 from conciliacao import robo as robo_saidas
@@ -219,23 +222,69 @@ def extrair_antes(execucao, periodo: tuple[date, date], baixar: Extrair) -> Extr
     )
 
 
+MENSAGEM_REAL_BLOQUEADO = (
+    "O lançamento real das entradas está bloqueado neste ambiente "
+    "(LANCAMENTO_REAL_ENTRADAS=0 no .env): só a simulação roda."
+)
+
+
+def lancamento_real_liberado() -> bool:
+    """Se o robô de entradas pode salvar de verdade no SCPI: a trava geral do lançamento real e
+    a própria das entradas, as duas ligadas."""
+    return bool(settings.LANCAMENTO_REAL and settings.LANCAMENTO_REAL_ENTRADAS)
+
+
+def motivo_do_bloqueio_real() -> str:
+    """A mensagem do bloqueio, pela trava que está desligada (a geral vem primeiro)."""
+    from scpi.lancamento import LANCAMENTO_BLOQUEADO
+
+    return LANCAMENTO_BLOQUEADO if not settings.LANCAMENTO_REAL else MENSAGEM_REAL_BLOQUEADO
+
+
 def ja_no_scpi(extracao: ExtracaoEntradas, aptos) -> dict[int, str]:
-    """Dos recebimentos aptos, os que a extração de antes já achou no SCPI, com o número da
+    """Dos recebimentos aptos, os que o registro oficial já tem no SCPI, com o número da
     requisição: a que tem a marca dele nas observações ou a NF e o fornecedor dele. A conferência
     da tela não pega este caso quando a entrada foi feita por outro item do pedido com o mesmo
-    código: o "Já Entrou" do item do recebimento não muda."""
+    código: o "Já Entrou" do item do recebimento não muda.
+
+    Vale a extração de antes e, além dela, as extrações já guardadas (60 dias): a entrada feita à
+    mão com uma data fora do período desta execução não vem na de antes, mas alguma anterior pode
+    tê-la visto. A requisição que só uma extração antiga viu e que sumiu de uma posterior que
+    cobre a data dela (excluída no SCPI) não conta."""
     achados: dict[int, str] = {}
-    lidas = list(
-        extracao.requisicoes_lidas.order_by("ano", "numero").values_list(
-            "requisicao", "recebimento_observado", "fornecedor_codigo", "nf"
-        )
-    )
     for rec in aptos:
-        for numero, marca, fornecedor, nf in lidas:
-            if marca == rec.rotulo or (nf and nf == rec.nf and fornecedor == rec.fornecedor_codigo):
-                achados[rec.id] = numero
+        vistas = (
+            RequisicaoEntradaOficial.objects.filter(
+                extracao__importacao__situacao=Importacao.Situacao.SUCESSO
+            )
+            .filter(
+                Q(recebimento_observado=rec.rotulo)
+                | (Q(fornecedor_codigo=rec.fornecedor_codigo, nf=rec.nf) & ~Q(nf=""))
+            )
+            .select_related("extracao__importacao")
+            .order_by("ano", "numero", "-extracao__importacao__inicio")
+        )
+        for vista in vistas:
+            if vista.extracao_id == extracao.pk or not _sumiu_depois(vista):
+                achados[rec.id] = vista.requisicao
                 break
     return achados
+
+
+def _sumiu_depois(vista: RequisicaoEntradaOficial) -> bool:
+    """Se uma extração bem-sucedida, lida do SCPI depois da que viu esta requisição e cobrindo a
+    data de entrada dela, já não a traz: a entrada foi excluída no SCPI."""
+    return (
+        ExtracaoEntradas.objects.filter(
+            importacao__situacao=Importacao.Situacao.SUCESSO,
+            importacao__inicio__gt=vista.extracao.importacao.inicio,
+            importacao__periodo_de__lte=vista.data_entrada,
+            importacao__periodo_ate__gte=vista.data_entrada,
+        )
+        .exclude(motivo=ExtracaoEntradas.Motivo.ARQUIVO)
+        .exclude(requisicoes_lidas__ano=vista.ano, requisicoes_lidas__numero=vista.numero)
+        .exists()
+    )
 
 
 def extrair_depois(execucao, periodo: tuple[date, date], baixar: Extrair) -> None:

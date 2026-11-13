@@ -25,6 +25,7 @@ from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
 from compras.consultas import fila_entradas
 from compras.forms import LancamentoEntradasForm
+from compras.robo import lancamento_real_liberado
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
@@ -222,7 +223,7 @@ def contexto_entradas() -> dict:
         "log_entradas": "\n".join(execucao.log.splitlines()[-LINHAS_DO_LOG:]) if execucao else "",
         "fila_entradas": fila,
         "pode_executar_entradas": bool(fila.aptos) and not qualquer_robo,
-        "lancamento_real": settings.LANCAMENTO_REAL,
+        "lancamento_real_entradas": lancamento_real_liberado(),
     }
 
 

@@ -259,3 +259,17 @@ def test_execucao_antiga_interrompida_nao_esconde_a_que_tem_a_trava(client, loga
     ExecucaoRobo.objects.filter(pk=antiga.pk).update(inicio=timezone.now() - timedelta(hours=3))
     nova = ExecucaoRobo.objects.create(robo="ENTRADAS")
     assert client.get(ENTRADAS).context["execucao_entradas"] == nova
+
+
+def test_sem_a_trava_propria_das_entradas_so_a_simulacao(
+    client, logado, pedido, disparos, settings
+):
+    settings.LANCAMENTO_REAL = True
+    settings.LANCAMENTO_REAL_ENTRADAS = False
+    r = preparar(pedido, logado, {1: "10"})
+    texto = _regiao(client).text  # só a aba das entradas: a das saídas continua liberada
+    assert 'name="modo" value="lancar"' not in texto and "LANCAMENTO_REAL_ENTRADAS" in texto
+    client.post(
+        reverse("automacoes:lancar_entradas"), {"modo": "lancar", "recebimentos": [r.rotulo]}
+    )
+    assert not disparos and not ExecucaoRobo.objects.exists()
