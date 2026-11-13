@@ -10,15 +10,13 @@ from dataclasses import dataclass, field
 from datetime import date
 
 from django import forms
-from django.conf import settings
 from django.utils import timezone
 
-from compras import regras
+from compras import regras, robo
 from compras.consultas import fila_entradas
 from compras.models import Recebimento
 from pedidos.forms import MODOS
 from pedidos.regras import qtd_br
-from scpi.lancamento import LANCAMENTO_BLOQUEADO
 
 
 def _data(texto: str) -> date | None:
@@ -132,6 +130,6 @@ class LancamentoEntradasForm(forms.Form):
 
     def clean_modo(self):
         modo = self.cleaned_data["modo"]
-        if modo == "lancar" and not settings.LANCAMENTO_REAL:
-            raise forms.ValidationError(LANCAMENTO_BLOQUEADO)
+        if modo == "lancar" and not robo.lancamento_real_liberado():
+            raise forms.ValidationError(robo.motivo_do_bloqueio_real())
         return modo

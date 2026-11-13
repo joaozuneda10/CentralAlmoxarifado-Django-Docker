@@ -355,3 +355,60 @@ def test_resolver_entrada_exige_login_e_operar_automacoes(client, logado, pedido
     client.force_login(usuario_com(username="40012"))
     assert client.post(url, {"acao": "liberar"}).status_code == 403
     assert client.get(url).status_code == 403
+
+
+def test_com_o_robo_de_saidas_rodando_a_regiao_se_atualiza_ate_os_botoes_voltarem(client, logado):
+    saidas = ExecucaoRobo.objects.create(robo="SAIDAS")
+    assert 'hx-trigger="every 3s"' in _regiao(client).text
+    saidas.situacao = "SUCESSO"
+    saidas.fim = saidas.inicio
+    saidas.save()
+    assert 'hx-trigger="every 3s"' not in _regiao(client).text
+
+
+def test_a_execucao_em_andamento_vem_antes_da_tentativa_recusada(client, logado):
+    """Um comando disparado durante o lançamento cria outra execução, que termina em falha: o
+    cartão continua mostrando a que está rodando."""
+    rodando = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    ExecucaoRobo.objects.create(
+        robo="ENTRADAS", situacao="FALHA", fim=rodando.inicio, erro="Há um lançamento em andamento."
+    )
+    contexto = client.get(ENTRADAS).context
+    assert contexto["execucao_entradas"] == rodando and contexto["entradas_em_andamento"]
+
+
+def test_o_cartao_das_entradas_nao_aponta_para_as_travas_das_saidas(client, logado):
+    ExecucaoRobo.objects.create(
+        robo="ENTRADAS",
+        situacao="ATENCAO",
+        fim=timezone.now(),
+        resumo={
+            "fase": "depois",
+            "verificar": 1,
+            "lotes": [{"lote": "RC-0001", "resultado": "verificar"}],
+        },
+    )
+    assert 'href="#travas"' not in client.get(ENTRADAS).text
+
+
+def test_execucao_antiga_interrompida_nao_esconde_a_que_tem_a_trava(client, logado, trava_ocupada):
+    """Uma execução que morreu sem registrar o fim volta a contar como em andamento quando outra
+    ocupa a trava: o cartão mostra a nova."""
+    antiga = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    ExecucaoRobo.objects.filter(pk=antiga.pk).update(inicio=timezone.now() - timedelta(hours=3))
+    nova = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    assert client.get(ENTRADAS).context["execucao_entradas"] == nova
+
+
+def test_sem_a_trava_propria_das_entradas_so_a_simulacao(
+    client, logado, pedido, disparos, settings
+):
+    settings.LANCAMENTO_REAL = True
+    settings.LANCAMENTO_REAL_ENTRADAS = False
+    r = preparar(pedido, logado, {1: "10"})
+    texto = _regiao(client).text  # só a aba das entradas: a das saídas continua liberada
+    assert 'name="modo" value="lancar"' not in texto and "LANCAMENTO_REAL_ENTRADAS" in texto
+    client.post(
+        reverse("automacoes:lancar_entradas"), {"modo": "lancar", "recebimentos": [r.rotulo]}
+    )
+    assert not disparos and not ExecucaoRobo.objects.exists()

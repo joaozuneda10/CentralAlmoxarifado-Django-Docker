@@ -13,6 +13,8 @@ from dataclasses import dataclass, field
 from datetime import date
 from decimal import Decimal
 
+from django.conf import settings
+from django.db.models import Exists, OuterRef, Q
 from django.utils import timezone
 
 from catalogo.models import Importacao
@@ -24,6 +26,7 @@ from compras.models import (
     ExtracaoEntradas,
     ItemRecebimento,
     Recebimento,
+    RequisicaoEntradaOficial,
     TentativaEntrada,
 )
 from conciliacao import robo as robo_saidas
@@ -221,23 +224,85 @@ def extrair_antes(execucao, periodo: tuple[date, date], baixar: Extrair) -> Extr
     )
 
 
+MENSAGEM_REAL_BLOQUEADO = (
+    "O lançamento real das entradas está bloqueado neste ambiente "
+    "(LANCAMENTO_REAL_ENTRADAS=0 no .env): só a simulação roda."
+)
+
+
+def lancamento_real_liberado() -> bool:
+    """Se o robô de entradas pode salvar de verdade no SCPI: a trava geral do lançamento real e
+    a própria das entradas, as duas ligadas."""
+    return bool(settings.LANCAMENTO_REAL and settings.LANCAMENTO_REAL_ENTRADAS)
+
+
+def motivo_do_bloqueio_real() -> str:
+    """A mensagem do bloqueio, pela trava que está desligada (a geral vem primeiro)."""
+    from scpi.lancamento import LANCAMENTO_BLOQUEADO
+
+    return LANCAMENTO_BLOQUEADO if not settings.LANCAMENTO_REAL else MENSAGEM_REAL_BLOQUEADO
+
+
 def ja_no_scpi(extracao: ExtracaoEntradas, aptos) -> dict[int, str]:
-    """Dos recebimentos aptos, os que a extração de antes já achou no SCPI, com o número da
+    """Dos recebimentos aptos, os que o registro oficial já tem no SCPI, com o número da
     requisição: a que tem a marca dele nas observações ou a NF e o fornecedor dele. A conferência
     da tela não pega este caso quando a entrada foi feita por outro item do pedido com o mesmo
-    código: o "Já Entrou" do item do recebimento não muda."""
+    código: o "Já Entrou" do item do recebimento não muda.
+
+    Vale a extração de antes e, além dela, as extrações já guardadas (60 dias): a entrada feita à
+    mão com uma data fora do período desta execução não vem na de antes, mas alguma anterior pode
+    tê-la visto. De cada requisição vale a foto mais recente: a que teve a NF corrigida no SCPI
+    deixa de casar, e a que sumiu de uma extração posterior que cobre a data dela (excluída no
+    SCPI) não conta."""
+    lidas = RequisicaoEntradaOficial.objects.filter(
+        extracao__importacao__situacao=Importacao.Situacao.SUCESSO
+    ).select_related("extracao__importacao")
     achados: dict[int, str] = {}
-    lidas = list(
-        extracao.requisicoes_lidas.order_by("ano", "numero").values_list(
-            "requisicao", "recebimento_observado", "fornecedor_codigo", "nf"
-        )
-    )
     for rec in aptos:
-        for numero, marca, fornecedor, nf in lidas:
-            if marca == rec.rotulo or (nf and nf == rec.nf and fornecedor == rec.fornecedor_codigo):
-                achados[rec.id] = numero
+
+        def casa(foto, rec=rec) -> bool:
+            return foto.recebimento_observado == rec.rotulo or bool(
+                foto.nf and foto.nf == rec.nf and foto.fornecedor_codigo == rec.fornecedor_codigo
+            )
+
+        numeros = (
+            lidas.filter(
+                Q(recebimento_observado=rec.rotulo)
+                | (Q(fornecedor_codigo=rec.fornecedor_codigo, nf=rec.nf) & ~Q(nf=""))
+            )
+            .values_list("ano", "numero")
+            .distinct()
+            .order_by("ano", "numero")
+        )
+        for ano, numero in numeros:
+            vigente = (
+                lidas.filter(ano=ano, numero=numero)
+                .order_by("-extracao__importacao__inicio", "-extracao__pk")
+                .first()
+            )
+            if casa(vigente) and (vigente.extracao_id == extracao.pk or not _sumiu_depois(vigente)):
+                achados[rec.id] = vigente.requisicao
                 break
     return achados
+
+
+def _sumiu_depois(vista: RequisicaoEntradaOficial) -> bool:
+    """Se uma extração bem-sucedida, lida do SCPI depois da que viu esta requisição e cobrindo a
+    data de entrada dela, já não a traz: a entrada foi excluída no SCPI."""
+    a_mesma = RequisicaoEntradaOficial.objects.filter(
+        extracao=OuterRef("pk"), ano=vista.ano, numero=vista.numero
+    )
+    return (
+        ExtracaoEntradas.objects.filter(
+            importacao__situacao=Importacao.Situacao.SUCESSO,
+            importacao__inicio__gt=vista.extracao.importacao.inicio,
+            importacao__periodo_de__lte=vista.data_entrada,
+            importacao__periodo_ate__gte=vista.data_entrada,
+        )
+        .exclude(motivo=ExtracaoEntradas.Motivo.ARQUIVO)
+        .filter(~Exists(a_mesma))
+        .exists()
+    )
 
 
 def extrair_depois(execucao, periodo: tuple[date, date], baixar: Extrair) -> None:

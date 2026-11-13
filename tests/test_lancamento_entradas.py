@@ -2,6 +2,7 @@
 `specs/014-entrada-por-pedido/contracts/robo-entradas.md`."""
 
 import json
+from datetime import timedelta
 from decimal import Decimal
 
 import pytest
@@ -245,6 +246,85 @@ def test_nf_que_a_extracao_de_antes_ja_achou_no_scpi_nao_e_lancada(pedido, usuar
     assert TentativaEntrada.objects.get().resultado == "ERRO"
 
 
+def _extrair(scpi, de, ate):
+    from compras.extracao import extrair
+
+    extracao = extrair(
+        ExtracaoEntradas.Motivo.MANUAL, (de, ate), lambda: scpi.relatorio_entradas(de, ate)
+    )
+    assert extracao.bem_sucedida, extracao.importacao.erro
+    return extracao
+
+
+def test_nf_vista_numa_extracao_anterior_fora_do_periodo_da_execucao_nao_e_lancada(
+    pedido, usuario, scpi
+):
+    """A entrada feita à mão com a data de um mês atrás não vem na extração de antes desta
+    execução, mas uma extração guardada já a viu: o recebimento da mesma NF não vai ao SCPI."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    manual = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "10"}, data=antiga, nf="501")
+    _extrair(scpi, antiga - timedelta(days=1), antiga + timedelta(days=1))
+    execucao = _rodar([r.rotulo], scpi)
+    assert (execucao.resumo["lancadas"], execucao.resumo["falhas"]) == (0, 1)
+    r.refresh_from_db()
+    assert r.status == "ERRO" and manual in r.mensagem
+    assert [s.requisicao for s in scpi.salvas] == [manual]
+
+
+def test_nf_de_entrada_excluida_no_scpi_depois_nao_impede_o_lancamento(pedido, usuario, scpi):
+    """A requisição que uma extração antiga viu e que uma posterior, cobrindo a mesma data, já
+    não traz foi excluída no SCPI: não conta."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    scpi.entrada_manual((pedido.ano, pedido.numero), {2: "10"}, data=antiga, nf="501")
+    outra = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="777")
+    periodo = (antiga - timedelta(days=1), antiga + timedelta(days=1))
+    _extrair(scpi, *periodo)
+    scpi.salvas = [s for s in scpi.salvas if s.requisicao == outra]  # a da NF 501 foi excluída
+    scpi.pedidos[(pedido.ano, pedido.numero)][2]["ja_entrou"] -= Decimal("10")
+    _extrair(scpi, *periodo)
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.resumo["lancadas"] == 1
+    r.refresh_from_db()
+    assert r.status == "LANCADO"
+
+
+def test_nf_corrigida_no_scpi_depois_nao_impede_o_lancamento(pedido, usuario, scpi):
+    """A requisição tinha a NF 501 e foi corrigida para 777 no SCPI: vale a foto mais recente
+    dela, e o recebimento da NF 501 é lançado."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    scpi.entrada_manual((pedido.ano, pedido.numero), {2: "10"}, data=antiga, nf="501")
+    periodo = (antiga - timedelta(days=1), antiga + timedelta(days=1))
+    _extrair(scpi, *periodo)
+    scpi.salvas[0].nf = "777"
+    _extrair(scpi, *periodo)
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.resumo["lancadas"] == 1
+
+
+def test_entrada_excluida_e_reconhecida_com_outras_requisicoes_de_mesmo_ano_e_numero_soltos(
+    pedido, usuario, scpi
+):
+    """A extração posterior não traz a requisição excluída, mas traz uma com o mesmo ano e outra
+    com o mesmo número: as duas condições têm de valer para a mesma requisição."""
+    r = preparar(pedido, usuario, {1: "10"})
+    antiga = r.data_recebimento - timedelta(days=30)
+    excluida = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="501")
+    periodo = (antiga - timedelta(days=1), antiga + timedelta(days=1))
+    _extrair(scpi, *periodo)
+    mesmo_ano = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="601")
+    mesmo_numero = scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=antiga, nf="602")
+    scpi.salvas = [s for s in scpi.salvas if s.requisicao != excluida]
+    scpi.salvas[-1].requisicao = f"{excluida[:6]}/25"  # o mesmo número, do ano anterior
+    assert mesmo_ano[-2:] == excluida[-2:] and mesmo_numero != excluida
+    _extrair(scpi, *periodo)
+    scpi.pedidos[(pedido.ano, pedido.numero)][2]["ja_entrou"] = Decimal("0")
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.resumo["lancadas"] == 1
+
+
 def test_journal_que_falha_antes_do_salvar_interrompe_sem_salvar(
     pedido, usuario, scpi, monkeypatch
 ):
@@ -317,6 +397,27 @@ def test_falha_antes_do_salvar_nao_desfaz_o_que_mudou_durante_o_preenchimento(
     assert (r.status, r.requisicao_scpi) == ("LANCADO", "003400/26")
     assert TentativaEntrada.objects.get().resultado == "IGNORADA"
     assert not scpi.salvas
+
+
+def test_banco_que_recusa_o_erro_de_antes_do_salvar_conta_como_falha(
+    pedido, usuario, scpi, monkeypatch
+):
+    """A falha do preenchimento que o banco não deixa gravar não é um recebimento que mudou: a
+    execução termina com atenção, e não como se nada tivesse acontecido."""
+    r = preparar(pedido, usuario, {1: "10"})
+    scpi.falha_antes.add("preencher")
+    original = QuerySet.update
+
+    def quebrar(self, **kwargs):
+        if kwargs.get("status") == "ERRO":
+            raise DatabaseError("MySQL server has gone away")
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(QuerySet, "update", quebrar)
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.situacao == "ATENCAO"
+    assert (execucao.resumo["falhas"], execucao.resumo["ignoradas"]) == (1, 0)
+    assert execucao.resumo["lotes"][0]["resultado"] == "erro"
 
 
 # --- simulação ---------------------------------------------------------------------------------
@@ -658,3 +759,20 @@ def test_disparo_que_nao_inicia_o_processo_deixa_a_execucao_em_falha(usuario, mo
         disparo.iniciar_lancamento_entradas(usuario, simulacao=False, recebimentos=["RC-1"])
     execucao = ExecucaoRobo.objects.get()
     assert execucao.situacao == "FALHA" and execucao.erro == "sem processo"
+
+
+def test_a_trava_propria_das_entradas_bloqueia_mesmo_com_o_lancamento_real_ligado(
+    pedido, usuario, scpi, comando, settings
+):
+    """A produção já tem o LANCAMENTO_REAL ligado para as saídas: as entradas só salvam com o
+    LANCAMENTO_REAL_ENTRADAS também ligado."""
+    from django.core.management import CommandError, call_command
+
+    settings.LANCAMENTO_REAL = True
+    settings.LANCAMENTO_REAL_ENTRADAS = False
+    r = preparar(pedido, usuario, {1: "10"})
+    with pytest.raises(CommandError, match="LANCAMENTO_REAL_ENTRADAS"):
+        call_command("lancar_entradas", recebimento=[r.rotulo])
+    assert not ExecucaoRobo.objects.exists() and scpi.abertas == 0
+    call_command("lancar_entradas", dry_run=True, recebimento=[r.rotulo])
+    assert ExecucaoRobo.objects.get().simulacao
