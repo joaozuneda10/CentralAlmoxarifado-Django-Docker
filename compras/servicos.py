@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from compras import consultas, regras
 from compras.models import (
+    IncertoConsumido,
     ItemRecebimento,
     PedidoCompra,
     Recebimento,
@@ -523,6 +524,9 @@ def _resolver(recebimento_id, usuario, acao, requisicao_id, conferi, motivo, con
             tentativa.resultado = TentativaEntrada.Resultado.IGNORADA
             tentativa.foto = {**(tentativa.foto or {}), "liberada": quem}
             tentativa.save(update_fields=["resultado", "foto"])
+        # O consumo era da tentativa que acabou de ser descartada: a nova, se for a verificar,
+        # volta a poder explicar um aumento do "Já Entrou" (R19).
+        IncertoConsumido.objects.filter(recebimento=recebimento).delete()
         final = f"{recebimento.rotulo} liberado para o próximo lançamento."
     else:
         limite = Recebimento._meta.get_field("motivo_cancelamento").max_length
@@ -575,6 +579,9 @@ def _e_esta(recebimento, requisicao_id, quem, agora) -> Resposta:
     inicio = candidata.conferencia.extracao.importacao.inicio
     recebimento.status = Recebimento.Status.LANCADO
     recebimento.requisicao_scpi = numero
+    # `lancado_em` é o momento da resolução, não o da entrada (o Salvar incerto foi antes, numa
+    # hora que ninguém sabe): diferente do `visivel_desde`, é o que marca a hora incerta para a
+    # explicação do "Já Entrou" (`importacao._explicar_ja_entrou`).
     recebimento.lancado_em = agora
     recebimento.via = Recebimento.Via.ROBO
     recebimento.visivel_desde = inicio
@@ -586,4 +593,39 @@ def _e_esta(recebimento, requisicao_id, quem, agora) -> Resposta:
     ).update(resultado=TentativaEntrada.Resultado.LANCADA, requisicao=numero)
     return Resposta(
         True, f"{recebimento.rotulo}: requisição {numero} registrada.", recebimento=recebimento
+    )
+
+
+def ligar_a_mao(recebimento_id: int, requisicao: str, visivel_desde) -> Resposta:
+    """Liga a um recebimento aberto (preparado, com erro ou em verificação) a requisição que alguém
+    fez à mão no SCPI com a mesma NF e o mesmo fornecedor (R18): ele passa a lançado, com
+    `via=MANUAL`, o número e o `visivel_desde` (o início da extração que a viu), e sai da fila do
+    robô. Um recebimento em lançamento nunca é ligado: a conciliação não roda com robô rodando."""
+    with transaction.atomic():
+        travados = _travar_recebimento(recebimento_id)
+        if travados is None:
+            return Resposta(False, "Recebimento não encontrado.", motivo="nao_encontrado")
+        _, recebimento = travados
+        if recebimento.status not in (
+            Recebimento.Status.PREPARADO,
+            Recebimento.Status.ERRO,
+            Recebimento.Status.VERIFICAR,
+        ):
+            return Resposta(
+                False, "O recebimento não está aberto.", recebimento=recebimento, motivo="estado"
+            )
+        agora = timezone.now()
+        recebimento.status = Recebimento.Status.LANCADO
+        recebimento.requisicao_scpi = requisicao
+        recebimento.lancado_em = agora
+        recebimento.via = Recebimento.Via.MANUAL
+        recebimento.visivel_desde = visivel_desde
+        recebimento.mensagem = f"Entrada {requisicao} feita à mão no SCPI, ligada pela NF."
+        recebimento.versao += 1
+        recebimento.save()
+        TentativaEntrada.objects.filter(
+            recebimento=recebimento, resultado=TentativaEntrada.Resultado.VERIFICAR
+        ).update(resultado=TentativaEntrada.Resultado.LANCADA, requisicao=requisicao)
+    return Resposta(
+        True, f"{recebimento.rotulo} ligado à requisição {requisicao}.", recebimento=recebimento
     )

@@ -84,3 +84,89 @@ def test_os_avisos_entram_na_saude_do_catalogo():
     _imp(Importacao.Situacao.FALHA, timezone.now() - timedelta(hours=1), "Pedidos de compra: x")
     textos = [i.texto for i in saude_do_catalogo()]
     assert any(t.startswith("Pedidos de compra: a última importação falhou") for t in textos)
+
+
+# --- recebimentos, extração, travas e entradas fora do Central (PR 6) ---------------------------
+
+
+def _recebimento(status, nf="501"):
+    from tests.compras_cenario import pedido_padrao, preparar, usuario_recebedor
+
+    r = preparar(pedido_padrao(), usuario_recebedor(), {1: "5"}, nf=nf)
+    from compras.models import Recebimento
+
+    Recebimento.objects.filter(pk=r.pk).update(status=status)
+    return r
+
+
+def test_recebimento_em_verificacao_e_com_erro_geram_avisos():
+    _imp(Importacao.Situacao.SUCESSO, QUARTA - timedelta(hours=1))
+    _recebimento("VERIFICAR")
+    textos = [a.texto for a in saude.avisos(QUARTA)]
+    assert any("1 recebimento em verificação" in t for t in textos)
+    from compras.models import Recebimento
+
+    Recebimento.objects.update(status="ERRO")
+    textos = [a.texto for a in saude.avisos(QUARTA)]
+    assert any("1 recebimento com erro" in t for t in textos)
+
+
+def test_extracao_de_entradas_com_falha_avisa():
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.ENTRADAS,
+        situacao=Importacao.Situacao.FALHA,
+        erro="Entradas do SCPI: relatório cortado.",
+        inicio=QUARTA,
+        fim=QUARTA,
+    )
+    (aviso,) = [a for a in saude.avisos(QUARTA) if a.texto.startswith("Entradas: a última")]
+    assert aviso.nivel == "erro" and "cortado" in aviso.texto
+
+
+def test_pedido_travado_avisa_com_o_motivo():
+    from compras import servicos
+    from tests.compras_cenario import pedido_padrao
+
+    pedido = pedido_padrao()
+    servicos.travar_pedido(pedido.pk, "JA_ENTROU", "x")
+    servicos.travar_pedido(pedido.pk, "TELA", "y")
+    (aviso,) = [a for a in saude.avisos(timezone.now()) if "travado" in a.texto]
+    assert pedido.rotulo in aviso.texto and "já entrou não explicado" in aviso.texto
+    assert "a tela do scpi mudou" in aviso.texto
+
+
+def test_entradas_fora_do_central_dos_ultimos_30_dias_avisam():
+    from compras.models import EntradaForaDoCentral, ExtracaoEntradas, RequisicaoEntradaOficial
+    from tests.compras_cenario import pedido_padrao
+
+    pedido = pedido_padrao()
+    imp = Importacao.objects.create(tipo="ENTRADAS", situacao="SUCESSO")
+    extracao = ExtracaoEntradas.objects.create(importacao=imp, motivo="MANUAL")
+    requisicao = RequisicaoEntradaOficial.objects.create(
+        extracao=extracao,
+        requisicao="003493/26",
+        ano=2026,
+        numero=3493,
+        id_requi=1,
+        data_entrada=timezone.localdate(),
+        data_requisicao=timezone.localdate(),
+    )
+    entrada = EntradaForaDoCentral.objects.create(
+        pedido=pedido, requisicao=requisicao, ano=2026, numero=3493, visivel_desde=timezone.now()
+    )
+    agora = timezone.now()
+    assert any("1 entrada feita direto no SCPI" in a.texto for a in saude.avisos(agora))
+    assert not any("direto no SCPI" in a.texto for a in saude.avisos(agora + timedelta(days=31)))
+    assert entrada.pk
+
+
+def test_as_fontes_novas_entram_na_visao_geral_depois_da_primeira_execucao():
+    from catalogo.saude import situacao_do_catalogo
+
+    tipos = [f.tipo for f in situacao_do_catalogo().fontes]
+    assert "PEDIDOS_COMPRA" not in tipos and "ENTRADAS" not in tipos
+    Importacao.objects.create(tipo="PEDIDOS_COMPRA", situacao="SUCESSO", linhas=5)
+    Importacao.objects.create(tipo="ENTRADAS", situacao="SUCESSO", linhas=2)
+    fontes = {f.tipo: f for f in situacao_do_catalogo().fontes}
+    assert "5 itens" in fontes["PEDIDOS_COMPRA"].resumo
+    assert "2 requisições de entrada" in fontes["ENTRADAS"].resumo

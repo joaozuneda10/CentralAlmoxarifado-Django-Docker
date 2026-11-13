@@ -6,12 +6,14 @@ a aparecer o limpa (FR-005, Princípio IV). A gravação roda dentro da transaç
 """
 
 from collections.abc import Callable
+from decimal import Decimal
 
 from django.utils import timezone
 
 from catalogo.models import Importacao
 from compras.models import ItemPedidoCompra, PedidoCompra
-from compras.regras import rotulo_pedido
+from compras.regras import rotulo_pedido, subconjunto_que_explica
+from pedidos.regras import norm_u
 from scpi.execucao import Resultado, executar
 from scpi.leitura import ErroImportacao, LinhaPedidoCompra, NadaAExibir, ler_pedidos_compra
 
@@ -144,6 +146,7 @@ def gravar(
     PedidoCompra.objects.filter(pk__in=[p.pk for p in ausentes]).update(ausente_desde=importacao)
 
     # Itens.
+    deltas: dict[tuple[int, str], Decimal] = {}
     criar_itens, atualizar_itens = [], []
     for linha in linhas:
         pedido = pedidos[(linha.ano, linha.numero)]
@@ -170,6 +173,18 @@ def gravar(
             )
         else:
             valores["ja_entrou_anterior"] = antes.ja_entrou
+            if antes.ausente_desde_id is None:  # presente nesta importação e na anterior
+                codigo_antes, codigo_agora = norm_u(antes.codigo), norm_u(linha.codigo)
+                # O "Já Entrou" se compara por (pedido, código). Se o SCPI trocou o material do
+                # item, o que saiu do código antigo e o que entrou no novo são variações de
+                # códigos diferentes: a queda no antigo é delta negativo e trava.
+                if codigo_antes == codigo_agora:
+                    variacoes = [(codigo_agora, linha.ja_entrou - antes.ja_entrou)]
+                else:
+                    variacoes = [(codigo_antes, -antes.ja_entrou), (codigo_agora, linha.ja_entrou)]
+                for codigo, variacao in variacoes:
+                    chave_delta = (pedido.pk, codigo)
+                    deltas[chave_delta] = deltas.get(chave_delta, Decimal(0)) + variacao
             for campo, valor in valores.items():
                 setattr(antes, campo, valor)
             atualizar_itens.append(antes)
@@ -177,6 +192,7 @@ def gravar(
     ItemPedidoCompra.objects.bulk_update(atualizar_itens, CAMPOS_ITEM, batch_size=LOTE)
     ItemPedidoCompra.objects.filter(pk__in=[i.pk for i in sumiram]).update(ausente_desde=importacao)
 
+    _explicar_ja_entrou(importacao, exercicio, deltas, avisos)
     if sumiram or ausentes:
         avisos.append(
             f"{len(sumiram)} {'item' if len(sumiram) == 1 else 'itens'} e "
@@ -184,6 +200,119 @@ def gravar(
             "relatório e ficaram como ausentes (nada foi apagado)."
         )
     return Resultado(len(linhas), avisos)
+
+
+def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> None:
+    """O "Já Entrou" que o Central não explica trava o pedido (R19, FR-029).
+
+    Por (pedido, código), o aumento do `QTDENT` entre esta importação e a anterior é explicado pelos
+    recebimentos lançados pelo robô entre as duas (os certos) e, de modo opcional, por algum
+    subconjunto dos que têm hora incerta: em verificação, ligados à mão e entradas fora do Central.
+    Cada incerto explica um aumento uma vez só (`IncertoConsumido`), senão um único recebimento em
+    verificação absolveria aumentos sucessivos feitos à mão.
+    Sem explicação (ou com o delta negativo, de entrada excluída ou corrigida no SCPI), o pedido é
+    travado com o motivo `JA_ENTROU` e um aviso vai para o resultado. A primeira importação do
+    exercício é a base e não confere nada."""
+    from compras.models import (
+        EntradaForaDoCentral,
+        IncertoConsumido,
+        ItemRecebimento,
+        Recebimento,
+        TravaPedido,
+    )
+    from compras.servicos import travar_pedido
+
+    anterior = (
+        Importacao.objects.filter(
+            tipo=Importacao.Tipo.PEDIDOS_COMPRA,
+            situacao=Importacao.Situacao.SUCESSO,
+            exercicio=exercicio,
+        )
+        .exclude(pk=importacao.pk)
+        .order_by("-inicio")
+        .first()
+    )
+    if anterior is None or not deltas:
+        return
+    inicio_antes, inicio_agora = anterior.inicio, importacao.inicio
+    por_pedido: dict[int, list[str]] = {}
+    for (pedido_id, codigo), delta in deltas.items():
+        certos = Decimal(0)
+        # Cada recebimento (e cada entrada de fora) é uma requisição só: entra ou não entra
+        # inteiro no subconjunto, então as linhas do mesmo código somam antes de enumerar.
+        por_origem: dict[tuple[str, int], Decimal] = {}
+        for linha in ItemRecebimento.objects.filter(
+            recebimento__pedido_id=pedido_id
+        ).select_related("recebimento", "item"):
+            if norm_u(linha.item.codigo) != codigo:
+                continue
+            r = linha.recebimento
+            lancado = r.status == Recebimento.Status.LANCADO
+            # Hora certa: o robô salvou e gravou o número na hora (`visivel_desde` é o próprio
+            # `lancado_em`). O ligado pelo "É esta" também tem `via=ROBO`, mas o `lancado_em` dele
+            # é o da resolução, e a entrada pode já estar refletida numa importação anterior.
+            certo = lancado and r.via == Recebimento.Via.ROBO and r.visivel_desde == r.lancado_em
+            if certo and r.lancado_em and inicio_antes <= r.lancado_em < inicio_agora:
+                certos += linha.quantidade
+            elif r.status == Recebimento.Status.VERIFICAR or (
+                lancado
+                and not certo
+                and (
+                    (r.visivel_desde and r.visivel_desde >= inicio_antes)
+                    or (r.lancado_em and r.lancado_em >= inicio_antes)
+                )
+            ):
+                chave = ("recebimento", r.pk)
+                por_origem[chave] = por_origem.get(chave, Decimal(0)) + linha.quantidade
+        for entrada in EntradaForaDoCentral.objects.filter(
+            pedido_id=pedido_id, visivel_desde__gte=inicio_antes
+        ):
+            quantidade = sum(
+                (
+                    Decimal(str(i["quantidade"]))
+                    for i in entrada.itens
+                    if norm_u(i["codigo"]) == codigo
+                ),
+                Decimal(0),
+            )
+            if quantidade:
+                por_origem[("entrada", entrada.pk)] = quantidade
+        # O incerto que já explicou um aumento deste código não explica outro (R19).
+        consumidos = IncertoConsumido.objects.filter(pedido_id=pedido_id, codigo=codigo)
+        ja_usados = {("recebimento", c.recebimento_id) for c in consumidos if c.recebimento_id} | {
+            ("entrada", c.entrada_id) for c in consumidos if c.entrada_id
+        }
+        origens = sorted(k for k in por_origem if k not in ja_usados)
+        usados = subconjunto_que_explica(delta, certos, [por_origem[k] for k in origens])
+        if usados is not None:
+            IncertoConsumido.objects.bulk_create(
+                IncertoConsumido(
+                    pedido_id=pedido_id,
+                    codigo=codigo,
+                    recebimento_id=origens[i][1] if origens[i][0] == "recebimento" else None,
+                    entrada_id=origens[i][1] if origens[i][0] == "entrada" else None,
+                    importacao=importacao,
+                )
+                for i in usados
+            )
+            continue
+        por_pedido.setdefault(pedido_id, []).append(
+            f"{codigo}: o Já Entrou subiu {format(delta.normalize(), 'f')} e o Central explica "
+            f"{format(certos.normalize(), 'f')}"
+        )
+    for pedido_id, detalhes in por_pedido.items():
+        pedido = PedidoCompra.objects.get(pk=pedido_id)
+        if TravaPedido.objects.filter(
+            pedido_id=pedido_id, motivo=TravaPedido.Motivo.JA_ENTROU, destravada_em__isnull=True
+        ).exists():
+            continue
+        travar_pedido(
+            pedido_id,
+            TravaPedido.Motivo.JA_ENTROU,
+            "; ".join(detalhes),
+            importacao=importacao,
+        )
+        avisos.append(f"Pedido {pedido.rotulo} travado: o Já Entrou mudou sem o Central explicar.")
 
 
 def importar(

@@ -6,7 +6,7 @@ simples. As quantidades são `Decimal`; os códigos de material se comparam por
 """
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -70,6 +70,7 @@ def disponibilidade(item, *, material_visivel: bool | None, exercicio_atual: int
 
 RE_NF = re.compile(r"^[0-9]{1,12}$")  # ASCII: o \d do Python aceita dígitos de outros alfabetos
 RESERVAM_SEMPRE = ("PREPARADO", "ERRO", "EM_LANCAMENTO", "VERIFICAR")
+RE_REQUISICAO_ENTRADA = re.compile(r"^\d{6}/\d{2}$")  # 003492/26
 
 
 def nf_normalizada(texto: str) -> str:
@@ -518,3 +519,250 @@ def tres_provas(
                 f"{_qtd(item.depois)} depois da tentativa: a requisição pode existir."
             )
     return faltas
+
+
+# --- Recebimento lançado: vínculos, comparação e veredito (PR 6, R17) ---------------------------
+
+
+@dataclass(frozen=True)
+class EntradaOficial:
+    """Uma requisição de entrada como o relatório a trouxe, só com o que a conferência usa."""
+
+    requisicao: str
+    recebimento_observado: str
+    fornecedor_codigo: str
+    nf: str
+    pedido_ano: int | None
+    pedido_numero: int | None
+    data_entrada: date
+    itens: tuple[tuple[str, Decimal], ...] = ()
+
+
+@dataclass(frozen=True)
+class EntregaEntrada:
+    """O que o recebimento deveria ter feito no SCPI: a foto da tentativa ou o próprio
+    recebimento."""
+
+    fornecedor_codigo: str
+    nf: str
+    pedido_ano: int
+    pedido_numero: int
+    data: date
+    itens: tuple[tuple[str, Decimal], ...]
+
+
+@dataclass(frozen=True)
+class ResultadoEntrada:
+    veredito: str
+    requisicao: EntradaOficial | None = None
+    outra: EntradaOficial | None = None
+    vinculos: tuple[str, ...] = ()  # quais dos três apontaram para a ligada: numero, marca, nf
+    diferencas: tuple[dict, ...] = ()
+    notas: tuple[dict, ...] = ()
+
+
+def _soma_por_codigo(itens) -> dict[str, Decimal]:
+    soma: dict[str, Decimal] = {}
+    for codigo, quantidade in itens:
+        chave_codigo = norm_u(codigo)
+        soma[chave_codigo] = soma.get(chave_codigo, Decimal(0)) + quantidade
+    return soma
+
+
+def _itens_texto(soma: dict[str, Decimal]) -> str:
+    return "; ".join(f"{codigo} × {_qtd(q)}" for codigo, q in sorted(soma.items())) or "nenhum"
+
+
+def comparar_entrada(
+    entrega: EntregaEntrada, oficial: EntradaOficial, vinculos: Iterable[str] = ()
+) -> tuple[list[dict], list[dict]]:
+    """As diferenças (campo, esperado, oficial) e as notas entre a entrega e a requisição.
+
+    Compara o fornecedor, a NF, o número do pedido, a data da entrada (`DATAE`) contra a data do
+    recebimento e a **soma das quantidades por código** (`norm_u`, `Decimal` exato: com o código
+    repetido no pedido, é o que o relatório permite comparar). Nunca a `DTLAN` (F5) nem o empenho
+    (D7). Um vínculo que falta, como a marca ausente com o número e a NF certos, vira nota."""
+    diferencas: list[dict] = []
+    notas: list[dict] = []
+
+    def diferenca(campo, esperado, encontrado):
+        diferencas.append({"campo": campo, "esperado": str(esperado), "oficial": str(encontrado)})
+
+    if entrega.fornecedor_codigo != oficial.fornecedor_codigo:
+        diferenca("fornecedor", entrega.fornecedor_codigo, oficial.fornecedor_codigo or "(vazio)")
+    if entrega.nf != oficial.nf:
+        diferenca("NF", entrega.nf, oficial.nf or "(vazia)")
+    esperado_pedido = (entrega.pedido_ano, entrega.pedido_numero)
+    if esperado_pedido != (oficial.pedido_ano, oficial.pedido_numero):
+        achado = (
+            rotulo_pedido(oficial.pedido_ano, oficial.pedido_numero)
+            if oficial.pedido_numero
+            else "(sem pedido)"
+        )
+        diferenca("pedido", rotulo_pedido(*esperado_pedido), achado)
+    if entrega.data != oficial.data_entrada:
+        diferenca("data", f"{entrega.data:%d/%m/%Y}", f"{oficial.data_entrada:%d/%m/%Y}")
+    esperados = _soma_por_codigo(entrega.itens)
+    achados = _soma_por_codigo(oficial.itens)
+    if esperados != achados:
+        diferenca("itens", _itens_texto(esperados), _itens_texto(achados))
+    achou = set(vinculos)
+    if achou and "marca" not in achou:
+        notas.append(
+            {
+                "campo": "observações",
+                "texto": "o recebimento não está nas observações da requisição",
+            }
+        )
+    return diferencas, notas
+
+
+def veredito_entrada(
+    rotulo: str,
+    numero: str,
+    requisicoes: Iterable[EntradaOficial],
+    entrega: EntregaEntrada,
+    *,
+    fornecedor: str,
+    nf: str,
+    maior: str | None,
+    numero_em_outro_recebimento: bool = False,
+    ja_vista: bool = False,
+) -> ResultadoEntrada:
+    """O veredito de um recebimento lançado numa extração bem-sucedida que cobre a sua data (R17).
+
+    Três vínculos: o número gravado, a marca `RC-…` nas observações e a NF com o fornecedor. Marca
+    ou NF em duas requisições, ou o número ou a NF numa requisição com a marca de outro
+    recebimento, é Duplicado; dois vínculos achados em requisições diferentes, Conflito; nenhum
+    vínculo, Não encontrado só quando o relatório já traz número maior que o do recebimento (ou
+    uma conferência anterior já achou a requisição), senão Aguardando; os achados na mesma
+    requisição, a comparação: Comprovado ou Divergente."""
+    rotulo = rotulo.upper()
+    requisicoes = list(requisicoes)
+    pela_marca = [r for r in requisicoes if r.recebimento_observado == rotulo]
+    pela_nf = [r for r in requisicoes if nf and r.nf == nf and r.fornecedor_codigo == fornecedor]
+    pelo_numero = next((r for r in requisicoes if r.requisicao == numero), None)
+    if len(pela_marca) > 1 or len(pela_nf) > 1 or numero_em_outro_recebimento:
+        primeira = (pela_marca or pela_nf or [pelo_numero])[0]
+        segunda_lista = pela_marca if len(pela_marca) > 1 else pela_nf
+        segunda = segunda_lista[1] if len(segunda_lista) > 1 else None
+        return ResultadoEntrada("DUPLICADO", primeira, segunda)
+    # A requisição que o número ou a NF apontam e que leva a marca de outro recebimento não
+    # comprova este: é a identidade de outra entrada do Central.
+    alheia = next(
+        (
+            r
+            for r in (pelo_numero, *pela_nf)
+            if r is not None and r.recebimento_observado and r.recebimento_observado != rotulo
+        ),
+        None,
+    )
+    if alheia is not None:
+        return ResultadoEntrada(
+            "DUPLICADO",
+            alheia,
+            pela_marca[0] if pela_marca else None,
+            notas=(
+                {
+                    "campo": "observações",
+                    "texto": f"a requisição {alheia.requisicao} tem nas observações o "
+                    f"recebimento {alheia.recebimento_observado}",
+                },
+            ),
+        )
+    achados = {
+        "numero": pelo_numero,
+        "marca": pela_marca[0] if pela_marca else None,
+        "nf": pela_nf[0] if pela_nf else None,
+    }
+    achados = {tipo: r for tipo, r in achados.items() if r is not None}
+    distintas = {r.requisicao: r for r in achados.values()}
+    if len(distintas) > 1:
+        primeira, segunda, *_ = distintas.values()
+        return ResultadoEntrada("CONFLITO", primeira, segunda, vinculos=tuple(achados))
+    if not distintas:
+        if ja_vista or (
+            maior and RE_REQUISICAO_ENTRADA.match(numero or "") and chave(maior) > chave(numero)
+        ):
+            return ResultadoEntrada("NAO_ENCONTRADO")
+        return ResultadoEntrada("AGUARDANDO")
+    (ligada,) = distintas.values()
+    diferencas, notas = comparar_entrada(entrega, ligada, achados)
+    return ResultadoEntrada(
+        "DIVERGENTE" if diferencas else "COMPROVADO",
+        ligada,
+        vinculos=tuple(achados),
+        diferencas=tuple(diferencas),
+        notas=tuple(notas),
+    )
+
+
+def alteracoes_entrada(antes: EntradaOficial, agora: EntradaOficial) -> list[dict]:
+    """O que mudou na requisição entre a conferência do lançamento e uma revisão: compara os
+    valores, não os textos (uma quantidade que muda na quarta casa é alteração)."""
+    mudou = []
+    for campo, a, b in (
+        ("fornecedor", antes.fornecedor_codigo, agora.fornecedor_codigo),
+        ("NF", antes.nf, agora.nf),
+        (
+            "pedido",
+            (antes.pedido_ano, antes.pedido_numero),
+            (agora.pedido_ano, agora.pedido_numero),
+        ),
+        ("data", antes.data_entrada, agora.data_entrada),
+    ):
+        if a != b:
+            mudou.append(
+                {"campo": campo, "antes": _texto_da_alteracao(a), "agora": _texto_da_alteracao(b)}
+            )
+    if _soma_por_codigo(antes.itens) != _soma_por_codigo(agora.itens):
+        mudou.append(
+            {
+                "campo": "itens",
+                "antes": _itens_texto(_soma_por_codigo(antes.itens)),
+                "agora": _itens_texto(_soma_por_codigo(agora.itens)),
+            }
+        )
+    return mudou
+
+
+def _texto_da_alteracao(valor) -> str:
+    if isinstance(valor, date):
+        return f"{valor:%d/%m/%Y}"
+    if isinstance(valor, tuple):
+        return rotulo_pedido(*valor) if valor[1] else "(sem pedido)"
+    return str(valor or "")
+
+
+# --- "Já Entrou" que o Central não explica (PR 6, R19) -------------------------------------------
+
+
+def subconjunto_que_explica(
+    delta: Decimal, certos: Decimal, incertos: Sequence[Decimal]
+) -> tuple[int, ...] | None:
+    """Os índices de `incertos` que, somados aos `certos`, explicam o aumento do "Já Entrou"
+    (`delta`, a soma do `QTDENT` novo menos a do anterior, por pedido e código); `()` quando os
+    certos bastam e `None` sem explicação. Cada incerto (um recebimento ou uma entrada de fora, já
+    somado por código) entra inteiro ou não entra. Havendo mais de um subconjunto, vale o
+    primeiro na ordem dada. Um delta negativo (entrada excluída ou corrigida no SCPI) nunca é
+    explicado."""
+    if delta < 0:
+        return None
+    restante = delta - certos
+    if restante < 0:
+        return None
+    if restante == 0:
+        return ()  # o conjunto vazio já explica: sem enumerar as somas dos incertos
+    somas: dict[Decimal, tuple[int, ...]] = {Decimal(0): ()}
+    for indice, quantidade in enumerate(incertos):
+        for parcial, usados in list(somas.items()):
+            somas.setdefault(parcial + quantidade, (*usados, indice))
+    return somas.get(restante)
+
+
+def ja_entrou_explicado(delta: Decimal, certos: Decimal, incertos: Iterable[Decimal]) -> bool:
+    """Se o aumento do "Já Entrou" é explicado pelos recebimentos do Central: os `certos`
+    (lançados pelo robô entre as duas importações) e, de modo opcional, **algum subconjunto** dos
+    `incertos` (em verificação, ligados à mão ou fora do Central, de hora desconhecida). Ver
+    `subconjunto_que_explica`."""
+    return subconjunto_que_explica(delta, certos, list(incertos)) is not None

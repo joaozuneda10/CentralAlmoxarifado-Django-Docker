@@ -529,6 +529,173 @@ def test_a_extracao_de_arquivo_nao_e_extracao_posterior_e_a_lacuna_nao_entra_na_
     assert _prova(extracao_posterior=False, importacao_posterior=False)[0].startswith("Ainda não")
 
 
+# --- Recebimento lançado: veredito, comparação e alterações (PR 6, R17) ------------------------
+
+
+def _of(numero="003492/26", marca="RC-0042", nf="501", fornecedor="19502", pedido=(2026, 514), **c):
+    dados = {
+        "requisicao": numero,
+        "recebimento_observado": marca,
+        "fornecedor_codigo": fornecedor,
+        "nf": nf,
+        "pedido_ano": pedido[0],
+        "pedido_numero": pedido[1],
+        "data_entrada": date(2026, 11, 10),
+        "itens": (("006.011.020", Decimal("10")),),
+    } | c
+    return regras.EntradaOficial(**dados)
+
+
+def _entrega(**c):
+    dados = {
+        "fornecedor_codigo": "19502",
+        "nf": "501",
+        "pedido_ano": 2026,
+        "pedido_numero": 514,
+        "data": date(2026, 11, 10),
+        "itens": (("006.011.020", Decimal("10")),),
+    } | c
+    return regras.EntregaEntrada(**dados)
+
+
+def _ver(requisicoes, **c):
+    dados = {
+        "rotulo": "RC-0042",
+        "numero": "003492/26",
+        "requisicoes": requisicoes,
+        "entrega": _entrega(),
+        "fornecedor": "19502",
+        "nf": "501",
+        "maior": None,
+    } | c
+    return regras.veredito_entrada(
+        dados.pop("rotulo"),
+        dados.pop("numero"),
+        dados.pop("requisicoes"),
+        dados.pop("entrega"),
+        **dados,
+    )
+
+
+def test_os_tres_vinculos_na_mesma_requisicao_comprovam():
+    r = _ver([_of()])
+    assert r.veredito == "COMPROVADO" and set(r.vinculos) == {"numero", "marca", "nf"}
+    assert r.notas == ()
+
+
+def test_so_o_numero_e_a_nf_comprovam_com_a_marca_ausente_como_nota():
+    r = _ver([_of(marca="")])
+    assert r.veredito == "COMPROVADO" and set(r.vinculos) == {"numero", "nf"}
+    assert r.notas == (
+        {"campo": "observações", "texto": "o recebimento não está nas observações da requisição"},
+    )
+
+
+def test_diferenca_de_nf_fornecedor_pedido_data_ou_itens_diverge_so_com_o_que_difere():
+    r = _ver([_of(nf="999", pedido=(2026, 600), data_entrada=date(2026, 11, 11))], nf="")
+    assert r.veredito == "DIVERGENTE"
+    assert {d["campo"] for d in r.diferencas} == {"NF", "pedido", "data"}
+    itens = _ver([_of(itens=(("006.011.020", Decimal("9")),))])
+    assert [d["campo"] for d in itens.diferencas] == ["itens"]
+
+
+def test_a_soma_por_codigo_resolve_o_codigo_repetido():
+    entrega = _entrega(itens=(("006.011.020", Decimal("4")), ("006.011.020", Decimal("6"))))
+    assert _ver([_of()], entrega=entrega).veredito == "COMPROVADO"
+    ao_contrario = _entrega(itens=(("006.011.020", Decimal("10")),))
+    dividido = _of(itens=(("006.011.020", Decimal("4")), ("006.011.020", Decimal("6"))))
+    assert _ver([dividido], entrega=ao_contrario).veredito == "COMPROVADO"
+
+
+def test_o_codigo_se_compara_pela_chave_do_sistema_e_a_quantidade_e_exata():
+    assert _ver([_of(itens=((" 006.011.020", Decimal("10")),))]).veredito == "COMPROVADO"
+    quase = _of(itens=(("006.011.020", Decimal("10.0001")),))
+    assert _ver([quase]).veredito == "DIVERGENTE"
+
+
+def test_dtlan_e_empenho_nunca_sao_comparados():
+    assert "data_requisicao" not in regras.EntradaOficial.__dataclass_fields__
+    assert "empenho" not in regras.EntradaOficial.__dataclass_fields__
+
+
+def test_duplicado_pela_marca_pela_nf_sem_marca_e_pelo_numero_com_marca_de_outro():
+    assert _ver([_of(), _of("003493/26")]).veredito == "DUPLICADO"  # a marca em duas
+    sem_marca = [_of(marca="", nf="501"), _of("003493/26", marca="", nf="501")]
+    assert _ver(sem_marca).veredito == "DUPLICADO"  # a NF com o fornecedor em duas
+    de_outro = _of(marca="RC-0099")
+    assert _ver([de_outro]).veredito == "DUPLICADO"  # o número leva à marca de outro recebimento
+    assert _ver([_of()], numero_em_outro_recebimento=True).veredito == "DUPLICADO"
+
+
+def test_a_nf_que_leva_a_requisicao_com_a_marca_de_outro_recebimento_nao_comprova():
+    # o número gravado não aparece; a NF acha uma requisição que é do RC-0099
+    da_nf = _of("003777/26", marca="RC-0099")
+    r = _ver([da_nf])
+    assert r.veredito == "DUPLICADO" and r.requisicao is da_nf
+    assert "RC-0099" in r.notas[0]["texto"]
+
+
+def test_conflito_quando_dois_vinculos_apontam_para_requisicoes_diferentes():
+    r = _ver(
+        [_of("003492/26", marca="", nf="900"), _of("003493/26", marca="RC-0042", nf="900")], nf=""
+    )
+    assert r.veredito == "CONFLITO" and r.requisicao and r.outra
+
+
+def test_nenhum_vinculo_nao_encontrado_so_com_numero_maior_no_relatorio_ou_ja_vista():
+    assert _ver([], maior="003400/26").veredito == "AGUARDANDO"
+    assert _ver([], maior="003493/26").veredito == "NAO_ENCONTRADO"
+    assert _ver([], maior=None, ja_vista=True).veredito == "NAO_ENCONTRADO"
+    assert _ver([], maior="000001/27").veredito == "NAO_ENCONTRADO"  # o ano decide na virada
+
+
+def test_as_alteracoes_comparam_os_valores():
+    antes = _of()
+    assert regras.alteracoes_entrada(antes, _of()) == []
+    mudou = regras.alteracoes_entrada(antes, _of(nf="502", itens=(("006.011.020", Decimal("11")),)))
+    assert [m["campo"] for m in mudou] == ["NF", "itens"]
+    assert mudou[0] == {"campo": "NF", "antes": "501", "agora": "502"}
+
+
+# --- O "Já Entrou" explicado pelo Central (PR 6, R19) --------------------------------------------
+
+
+def test_ja_entrou_explicado_so_pelos_certos():
+    assert regras.ja_entrou_explicado(Decimal("10"), Decimal("10"), [])
+    assert regras.ja_entrou_explicado(Decimal("0"), Decimal("0"), [])
+
+
+def test_ja_entrou_sem_aumento_nao_enumera_os_incertos():
+    d = Decimal
+    muitos = [d("1")] * 5000  # enumerar as somas desses incertos seria desperdício
+    assert regras.ja_entrou_explicado(d("0"), d("0"), muitos)
+    assert regras.ja_entrou_explicado(d("10"), d("10"), muitos)
+
+
+def test_subconjunto_que_explica_devolve_quais_incertos_foram_usados():
+    d = Decimal
+    assert regras.subconjunto_que_explica(d("10"), d("10"), [d("5")]) == ()
+    assert regras.subconjunto_que_explica(d("15"), d("10"), [d("3"), d("5")]) == (1,)
+    assert regras.subconjunto_que_explica(d("8"), d("0"), [d("3"), d("9"), d("5")]) == (0, 2)
+    assert regras.subconjunto_que_explica(d("7"), d("0"), [d("3"), d("5")]) is None
+    assert regras.subconjunto_que_explica(d("-1"), d("0"), [d("1")]) is None
+
+
+def test_ja_entrou_explicado_por_certos_e_um_subconjunto_dos_incertos():
+    d = Decimal
+    assert regras.ja_entrou_explicado(d("15"), d("10"), [d("5")])
+    assert regras.ja_entrou_explicado(d("18"), d("10"), [d("5"), d("3"), d("9")])  # 5 + 3
+    assert regras.ja_entrou_explicado(d("10"), d("10"), [d("5")])  # o incerto não entrou ainda
+
+
+def test_ja_entrou_sem_nenhuma_combinacao_ou_negativo_nao_e_explicado():
+    d = Decimal
+    assert not regras.ja_entrou_explicado(d("14"), d("10"), [d("5")])
+    assert not regras.ja_entrou_explicado(d("5"), d("10"), [])  # menos do que o robô lançou
+    assert not regras.ja_entrou_explicado(d("-3"), d("0"), [d("3")])  # entrada excluída
+    assert not regras.ja_entrou_explicado(d("7"), d("0"), [])
+
+
 def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
     assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
     assert (

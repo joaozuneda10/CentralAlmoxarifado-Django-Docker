@@ -1,0 +1,35 @@
+{% comment %}
+Região "Pedidos travados" da aba Entradas no SCPI (spec 014, US5): por pedido, as travas abertas
+com o detalhe, a data da última importação de pedidos e "Destravar" com o motivo (só depois de uma
+importação posterior à trava, que o servidor confere). Também sem JavaScript.
+{% endcomment %}
+{% if pedidos_travados %}
+<div class="cartao pilha" id="pedidos-travados">
+  <h2 class="cartao-titulo">Pedidos travados</h2>
+  {% for item in pedidos_travados %}
+  <article class="cartao cartao-sutil trava">
+    <div class="trava-cabecalho">
+      <h3>Pedido <a class="mono" href="{% url 'compras:pedido' item.pedido.pk %}">{{ item.pedido.rotulo }}</a></h3>
+      <dl class="dados">
+        <div><dt>Fornecedor</dt><dd>{{ item.pedido.fornecedor_nome|default:item.pedido.fornecedor_codigo }}</dd></div>
+        <div><dt>Última importação de pedidos</dt><dd>{% if item.ultima_importacao %}{{ item.ultima_importacao.inicio|date:"d/m/Y H:i" }}{% else %}—{% endif %}</dd></div>
+      </dl>
+    </div>
+    <ul class="lista-travas">
+      {% for t in item.travas %}<li><strong>{{ t.get_motivo_display }}</strong> desde {{ t.criada_em|date:"d/m/Y H:i" }}.{% if t.detalhe %} {{ t.detalhe }}{% endif %}</li>{% endfor %}
+    </ul>
+    {% if entradas_em_andamento or saidas_lancando %}
+    <p class="texto-secundario texto-pequeno">O destravamento fica disponível quando o lançamento terminar.</p>
+    {% else %}
+    <form method="post" action="{% url 'automacoes:destravar_pedido' item.pedido.pk %}" class="pilha-curta">
+      {% csrf_token %}
+      <label class="campo-rotulo" for="destravar-{{ item.pedido.pk }}">Motivo do destravamento</label>
+      <input class="campo-entrada" id="destravar-{{ item.pedido.pk }}" type="text" name="motivo" maxlength="300" required>
+      <p class="campo-dica">Confira no SCPI e atualize os pedidos antes: o destravamento exige uma importação de pedidos posterior à trava.</p>
+      <button type="submit" class="botao botao-secundario">Destravar o pedido</button>
+    </form>
+    {% endif %}
+  </article>
+  {% endfor %}
+</div>
+{% endif %}

@@ -4,7 +4,7 @@ from django.core.management import BaseCommand, CommandError
 from django.utils import timezone
 
 from catalogo.models import Importacao
-from compras.conciliacao import ConciliacaoEmAndamento, conciliar
+from compras.conciliacao import ConciliacaoEmAndamento, ConciliacaoIncompleta, conciliar
 from compras.extracao import extrair
 from compras.models import ExtracaoEntradas, Recebimento
 from compras.robo import resumo_da_contagem
@@ -112,5 +112,8 @@ class Command(BaseCommand):
             contagem = conciliar(extracao)
         except ConciliacaoEmAndamento as exc:
             raise CommandError(str(exc)) from None
+        except ConciliacaoIncompleta as exc:
+            parcial = resumo_da_contagem(exc.contagem) or "nada gravado"
+            raise CommandError(f"{exc} (gravado: {parcial}).") from None
         if contagem:
             self.stdout.write(f"  Conciliação: {resumo_da_contagem(contagem)}.")

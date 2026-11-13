@@ -901,6 +901,30 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   edição) ou cancela sem liberar a NF. A aba Entradas no SCPI ganha a região "Em verificação e com
   erro" (`compras/_verificacao.html`, rota `automacoes:resolver_entrada` em `REGRAS_POR_ROTA`).
   Os testes nunca abrem o navegador: o `conftest` troca o `sync_playwright` por um erro.
+  **Vereditos e entradas fora do Central (PR 6)**: `regras.veredito_entrada` (pura) usa três vínculos,
+  o número gravado, a marca `RC-…` e a NF com o fornecedor: marca ou NF em duas requisições, ou o número
+  numa requisição com a marca de outro recebimento, é Duplicado (mesmo sem a marca do Central); dois
+  vínculos em requisições diferentes, Conflito; nenhum vínculo, Não encontrado só com número maior no
+  relatório (ou uma conferência anterior que já a achou), senão Aguardando; os achados na mesma
+  requisição vão à `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento
+  e a **soma por código** com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho; vínculo que
+  falta, como a marca, vira nota). `compras.conciliacao.conciliar` (trava própria, cada etapa isolada,
+  `ConciliacaoIncompleta` no fim) roda em verificar, `conciliar_fora` e `conciliar_lancados` (primeira
+  conclusiva `LANCAMENTO`, depois `REVISAO` com `alterado_depois`; `ARQUIVO` só dá o primeiro
+  veredito; o recebimento lançado nunca muda). **Entrada fora do Central**: a requisição de um pedido
+  conhecido, sem a marca, ainda não ligada e com número **acima do marco** (`consultas.marco`, o
+  `maior_requisicao` da primeira extração bem-sucedida) liga à mão o recebimento aberto com a mesma NF
+  e o mesmo fornecedor (`servicos.ligar_a_mao`, `via=MANUAL`) ou vira `EntradaForaDoCentral`
+  (reserva o saldo por código até a importação a refletir e trava o pedido `FORA_DO_CENTRAL`); a marca
+  de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
+  Entrou" por (pedido, código) (`regras.ja_entrou_explicado`: os lançados pelo robô entre as duas
+  importações mais, opcionalmente, um subconjunto dos incertos) e trava `JA_ENTROU` sem explicação,
+  inclusive com delta negativo; cada incerto (somado por código) explica um aumento uma vez só
+  (`IncertoConsumido`, migration `compras/0008`), e a troca de código do item compara o antigo e o novo. A aba Entradas no SCPI ganha "Pedidos travados" (destravar com
+  motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
+  mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
+  entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da
+  primeira execução.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

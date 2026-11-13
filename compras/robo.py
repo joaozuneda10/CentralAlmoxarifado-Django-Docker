@@ -371,8 +371,12 @@ def tentativa_lancada(execucao, recebimento_id: int, numero: str) -> None:
 
 
 def resumo_da_contagem(contagem: dict[str, int]) -> str:
-    """'VERIFICAR': 2 → "2 em verificação conferidos"."""
-    rotulos = dict(ConferenciaRecebimento.Veredito.choices)
-    return ", ".join(
-        f"{n} {rotulos.get(v, 'em verificação conferidos').lower()}" for v, n in contagem.items()
-    )
+    """'COMPROVADO': 2, 'DIVERGENTE': 1 → "2 comprovados, 1 divergente"."""
+    rotulos = {
+        **dict(ConferenciaRecebimento.Veredito.choices),
+        "VERIFICAR": "em verificação conferidos",
+        "FORA_DO_CENTRAL": "entradas fora do Central",
+        "LIGADO_A_MAO": "ligados à mão",
+        "MARCA_SEM_LANCAMENTO": "marcas sem lançamento",
+    }
+    return ", ".join(f"{n} {rotulos.get(v, v).lower()}" for v, n in contagem.items())

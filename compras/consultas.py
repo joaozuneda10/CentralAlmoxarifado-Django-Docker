@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Count, Q
+from django.db.models import CharField, Count, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from catalogo.models import Importacao, Material
 from compras import regras
 from compras.models import (
+    ConferenciaRecebimento,
     ItemPedidoCompra,
     ItemRecebimento,
     PedidoCompra,
@@ -64,7 +66,30 @@ def reservado_por_item(
             inicio_ultima_importacao=inicio,
         ):
             reservado[linha.item_id].append(linha.quantidade)
+    _reserva_das_entradas_fora_do_central(pedido, inicio, reservado)
     return reservado
+
+
+def _reserva_das_entradas_fora_do_central(pedido, inicio, reservado) -> None:
+    """As entradas feitas direto no SCPI reservam o saldo, por **código**, até uma importação de
+    pedidos começada depois do `visivel_desde` (a mesma regra do lançado). Com o código repetido
+    no pedido, reservam em cada item."""
+    from compras.models import EntradaForaDoCentral
+
+    entradas = list(EntradaForaDoCentral.objects.filter(pedido=pedido))
+    if not entradas:
+        return
+    por_codigo: dict[str, list[ItemPedidoCompra]] = defaultdict(list)
+    for item in pedido.itens.all():
+        por_codigo[norm_u(item.codigo)].append(item)
+    for entrada in entradas:
+        if not regras.reserva_de(
+            "LANCADO", visivel_desde=entrada.visivel_desde, inicio_ultima_importacao=inicio
+        ):
+            continue
+        for linha in entrada.itens:
+            for item in por_codigo.get(norm_u(linha["codigo"]), []):
+                reservado[item.pk].append(Decimal(str(linha["quantidade"])))
 
 
 @dataclass(frozen=True)
@@ -389,3 +414,107 @@ def verificacoes_entradas() -> list[RecebimentoParaResolver]:
                     candidatas.append(candidata)
         resultado.append(RecebimentoParaResolver(recebimento, em_verificacao, candidatas, faltas))
     return resultado
+
+
+# O marco de quando a primeira extração não trouxe nenhuma entrada: abaixo de qualquer número.
+MARCO_VAZIO = "000000/00"
+
+
+def marco() -> str | None:
+    """O `maior_requisicao` da primeira extração de entradas bem-sucedida: o que tem número até ele
+    é história anterior ao Central (R18). None sem nenhuma extração ainda.
+
+    A primeira extração fixa o marco mesmo vazia (`MARCO_VAZIO`): se ele ficasse para a primeira
+    extração com entradas, a entrada feita à mão depois da vazia viraria história, sem registro
+    nem trava."""
+    from compras.models import ExtracaoEntradas
+
+    primeira = (
+        ExtracaoEntradas.objects.filter(importacao__situacao=Importacao.Situacao.SUCESSO)
+        .order_by("importacao__inicio", "pk")
+        .first()
+    )
+    if primeira is None:
+        return None
+    return primeira.maior_requisicao or MARCO_VAZIO
+
+
+def _conclusivas(recebimento):
+    from compras.models import ConferenciaRecebimento
+
+    return ConferenciaRecebimento.objects.filter(
+        recebimento=recebimento,
+        tipo__in=(
+            ConferenciaRecebimento.Tipo.LANCAMENTO,
+            ConferenciaRecebimento.Tipo.REVISAO,
+        ),
+    ).exclude(veredito=ConferenciaRecebimento.Veredito.AGUARDANDO)
+
+
+def veredito_atual(recebimento):
+    """A última conferência conclusiva do recebimento lançado (o veredito atual); None é
+    "Aguardando"."""
+    return _conclusivas(recebimento).order_by("-criada_em", "-pk").first()
+
+
+FILTROS_VEREDITO = (
+    ("divergencias", "Divergências"),
+    ("aguardando", "Aguardando"),
+    ("comprovados", "Comprovados"),
+    ("todos", "Todos"),
+)
+POR_PAGINA_VEREDITOS = 50
+PROBLEMAS = ("DIVERGENTE", "NAO_ENCONTRADO", "DUPLICADO", "CONFLITO")
+
+
+def vereditos(filtro: str = "divergencias", pagina: int | str = 1):
+    """Os recebimentos lançados com o veredito atual, filtrados e paginados (50 por página).
+
+    O veredito atual (o da última conferência conclusiva, como `veredito_atual`) vem numa
+    subconsulta, o filtro é SQL e só as conferências da página pedida são lidas."""
+    from django.core.paginator import Paginator
+
+    atual = _conclusivas(OuterRef("pk")).order_by("-criada_em", "-pk")
+    lancados = (
+        Recebimento.objects.filter(status=Recebimento.Status.LANCADO)
+        .select_related("pedido")
+        .annotate(
+            atual_pk=Subquery(atual.values("pk")[:1]),
+            atual_veredito=Coalesce(
+                Subquery(atual.values("veredito")[:1]),
+                Value("AGUARDANDO"),
+                output_field=CharField(),
+            ),
+        )
+        .order_by("-lancado_em", "-pk")
+    )
+    if filtro == "divergencias":
+        lancados = lancados.filter(atual_veredito__in=PROBLEMAS)
+    elif filtro == "aguardando":
+        lancados = lancados.filter(atual_veredito="AGUARDANDO")
+    elif filtro == "comprovados":
+        lancados = lancados.filter(atual_veredito="COMPROVADO")
+    pagina_obtida = Paginator(lancados, POR_PAGINA_VEREDITOS).get_page(pagina)
+    recebimentos = list(pagina_obtida.object_list)
+    conferencias = ConferenciaRecebimento.objects.in_bulk(
+        [r.atual_pk for r in recebimentos if r.atual_pk]
+    )
+    pagina_obtida.object_list = [
+        {
+            "recebimento": r,
+            "conferencia": conferencias.get(r.atual_pk),
+            "veredito": r.atual_veredito,
+        }
+        for r in recebimentos
+    ]
+    return pagina_obtida
+
+
+def ultima_extracao_entradas():
+    from compras.models import ExtracaoEntradas
+
+    return (
+        ExtracaoEntradas.objects.select_related("importacao")
+        .order_by("-importacao__inicio", "-pk")
+        .first()
+    )

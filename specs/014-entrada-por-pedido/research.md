@@ -482,6 +482,13 @@ os itens presentes nesta importação e na anterior.
   - **incertos**: os recebimentos com tentativa em verificação nesse intervalo, que podem ter sido
     salvos ou não, e os ligados à mão e as entradas fora do Central com `visivel_desde` depois do início
     da anterior, porque a hora real da entrada é desconhecida.
+  - cada incerto é um recebimento ou uma entrada de fora inteiros: as linhas do mesmo código somam
+    antes de formar os subconjuntos;
+  - **uso único**: o incerto que explicou um aumento fica registrado (`IncertoConsumido`, por pedido
+    e código) e não explica outro, senão um único recebimento em verificação absolveria aumentos
+    sucessivos feitos à mão. Havendo mais de um subconjunto que explica, vale o primeiro em ordem
+    estável (a escolha só importa se o SCPI ainda trouxer outro aumento); se os certos bastam, nada
+    é consumido.
 - **Sem explicação**: aviso de saúde e trava do pedido (motivo `JA_ENTROU`), com o Δ e o explicado no
   detalhe. Um Δ negativo, de entrada excluída ou corrigida no SCPI, também trava.
 - **Fora da conferência**:

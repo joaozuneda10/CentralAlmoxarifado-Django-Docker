@@ -6,7 +6,7 @@ enquanto algum robô roda (o de entradas, para o andamento; o de saídas, para o
 quando ele termina); os recebimentos bloqueados aparecem sem caixa de marcar, com o
 motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os botões.
 {% endcomment %}
-<section id="entradas-no-scpi" class="pilha-larga"{% if entradas_em_andamento or saidas_lancando %} hx-get="{% url 'automacoes:pagina' %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+<section id="entradas-no-scpi" class="pilha-larga"{% if entradas_em_andamento or saidas_lancando %} hx-get="{% url 'automacoes:pagina' %}{% if request.GET %}?{{ request.GET.urlencode }}{% endif %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
   {% if entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
   <div class="cartao pilha">
     <form method="post" action="{% url 'automacoes:lancar_entradas' %}" id="fila-entradas-form" class="fila-form" data-fila-robo data-fila-campo="recebimentos" data-fila-um="recebimento selecionado" data-fila-varios="recebimentos selecionados" data-fila-nenhum="Nenhum recebimento selecionado" data-fila-conf-um="O recebimento {} será lançado de verdade no SCPI. Não dá para desfazer por aqui." data-fila-conf-varios="Os recebimentos {} serão lançados de verdade no SCPI. Não dá para desfazer por aqui." data-fila-dialogo="dialogo-lancar-entradas">
@@ -80,4 +80,6 @@ motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os bot
 
   {% if not entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
   {% include "compras/_verificacao.html" %}
+  {% include "compras/_travas.html" %}
+  {% include "compras/_conferencia.html" %}
 </section>

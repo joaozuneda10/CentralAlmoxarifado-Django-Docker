@@ -357,6 +357,146 @@ def test_resolver_entrada_exige_login_e_operar_automacoes(client, logado, pedido
     assert client.get(url).status_code == 403
 
 
+# --- a região "Conferência", "Pedidos travados" e as ações novas -------------------------------
+
+
+def _lancado(pedido, logado, scpi_simulado):
+    from pedidos.models import ExecucaoRobo
+    from scpi.lancamento_entradas import executar_lancamento_entradas
+
+    r = preparar(pedido, logado, {1: "10"})
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    executar_lancamento_entradas(
+        execucao,
+        scpi_simulado.abrir,
+        recebimentos=[r.rotulo],
+        extrair=scpi_simulado.relatorio_entradas,
+    )
+    r.refresh_from_db()
+    return r
+
+
+def test_conferencia_mostra_a_ultima_extracao_e_o_veredito_com_o_filtro(
+    client, logado, pedido, scpi_simulado
+):
+    r = _lancado(pedido, logado, scpi_simulado)
+    texto = client.get(ENTRADAS + "&veredito_entradas=todos").text
+    assert 'id="conferencia-entradas"' in texto and "Última extração:" in texto
+    assert r.rotulo in texto and "Comprovado" in texto and "003492/26" in texto
+    padrao = client.get(ENTRADAS).text  # o filtro padrão são as divergências: nenhuma
+    assert "Nenhum recebimento lançado neste filtro." in padrao
+    comprovados = client.get(ENTRADAS + "&veredito_entradas=comprovados").text
+    assert r.rotulo in comprovados
+    assert 'aria-current="true"' in comprovados
+
+
+def test_conferencia_mostra_as_diferencas_em_texto(
+    client, logado, pedido, scpi_simulado, monkeypatch
+):
+    from decimal import Decimal
+
+    from django.core.management import call_command
+
+    from scpi import relatorios
+
+    r = _lancado(pedido, logado, scpi_simulado)
+    monkeypatch.setattr(relatorios, "baixar_entradas", scpi_simulado.relatorio_entradas)
+    scpi_simulado.salvas[0].itens = [("006.011.020", Decimal("12"))]
+    call_command("conciliar_entradas")
+    texto = client.get(ENTRADAS).text
+    assert r.rotulo in texto and "Divergente" in texto and "Alterado no SCPI depois" in texto
+    assert "Itens: no Central, 006.011.020 × 10; no SCPI, 006.011.020 × 12." in texto
+
+
+def test_conferir_agora_inicia_o_comando_e_recusa_com_robo_rodando(client, logado, disparos):
+    resposta = client.post(reverse("automacoes:conferir_entradas"), follow=True)
+    assert "Conferência iniciada" in resposta.text
+    ((argumentos, log),) = disparos
+    assert argumentos == ["conciliar_entradas"] and log == "conciliar_entradas.log"
+    ExecucaoRobo.objects.create(robo="SAIDAS")
+    outra = client.post(reverse("automacoes:conferir_entradas"), follow=True)
+    assert "Há um lançamento em andamento" in outra.text and len(disparos) == 1
+
+
+def test_conferir_agora_fica_desabilitado_com_robo_rodando(client, logado):
+    ExecucaoRobo.objects.create(robo="ENTRADAS")
+    texto = client.get(ENTRADAS).text
+    botao = re.search(r"<button[^>]*>Conferir agora", texto).group(0)
+    assert " disabled" in botao
+    assert "Há um lançamento em andamento. Confira quando ele terminar." in texto
+
+
+def test_pedidos_travados_com_o_detalhe_a_ultima_importacao_e_o_destravar(client, logado, pedido):
+    from compras import servicos
+
+    servicos.travar_pedido(pedido.pk, "FORA_DO_CENTRAL", "A requisição 003493/26 foi feita à mão.")
+    texto = client.get(ENTRADAS).text
+    assert 'id="pedidos-travados"' in texto and pedido.rotulo in texto
+    assert "Entrada feita fora do Central" in texto and "003493/26 foi feita à mão" in texto
+    assert reverse("automacoes:destravar_pedido", args=[pedido.pk]) in texto
+    assert "Última importação de pedidos" in texto
+
+
+def test_destravar_pela_aba_exige_motivo_e_importacao_posterior(client, logado, pedido):
+    from compras import servicos
+
+    servicos.travar_pedido(pedido.pk, "TELA", "o SCPI mudou")
+    url = reverse("automacoes:destravar_pedido", args=[pedido.pk])
+    sem_motivo = client.post(url, {"motivo": ""}, follow=True)
+    assert "Informe o motivo do destravamento." in sem_motivo.text
+    sem_importacao = client.post(url, {"motivo": "conferi"}, follow=True)
+    assert "Atualize os pedidos antes" in sem_importacao.text
+
+
+def test_destravar_e_conferir_exigem_operar_automacoes(client, pedido, disparos):
+    client.force_login(usuario_com(username="40013"))
+    assert client.post(reverse("automacoes:destravar_pedido", args=[pedido.pk])).status_code == 403
+    assert client.post(reverse("automacoes:conferir_entradas")).status_code == 403
+    assert disparos == []
+
+
+def test_o_pedido_mostra_as_entradas_feitas_fora_do_central(client, logado, pedido):
+    from catalogo.models import Importacao
+    from compras.models import EntradaForaDoCentral, ExtracaoEntradas, RequisicaoEntradaOficial
+
+    imp = Importacao.objects.create(tipo="ENTRADAS", situacao="SUCESSO")
+    extracao = ExtracaoEntradas.objects.create(importacao=imp, motivo="MANUAL")
+    requisicao = RequisicaoEntradaOficial.objects.create(
+        extracao=extracao,
+        requisicao="003493/26",
+        ano=2026,
+        numero=3493,
+        id_requi=1,
+        data_entrada=timezone.localdate(),
+        data_requisicao=timezone.localdate(),
+    )
+    EntradaForaDoCentral.objects.create(
+        pedido=pedido,
+        requisicao=requisicao,
+        ano=2026,
+        numero=3493,
+        visivel_desde=timezone.now(),
+        itens=[{"codigo": "006.011.020", "quantidade": "8"}],
+    )
+    texto = client.get(reverse("compras:pedido", args=[pedido.pk])).text
+    assert "Entradas feitas direto no SCPI, sem o Central" in texto and "003493/26" in texto
+
+
+def test_a_recarga_da_regiao_mantem_os_pedidos_travados_e_a_conferencia(client, logado, pedido):
+    from compras import servicos
+
+    servicos.travar_pedido(pedido.pk, "FORA_DO_CENTRAL", "A requisição 003493/26 foi feita à mão.")
+    resposta = client.get(
+        PAGINA + "?veredito_entradas=todos",
+        HTTP_HX_REQUEST="true",
+        HTTP_HX_TARGET="section#entradas-no-scpi",
+    )
+    texto = resposta.text
+    assert 'id="pedidos-travados"' in texto and "003493/26 foi feita à mão" in texto
+    assert resposta.context["filtro_veredito"] == "todos"
+    assert resposta.context["pagina_vereditos"] is not None
+
+
 def test_com_o_robo_de_saidas_rodando_a_regiao_se_atualiza_ate_os_botoes_voltarem(client, logado):
     saidas = ExecucaoRobo.objects.create(robo="SAIDAS")
     assert 'hx-trigger="every 3s"' in _regiao(client).text
