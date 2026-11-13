@@ -143,6 +143,26 @@ def test_mesma_impressao_de_uma_origem_sem_bytes_guarda_o_seu():
     assert gzip.decompress(bytes(nova.arquivo)) == conteudo and nova.mesmo_arquivo_que is None
 
 
+def test_extracao_com_falha_so_aponta_para_a_origem_com_a_trava_das_extracoes(monkeypatch):
+    from contextlib import contextmanager
+
+    conteudo = _csv(3492)
+    origem = _extrair(conteudo)
+    fora_do_periodo = (date(2026, 10, 25), date(2026, 10, 26))  # a data do CSV não cabe: falha
+    ligada = extrair(ExtracaoEntradas.Motivo.MANUAL, fora_do_periodo, lambda: conteudo)
+    assert not ligada.bem_sucedida and ligada.mesmo_arquivo_que == origem
+
+    @contextmanager
+    def ocupada(nome):
+        yield False  # a limpeza pode estar rodando: não escolhe origem
+
+    monkeypatch.setattr("compras.extracao.trava", ocupada)
+    sozinha = extrair(ExtracaoEntradas.Motivo.MANUAL, fora_do_periodo, lambda: conteudo)
+    sozinha.refresh_from_db()
+    assert not sozinha.bem_sucedida and sozinha.mesmo_arquivo_que is None
+    assert gzip.decompress(bytes(sozinha.arquivo)) == conteudo
+
+
 def test_trava_ocupada_nao_cria_registro(trava_importacao_ocupada):
     trava_importacao_ocupada("ENTRADAS")
     with pytest.raises(ImportacaoEmAndamento):

@@ -113,9 +113,13 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
 Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`),
-`importar_pedidos_compra` (07.13, `--forcar`) e `atualizar_catalogo` (os três em sequência e,
-por último, `conciliar_lancamentos --diaria`, a
-extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
+`importar_pedidos_compra` (07.13, `--forcar`), `conciliar_entradas` e `atualizar_catalogo` (os três
+em sequência e, depois, três passos da conciliação: `conciliar_lancamentos --diaria`, a extração
+diária das requisições de saída com a conciliação e a limpeza de 60 dias; `conciliar_entradas
+--diaria`, o mesmo para as entradas por pedido (`compras/limpeza.py`: o bruto e as requisições sem
+ligação de mais de 60 dias, sem apagar a requisição de uma `EntradaForaDoCentral`); e, por último, o
+`importar_pedidos_compra`, que reflete tudo no saldo; seis passos num navegador só, e um que falha não
+impede os seguintes; com
 `--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
 botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
 SCPI só é estável das 7h às 17h) abrem o SCPI pelo Playwright; com `--arquivo`
@@ -860,7 +864,14 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `TentativaEntrada` `VERIFICAR` com a foto e a tela lida; fecha antes do clique), journal
   `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
   → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
-  com `FalhaCritica` e o número está no journal). Roda sob `TRAVA_LANCAMENTO` **e** a trava da
+  com `FalhaCritica` e o número está no journal). O journal de antes do Salvar e o do número são
+  críticos e a execução para sem conseguir gravá-los, mas o estado difere: sem o de antes do Salvar
+  (nada foi clicado), o recebimento fica `EM_LANCAMENTO` e a tentativa a `VERIFICAR`; sem o do número
+  (o Salvar já aconteceu), o número ainda vai ao banco e ao log, o recebimento fica `LANCADO` e só
+  então a execução para. A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
+  marca) ela já achou numa requisição (`compras.robo.ja_no_scpi`: `ERRO`, nada salvo), e o `ERRO`
+  de antes do Salvar só é gravado se o recebimento continua `PREPARADO` na versão selecionada. O
+  `_travar` trava o pedido e depois o recebimento, a ordem de `compras.servicos`. Roda sob `TRAVA_LANCAMENTO` **e** a trava da
   importação de pedidos (nenhuma importação de pedidos durante o lançamento); o
   `importar_pedidos_compra` recusa com uma execução de entradas em andamento. A simulação
   (`--dry-run`) abre, confere, preenche e cancela, sem tentativa, estado nem extração (a divergência
@@ -894,7 +905,9 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   recebimento em verificação exigem as três provas (`consultas.liberacao` sobre `regras.tres_provas`:
   extração de entradas posterior que não seja de arquivo, nenhuma candidata em nenhuma conferência
   da tentativa e o "Já Entrou" da tela antes do Salvar, gravado na foto, igual na importação de
-  pedidos posterior). `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
+  pedidos posterior, que tem de ser lida do SCPI na hora: a de um CSV, `Importacao.de_arquivo`,
+  migration `catalogo/0011`, não prova nada enquanto for a última). O recebimento liberado e depois
+  cancelado pelo serviço comum mantém a NF reservada. `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
   `TRAVA_LANCAMENTO`, recusa com robô rodando) liga a candidata como `LANCADO` (`via=ROBO`,
   `visivel_desde` = início da extração), devolve **o mesmo** recebimento a `PREPARADO` com
   `versao + 1` e a NF ainda reservada (a tentativa antiga passa a `IGNORADA`, para não travar a
@@ -913,7 +926,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   conclusiva `LANCAMENTO`, depois `REVISAO` com `alterado_depois`; `ARQUIVO` só dá o primeiro
   veredito; o recebimento lançado nunca muda). **Entrada fora do Central**: a requisição de um pedido
   conhecido, sem a marca, ainda não ligada e com número **acima do marco** (`consultas.marco`, o
-  `maior_requisicao` da primeira extração bem-sucedida) liga à mão o recebimento aberto com a mesma NF
+  `maior_requisicao` da primeira extração bem-sucedida, ou `MARCO_VAZIO` se ela veio sem entradas) liga à mão o recebimento aberto com a mesma NF
   e o mesmo fornecedor (`servicos.ligar_a_mao`, `via=MANUAL`) ou vira `EntradaForaDoCentral`
   (reserva o saldo por código até a importação a refletir e trava o pedido `FORA_DO_CENTRAL`); a marca
   de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
@@ -924,7 +937,8 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
   mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
   entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da
-  primeira execução.
+  primeira execução. A rotina diária (PR 7) é o `atualizar_catalogo`, que ganhou `conciliar_entradas
+  --diaria` e `importar_pedidos_compra`, nessa ordem; o `deploy/crontab` não muda.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

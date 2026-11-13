@@ -4,7 +4,7 @@
 
 **Created**: 2026-11-10
 
-**Status**: Draft
+**Status**: Implementada (PRs 0 a 7); falta a conferência real no SCPI: quickstart, passos 4 a 8
 
 **Input**: User description: entrada de materiais por pedido de compra. O almoxarifado registra no
 Central o recebimento de uma nota fiscal de um pedido, total ou parcial, e o robô lança a Requisição de
