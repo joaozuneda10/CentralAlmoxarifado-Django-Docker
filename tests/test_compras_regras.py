@@ -268,3 +268,143 @@ def test_texto_observacoes_com_e_sem_observacao():
     )
     # a marca que o robô escreve é a que a leitura reconhece
     assert regras.recebimento_observado(regras.texto_observacoes("RC-0042", "x")) == "RC-0042"
+
+
+# --- A conferência da tela do SCPI antes do Salvar (PR 4) ----------------------------------
+
+
+def _esperado(item=1, codigo="006.011.020", quantidade="10", ja_entrou="50", saldo="50"):
+    return regras.EsperadoItem(
+        item, codigo, Decimal(quantidade), Decimal(ja_entrou), Decimal(saldo)
+    )
+
+
+def _tela_do_scpi(*linhas):
+    return regras.TelaItens(tuple(linhas))
+
+
+def _linha_da_tela(item=1, codigo="006.011.020", ja_entrou="50", saldo="50", quantidade="100"):
+    return regras.LinhaTela(
+        item, codigo, Decimal(quantidade), Decimal(ja_entrou), Decimal(0), Decimal(saldo)
+    )
+
+
+def test_a_tela_igual_ao_esperado_nao_diverge():
+    assert (
+        regras.conferir_tela(
+            [_esperado()], _tela_do_scpi(_linha_da_tela(), _linha_da_tela(2, "023.003.004"))
+        )
+        == []
+    )
+
+
+def test_ja_entrou_maior_na_tela_diverge_com_a_mensagem_do_item():
+    divergencias = regras.conferir_tela(
+        [_esperado(item=13, ja_entrou="1")],
+        _tela_do_scpi(_linha_da_tela(13, ja_entrou="2", saldo="50")),
+    )
+    assert divergencias == ["O SCPI mudou: item 13, Já Entrou 2 na tela, esperado 1."]
+
+
+def test_saldo_menor_na_tela_diverge():
+    divergencias = regras.conferir_tela([_esperado()], _tela_do_scpi(_linha_da_tela(saldo="30")))
+    assert "O SCPI mudou: item 1, saldo 30 na tela, esperado 50." in divergencias
+
+
+def test_item_ausente_na_tela_diverge():
+    assert regras.conferir_tela([_esperado(item=3)], _tela_do_scpi(_linha_da_tela(1))) == [
+        "O SCPI mudou: o item 3 não está na tela."
+    ]
+
+
+def test_codigo_diferente_no_mesmo_numero_diverge():
+    divergencias = regras.conferir_tela(
+        [_esperado()], _tela_do_scpi(_linha_da_tela(codigo="999.999.999"))
+    )
+    assert divergencias == [
+        "O SCPI mudou: item 1, código 999.999.999 na tela, esperado 006.011.020."
+    ]
+
+
+def test_o_codigo_se_compara_pela_chave_do_sistema():
+    assert (
+        regras.conferir_tela(
+            [_esperado(codigo="006.011.020")], _tela_do_scpi(_linha_da_tela(codigo=" 006.011.020 "))
+        )
+        == []
+    )
+
+
+def test_quantidade_acima_do_saldo_da_tela_diverge():
+    divergencias = regras.conferir_tela(
+        [_esperado(quantidade="60", saldo="50")], _tela_do_scpi(_linha_da_tela(saldo="50"))
+    )
+    assert divergencias == ["O SCPI mudou: item 1, a quantidade 60 passa do saldo 50 na tela."]
+
+
+def test_varios_itens_acumulam_as_divergencias():
+    divergencias = regras.conferir_tela(
+        [_esperado(1), _esperado(2, "023.003.004", "5", "0", "20")],
+        _tela_do_scpi(
+            _linha_da_tela(1, ja_entrou="55"),
+            _linha_da_tela(2, "023.003.004", ja_entrou="0", saldo="20"),
+        ),
+    )
+    assert len(divergencias) == 1 and "item 1, Já Entrou 55" in divergencias[0]
+
+
+def test_o_esperado_soma_o_lancado_ainda_nao_refletido():
+    assert regras.esperado_do_item(ja_entrou=Decimal("50"), saldo=Decimal("50")) == (50, 50)
+    ja_entrou, saldo = regras.esperado_do_item(
+        ja_entrou=Decimal("50"), saldo=Decimal("50"), nao_refletido=Decimal("10")
+    )
+    assert (ja_entrou, saldo) == (60, 40)
+    assert (
+        regras.conferir_tela(
+            [_esperado(ja_entrou="60", saldo="40", quantidade="5")],
+            _tela_do_scpi(_linha_da_tela(ja_entrou="60", saldo="40")),
+        )
+        == []
+    )
+
+
+def test_a_foto_guarda_o_que_o_robo_digita_e_o_que_a_tela_mostrou():
+    rec = regras.RecebimentoParaLancar(
+        id=7,
+        rotulo="RC-0007",
+        versao=2,
+        pedido_id=1,
+        pedido_ano=2026,
+        pedido_numero=514,
+        pedido_rotulo="00514/26",
+        fornecedor_codigo="19502",
+        nf="501",
+        data=date(2026, 11, 10),
+        observacoes="Central Almoxarifado RC-0007",
+        itens=(regras.ItemParaLancar(1, "006.011.020", Decimal("10")),),
+        esperado=(_esperado(),),
+    )
+    foto = regras.foto(
+        rec, _tela_do_scpi(_linha_da_tela(ja_entrou="50", saldo="50"), _linha_da_tela(2))
+    )
+    assert foto == {
+        "pedido": "00514/26",
+        "fornecedor": "19502",
+        "nf": "501",
+        "data": "2026-11-10",
+        "observacoes": "Central Almoxarifado RC-0007",
+        "itens": [{"item": 1, "codigo": "006.011.020", "quantidade": "10"}],
+        "tela": [{"item": 1, "ja_entrou": "50", "saldo": "50"}],
+    }
+    assert regras.foto(rec)["tela"] == []
+
+
+def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
+    assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
+    assert (
+        regras.texto_observacao_item("RC-0042", " portaria;\n volume 3 ")
+        == "Central Almoxarifado RC-0042 Obs.: portaria, volume 3"
+    )
+    longa = regras.texto_observacao_item("RC-0042", "x" * 500)
+    assert len(longa) <= regras.LIMITE_OBSERVACAO_ITEM
+    assert regras.recebimento_observado(longa) == "RC-0042"  # a marca nunca é cortada

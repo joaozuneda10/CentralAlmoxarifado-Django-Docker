@@ -169,7 +169,7 @@ def linha_de_execucao(exe: ExecucaoRobo, em_andamento: set) -> LinhaHistorico:
     falha = andamento.explicar_falha(exe)
     quem = exe.iniciada_por
     return LinhaHistorico(
-        robo="Lançamento no SCPI",
+        robo="Entradas no SCPI" if exe.robo == ExecucaoRobo.Robo.ENTRADAS else "Lançamento no SCPI",
         modo="Simulação" if exe.simulacao else "Lançamento real",
         inicio=exe.inicio,
         duracao=andamento.duracao(exe.inicio, exe.fim),

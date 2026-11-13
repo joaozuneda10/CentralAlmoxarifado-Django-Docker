@@ -437,3 +437,35 @@ def test_importacao_sem_exercicio_registrado_vale_para_qualquer_um(pedido, usuar
         tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO
     )
     assert _livre(pedido, 1) == 50
+
+
+# --- "teve tentativa" pela tentativa do robô (PR 4) ----------------------------------------
+
+
+def _tentativa(r, resultado):
+    from compras.models import TentativaEntrada
+    from pedidos.models import ExecucaoRobo
+
+    execucao = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    return TentativaEntrada.objects.create(
+        execucao=execucao, ordem=1, recebimento=r, versao=r.versao, resultado=resultado
+    )
+
+
+@pytest.mark.parametrize("resultado", ["LANCADA", "VERIFICAR"])
+def test_tentativa_lancada_ou_a_verificar_trava_a_edicao_e_o_cancelamento(
+    pedido, usuario, resultado
+):
+    r = preparar(pedido, usuario, {1: "10"})
+    _tentativa(r, resultado)
+    assert servicos.tem_tentativa(r)
+    assert _editar(r, usuario).motivo == "tentativa"
+    assert servicos.cancelar_recebimento(r.pk, usuario, motivo="x").motivo == "tentativa"
+
+
+@pytest.mark.parametrize("resultado", ["ERRO", "IGNORADA"])
+def test_tentativa_que_nao_passou_pelo_salvar_nao_conta(pedido, usuario, resultado):
+    r = preparar(pedido, usuario, {1: "10"})
+    _tentativa(r, resultado)
+    assert not servicos.tem_tentativa(r)
+    assert servicos.cancelar_recebimento(r.pk, usuario, motivo="NF devolvida").ok

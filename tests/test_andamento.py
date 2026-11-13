@@ -438,3 +438,115 @@ def test_simulacao_sem_nenhuma_preenchida_nao_e_sucesso():
     )
     a = acompanhamento(e, AGORA, False)
     assert a.desfecho.titulo == "Nenhuma requisição foi preenchida."
+
+
+# --- O mesmo cartão para o robô de entradas: "recebimento" no lugar de "requisição" -------------
+
+
+def _entradas(**campos):
+    return execucao(robo="ENTRADAS", **campos)
+
+
+def _lotes(*resultados):
+    return [
+        {
+            "lote": f"RC-{i:04d}",
+            "recebedor": "NF 501",
+            "centro": "00514/26",
+            "itens": 1,
+            "resultado": r,
+            "requisicao": "003492/26" if r == "lancada" else "",
+            "mensagem": "",
+            "inicio": AGORA.isoformat(),
+            "fim": AGORA.isoformat() if r not in ("aguardando", "andamento") else "",
+        }
+        for i, r in enumerate(resultados, start=1)
+    ]
+
+
+def test_o_texto_das_saidas_nao_muda():
+    saida = execucao(resumo={"requisicoes": 3, "lancadas": 2}, situacao="SUCESSO")
+    assert n_de_m(saida) == "2 de 3 requisições"
+    assert "requisições" in frase(saida, AGORA, False)
+
+
+def test_n_de_m_e_frase_das_entradas():
+    resumo = {"requisicoes": 3, "lancadas": 2, "processadas": 3}
+    exe = _entradas(resumo=resumo, situacao="SUCESSO")
+    assert n_de_m(exe) == "2 de 3 recebimentos"
+    assert frase(exe, AGORA, False) == (
+        "Lançamento de hoje, 13:25, concluído: 2 de 3 recebimentos lançados."
+    )
+    um = _entradas(resumo={"requisicoes": 1, "lancadas": 1}, situacao="SUCESSO")
+    assert n_de_m(um) == "1 de 1 recebimento"
+
+
+def test_frase_de_entradas_em_andamento_e_contadores():
+    exe = _entradas(resumo={"requisicoes": 3, "processadas": 1}, situacao="ANDAMENTO")
+    assert frase(exe, AGORA, False) == "Lançamento em andamento: recebimento 2 de 3."
+    assert contadores({"lancadas": 2, "ignoradas": 1}, False, entradas=True) == [
+        "2 lançados",
+        "1 deixado de fora",
+    ]
+    assert contadores({"lancadas": 2}, False) == ["2 lançadas"]
+
+
+@pytest.mark.parametrize(
+    "resultados",
+    [
+        ("lancada",),
+        ("lancada", "lancada"),
+        ("verificar",),
+        ("erro", "lancada"),
+        ("erro", "erro"),
+        ("ignorada", "lancada"),
+        ("ignorada",),
+    ],
+)
+def test_o_cartao_das_entradas_nunca_fala_requisicao_nem_concorda_no_feminino(resultados):
+    exe = _entradas(
+        resumo={"requisicoes": len(resultados), "lotes": _lotes(*resultados), "fase": "lancando"},
+        situacao="ATENCAO",
+        fim=AGORA + timedelta(minutes=2),
+    )
+    cartao = acompanhamento(exe, AGORA + timedelta(minutes=3), False)
+    textos = repr(cartao)
+    assert "requisi" not in textos.replace("003492/26", "").replace("requisicao=", "")
+    assert "Deixada" not in textos and "Lançada" not in textos and "Preenchida" not in textos
+    assert cartao.desfecho is not None
+
+
+def test_desfecho_das_entradas_no_masculino():
+    um = _entradas(
+        resumo={"requisicoes": 1, "lotes": _lotes("lancada"), "fase": "lancando"},
+        situacao="SUCESSO",
+        fim=AGORA,
+    )
+    assert acompanhamento(um, AGORA, False).desfecho.titulo == "O recebimento foi lançado no SCPI."
+    dois = _entradas(
+        resumo={"requisicoes": 2, "lotes": _lotes("lancada", "lancada"), "fase": "lancando"},
+        situacao="SUCESSO",
+        fim=AGORA,
+    )
+    assert (
+        acompanhamento(dois, AGORA, False).desfecho.titulo
+        == "Os 2 recebimentos foram lançados no SCPI."
+    )
+    verificar = _entradas(
+        resumo={"requisicoes": 1, "lotes": _lotes("verificar"), "fase": "lancando"},
+        situacao="ATENCAO",
+        fim=AGORA,
+    )
+    desfecho = acompanhamento(verificar, AGORA, False).desfecho
+    assert desfecho.titulo == "1 recebimento precisa ser conferido no SCPI."
+    assert "ele foi gravado" in desfecho.texto
+
+
+def test_a_falha_das_entradas_diz_ate_onde_chegou_com_recebimentos():
+    exe = _entradas(
+        situacao="FALHA",
+        erro="A importação de pedidos está em andamento.",
+        resumo={},
+    )
+    falha = explicar_falha(exe)
+    assert falha.frase == "A importação de pedidos está em andamento." and not falha.tecnico

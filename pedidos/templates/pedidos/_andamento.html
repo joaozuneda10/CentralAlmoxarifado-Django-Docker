@@ -9,7 +9,7 @@ continua no cartão de uma frase (`andamento`).
 {% endcomment %}
 {% if execucao %}
 {% if acomp %}
-<div class="cartao acompanhamento" id="andamento">
+<div class="cartao acompanhamento" id="{% if entradas %}andamento-entradas{% else %}andamento{% endif %}">
   <div class="acomp-topo">
     <div>
       <h2>{{ acomp.titulo }}</h2>
@@ -38,7 +38,7 @@ continua no cartão de uma frase (`andamento`).
     <div class="pilha-curta">
       <p><strong>{{ d.titulo }}</strong></p>
       {% if d.texto %}<p>{{ d.texto }}</p>{% endif %}
-      {% if d.travas %}<div class="acoes"><a class="botao botao-secundario" href="#travas">Ver as travas{% include "interface/_icone.html" with nome="seta-direita" %}</a></div>{% endif %}
+      {% if d.travas and not entradas %}<div class="acoes"><a class="botao botao-secundario" href="#travas">Ver as travas{% include "interface/_icone.html" with nome="seta-direita" %}</a></div>{% endif %}
     </div>
   </div>
   {% endif %}{% endwith %}
@@ -46,7 +46,7 @@ continua no cartão de uma frase (`andamento`).
   {% if acomp.total %}
   <div class="acomp-progresso">
     <div class="acomp-progresso-linha">
-      <p class="acomp-numero">{{ acomp.feitas }} <small>de {{ acomp.total }} {{ acomp.total|pluralize:"requisição,requisições" }}</small></p>
+      <p class="acomp-numero">{{ acomp.feitas }} <small>de {{ acomp.total }} {% if entradas %}{{ acomp.total|pluralize:"recebimento,recebimentos" }}{% else %}{{ acomp.total|pluralize:"requisição,requisições" }}{% endif %}</small></p>
       {% if acomp.estimativa %}<p class="acomp-estimativa">{{ acomp.estimativa }}</p>{% endif %}
     </div>
     <div class="acomp-barra" role="progressbar" aria-label="Requisições processadas" aria-valuemin="0" aria-valuemax="{{ acomp.total }}" aria-valuenow="{{ acomp.feitas }}" aria-valuetext="{{ acomp.feitas }} de {{ acomp.total }}">
@@ -58,7 +58,7 @@ continua no cartão de uma frase (`andamento`).
   {% with a=acomp.agora %}{% if a %}
   <div class="acomp-agora{% if a.parado %} acomp-agora-parado{% endif %}">
     <p class="acomp-agora-rotulo">{{ a.rotulo }}</p>
-    {% if a.linha %}<p class="acomp-agora-req"><a class="mono" href="{% url 'pedidos:detalhe' a.linha.lote %}">{{ a.linha.lote }}</a><strong>{{ a.linha.recebedor }}</strong>{% if a.linha.centro %}<span class="texto-secundario texto-pequeno">Centro {{ a.linha.centro }} · {{ a.linha.itens }} {{ a.linha.itens|pluralize:"material,materiais" }}</span>{% endif %}</p>{% endif %}
+    {% if a.linha %}<p class="acomp-agora-req">{% if entradas %}<span class="mono">{{ a.linha.lote }}</span>{% else %}<a class="mono" href="{% url 'pedidos:detalhe' a.linha.lote %}">{{ a.linha.lote }}</a>{% endif %}<strong>{{ a.linha.recebedor }}</strong>{% if a.linha.centro %}<span class="texto-secundario texto-pequeno">Centro {{ a.linha.centro }} · {{ a.linha.itens }} {{ a.linha.itens|pluralize:"material,materiais" }}</span>{% endif %}</p>{% endif %}
     <p class="acomp-agora-etapa"><span class="acomp-pulso" aria-hidden="true"></span><span>{{ a.etapa }}</span></p>
     {% if a.atividade %}<p class="acomp-agora-atividade">{% if a.parado %}{% include "interface/_icone.html" with nome="info" %}{% else %}{% include "interface/_icone.html" with nome="relogio" %}{% endif %}<span>{{ a.atividade }}</span></p>{% endif %}
   </div>
@@ -74,7 +74,7 @@ continua no cartão de uma frase (`andamento`).
       {% for linha in acomp.linhas %}
       <li class="acomp-req acomp-req-{{ linha.estado }}"{% if linha.estado == "atual" %} aria-current="true"{% endif %}>
         {% if linha.estado == "atual" %}<span class="acomp-marca-atual" aria-hidden="true"></span>{% elif linha.estado == "espera" %}<span class="acomp-marca-espera" aria-hidden="true"></span>{% else %}{% include "interface/_icone.html" with nome=linha.icone %}{% endif %}
-        <a class="mono" href="{% url 'pedidos:detalhe' linha.lote %}">{{ linha.lote }}</a>
+        {% if entradas %}<span class="mono">{{ linha.lote }}</span>{% else %}<a class="mono" href="{% url 'pedidos:detalhe' linha.lote %}">{{ linha.lote }}</a>{% endif %}
         <div class="acomp-req-nome">
           <span>{{ linha.recebedor|default:"—" }}</span>
           {% if linha.centro %}<span class="acomp-req-meta">Centro {{ linha.centro }} · {{ linha.itens }} {{ linha.itens|pluralize:"material,materiais" }}</span>{% endif %}
@@ -99,7 +99,7 @@ continua no cartão de uma frase (`andamento`).
 </div>
 {% else %}
 {# A última execução numa frase (pedidos/andamento.py), com quem iniciou e a duração; só os contadores diferentes de zero. A falha vem explicada em português, com o texto técnico recolhido. #}
-<div class="cartao pilha" id="andamento">
+<div class="cartao pilha" id="{% if entradas %}andamento-entradas{% else %}andamento{% endif %}">
   <div class="andamento-topo">
     <h2 class="cartao-titulo">Andamento</h2>
     {% include "pedidos/_andamento_selo.html" %}
@@ -124,6 +124,6 @@ continua no cartão de uma frase (`andamento`).
 </div>
 {% endif %}
 {% else %}
-<p class="texto-secundario" id="andamento">Nenhuma execução ainda.</p>
+<p class="texto-secundario" id="{% if entradas %}andamento-entradas{% else %}andamento{% endif %}">Nenhuma execução ainda.</p>
 {% endif %}
 <!-- /andamento -->

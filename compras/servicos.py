@@ -15,7 +15,13 @@ from django.db import IntegrityError, transaction
 from django.utils import timezone
 
 from compras import consultas, regras
-from compras.models import ItemRecebimento, PedidoCompra, Recebimento, TravaPedido
+from compras.models import (
+    ItemRecebimento,
+    PedidoCompra,
+    Recebimento,
+    TentativaEntrada,
+    TravaPedido,
+)
 from pedidos.regras import interpretar_quantidade
 
 MENSAGEM_VERSAO = "Outra pessoa alterou este recebimento. Recarregue a página."
@@ -46,8 +52,19 @@ class Resposta:
 
 def tem_tentativa(recebimento: Recebimento) -> bool:
     """Se o robô já tentou lançar o recebimento (chegou ao `EM_LANCAMENTO`): daí em diante o Central
-    não edita nem cancela sem as provas da verificação."""
-    return recebimento.status in COM_TENTATIVA
+    não edita nem cancela sem as provas da verificação. Vale o estado (lado seguro) ou uma
+    `TentativaEntrada` `LANCADA` ou `VERIFICAR`; a tentativa `ERRO` ou `IGNORADA` não passou pelo
+    Salvar e não conta (R6)."""
+    return (
+        recebimento.status in COM_TENTATIVA
+        or TentativaEntrada.objects.filter(
+            recebimento=recebimento,
+            resultado__in=(
+                TentativaEntrada.Resultado.LANCADA,
+                TentativaEntrada.Resultado.VERIFICAR,
+            ),
+        ).exists()
+    )
 
 
 def _quantidades(itens: dict[int, str]) -> dict[int, Decimal] | None:

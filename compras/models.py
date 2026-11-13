@@ -374,3 +374,45 @@ class ItemEntradaOficial(models.Model):
 
     def __str__(self):
         return f"{self.requisicao} · {self.codigo}"
+
+
+class TentativaEntrada(models.Model):
+    """Uma tentativa do robô de entradas com um recebimento: nasce `VERIFICAR` na transação do
+    `EM_LANCAMENTO` (o lado seguro se o processo morrer) e vai a `LANCADA` com o número, ou nasce
+    `ERRO`/`IGNORADA` quando o recebimento não chegou ao Salvar (spec 014, PR 4)."""
+
+    class Resultado(models.TextChoices):
+        LANCADA = "LANCADA", "Lançada"
+        VERIFICAR = "VERIFICAR", "Para verificar"
+        ERRO = "ERRO", "Com erro"
+        IGNORADA = "IGNORADA", "Ignorada"
+
+    execucao = models.ForeignKey(
+        "pedidos.ExecucaoRobo",
+        on_delete=models.PROTECT,
+        related_name="tentativas_entradas",
+        verbose_name="execução do robô",
+    )
+    ordem = models.PositiveSmallIntegerField()
+    recebimento = models.ForeignKey(
+        Recebimento, on_delete=models.PROTECT, related_name="tentativas"
+    )
+    versao = models.PositiveIntegerField("versão")
+    momento = models.DateTimeField(default=timezone.now)
+    resultado = models.CharField(max_length=10, choices=Resultado.choices)
+    requisicao = models.CharField("requisição", max_length=9, blank=True)
+    foto = models.JSONField(null=True, blank=True)
+
+    class Meta:
+        ordering = ["-momento", "-id"]
+        verbose_name = "tentativa de entrada"
+        verbose_name_plural = "tentativas de entrada"
+        constraints = [
+            models.UniqueConstraint(fields=["execucao", "ordem"], name="tentativa_entrada_ordem"),
+            models.UniqueConstraint(
+                fields=["execucao", "recebimento"], name="tentativa_entrada_recebimento"
+            ),
+        ]
+
+    def __str__(self):
+        return f"{self.recebimento} · {self.get_resultado_display()}"

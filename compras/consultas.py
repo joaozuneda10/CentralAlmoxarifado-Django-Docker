@@ -2,14 +2,21 @@
 
 from collections import defaultdict
 from dataclasses import dataclass
+from datetime import date
 from decimal import Decimal
 
-from django.db.models import Q
+from django.db.models import Count, Q
 from django.utils import timezone
 
 from catalogo.models import Importacao, Material
 from compras import regras
-from compras.models import ItemPedidoCompra, ItemRecebimento, PedidoCompra, TravaPedido
+from compras.models import (
+    ItemPedidoCompra,
+    ItemRecebimento,
+    PedidoCompra,
+    Recebimento,
+    TravaPedido,
+)
 from pedidos.regras import norm_u
 
 ESTADOS = {
@@ -194,3 +201,66 @@ def estados_dos_pedidos(pedidos: list[PedidoCompra]) -> dict[int, str]:
         else:
             estados[pedido.pk] = "disponivel"
     return estados
+
+
+@dataclass(frozen=True)
+class LinhaFilaEntradas:
+    """Um recebimento preparado na fila do robô de entradas, com o motivo se está bloqueado."""
+
+    rotulo: str
+    pk: int
+    pedido_pk: int
+    pedido_rotulo: str
+    fornecedor: str
+    nf: str
+    data: date
+    itens: int
+    motivo: str  # vazio: o robô pode lançar
+
+    @property
+    def apto(self) -> bool:
+        return not self.motivo
+
+
+@dataclass(frozen=True)
+class FilaEntradas:
+    linhas: list[LinhaFilaEntradas]
+
+    @property
+    def aptos(self) -> int:
+        return sum(1 for linha in self.linhas if linha.apto)
+
+    @property
+    def total(self) -> int:
+        return len(self.linhas)
+
+
+def fila_entradas() -> FilaEntradas:
+    """Os recebimentos preparados, na ordem em que o robô os percorre (a da preparação): os
+    aptos com caixa de marcar e os bloqueados com o motivo. Usa a mesma regra do robô
+    (`compras.robo.motivo_de_bloqueio`), que o robô confere de novo ao abrir cada pedido."""
+    from compras.robo import motivo_de_bloqueio
+
+    hoje = timezone.localdate()
+    recebimentos = (
+        Recebimento.objects.filter(status=Recebimento.Status.PREPARADO)
+        .select_related("pedido")
+        .annotate(n_itens=Count("itens"))
+        .order_by("pk")
+    )
+    return FilaEntradas(
+        [
+            LinhaFilaEntradas(
+                rotulo=r.rotulo,
+                pk=r.pk,
+                pedido_pk=r.pedido_id,
+                pedido_rotulo=r.pedido.rotulo,
+                fornecedor=r.pedido.fornecedor_nome or r.fornecedor_codigo,
+                nf=r.nf,
+                data=r.data_recebimento,
+                itens=r.n_itens,
+                motivo=motivo_de_bloqueio(r, hoje),
+            )
+            for r in recebimentos
+        ]
+    )

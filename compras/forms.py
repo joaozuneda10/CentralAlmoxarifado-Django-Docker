@@ -9,10 +9,13 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import date
 
+from django import forms
 from django.utils import timezone
 
-from compras import regras
+from compras import regras, robo
+from compras.consultas import fila_entradas
 from compras.models import Recebimento
+from pedidos.forms import MODOS
 from pedidos.regras import qtd_br
 
 
@@ -102,3 +105,31 @@ class FormularioCancelamento:
         return cls(
             motivo=(post.get("motivo") or "").strip(), confirmado=post.get("confirmado") == "1"
         )
+
+
+class LancamentoEntradasForm(forms.Form):
+    """O lançamento das entradas no SCPI: o modo (do botão clicado, "Simular" ou "Lançar no SCPI")
+    e os recebimentos escolhidos na fila."""
+
+    modo = forms.ChoiceField(label="Modo", choices=MODOS)
+    recebimentos = forms.MultipleChoiceField(
+        label="Recebimentos",
+        error_messages={
+            "required": "Marque ao menos um recebimento da fila.",
+            "invalid_choice": "O recebimento %(value)s não está mais na fila do robô.",
+        },
+    )
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Só o que está na fila agora e pode ir ao SCPI: um recebimento lançado, cancelado,
+        # editado para fora da fila ou bloqueado depois de a página abrir é recusado aqui.
+        self.fields["recebimentos"].choices = [
+            (linha.rotulo, linha.rotulo) for linha in fila_entradas().linhas if linha.apto
+        ]
+
+    def clean_modo(self):
+        modo = self.cleaned_data["modo"]
+        if modo == "lancar" and not robo.lancamento_real_liberado():
+            raise forms.ValidationError(robo.motivo_do_bloqueio_real())
+        return modo

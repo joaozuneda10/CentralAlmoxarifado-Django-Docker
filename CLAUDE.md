@@ -848,6 +848,40 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   dias, a data dos lançados dos últimos 9 dias e a dos recebimentos em verificação, até amanhã;
   recusa com qualquer lançamento ou importação em andamento); a conciliação e a limpeza vêm nos
   PRs seguintes. `TravaPedido.extracao` (FK nula) já existe para a trava `FORA_DO_CENTRAL`.
+  **Robô de entradas (PR 4)**: `scpi/lancamento_entradas.py`, paralelo a `scpi/lancamento.py` (que
+  não muda), com a mesma ordem das gravações (Princípio III) sobre `compras.Recebimento`:
+  `selecionar` (`compras.robo`: só `PREPARADO`, com o pedido do exercício, presente, sem trava e sem
+  outro recebimento `EM_LANCAMENTO`/`VERIFICAR`; `motivo_de_bloqueio` confere de novo antes de abrir
+  cada pedido), extração de antes (3 tentativas; sem ela nada muda, `ExtracaoAntesFalhou`), e, para
+  cada recebimento, `abrir_pedido` (lê "Escolha os Itens"), `compras.regras.conferir_tela` (pura: o
+  "Já Entrou" e o saldo esperados, que somam o lançado do Central ainda não refletido na importação
+  de pedidos; divergência → `ERRO`, pedido travado `TELA`, nada salvo), `preencher`, `_travar` (numa
+  transação com `select_for_update` no recebimento e no pedido: `EM_LANCAMENTO` e a
+  `TentativaEntrada` `VERIFICAR` com a foto e a tela lida; fecha antes do clique), journal
+  `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
+  → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
+  com `FalhaCritica` e o número está no journal). Roda sob `TRAVA_LANCAMENTO` **e** a trava da
+  importação de pedidos (nenhuma importação de pedidos durante o lançamento); o
+  `importar_pedidos_compra` recusa com uma execução de entradas em andamento. A simulação
+  (`--dry-run`) abre, confere, preenche e cancela, sem tentativa, estado nem extração (a divergência
+  da tela só entra no resumo). `ExecucaoRobo.robo` (`SAIDAS` padrão, `ENTRADAS`; migration
+  `pedidos/0007`, `em_andamento(agora, robo=None)`): a aba Lançamento no SCPI, a visão geral e o
+  histórico filtram `SAIDAS` onde mostram "a última" e "o andamento"; as recusas (`iniciar_lancamento`,
+  `resolver_lote`, o disparo) continuam sem filtro, porque a trava é uma só. O cartão de andamento é o
+  mesmo (`pedidos.andamento`, com `para_entradas`: "recebimento", masculino, só na execução
+  `ENTRADAS`). `compras.TentativaEntrada` (migration `compras/0005`) é o registro de cada tentativa
+  (`LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`); `servicos.tem_tentativa` vale pelo estado ou por uma
+  tentativa `LANCADA`/`VERIFICAR`. O comando `lancar_entradas --recebimento RC-0001 [--dry-run]`
+  recusa o lançamento real sem `LANCAMENTO_REAL` **e** `LANCAMENTO_REAL_ENTRADAS` (a trava própria
+  das entradas, desligada por padrão; `compras.robo.lancamento_real_liberado`; as condições para
+  ligá-la estão em `deploy/AMBIENTES.md`) antes de criar a execução; a aba **Entradas no
+  SCPI** (`automacoes`, `compras/_entradas.html`, `contexto_entradas`, rota `automacoes:lancar_entradas`
+  em `REGRAS_POR_ROTA`) tem a fila (`compras.consultas.fila_entradas`: aptos com caixa, bloqueados com
+  o motivo), Simular e Lançar (com confirmação) e o andamento, e o `fila-robo.js` a atende pelos
+  atributos `data-fila-*` do formulário. O Playwright (`scpi/lancador_entradas.py`) **ainda não foi
+  exercitado no SCPI real**: os pontos incertos estão marcados "R25" e o primeiro `--dry-run`
+  (quickstart, passo 4) os confirma. Nos testes, `tests/scpi_entradas_simulado.py`
+  (`SCPIEntradasSimulado`: pedidos, falhas e os dois relatórios).
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

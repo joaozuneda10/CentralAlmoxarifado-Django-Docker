@@ -90,9 +90,31 @@ Dado puro, montado pela seleção. Tem:
 | Recebimento editado entre a seleção e o `_travar` | `ignorada`; nada salvo |
 | Banco recusa a gravação do número | `FalhaCritica`; o número está no journal |
 | Simulação | nenhuma tentativa, nenhum estado muda, nenhuma extração, nenhuma requisição no simulado |
-| Lançamento real bloqueado (`LANCAMENTO_REAL` desligado) | recusado antes de criar a execução; só "Simular" |
+| Lançamento real bloqueado (`LANCAMENTO_REAL` ou `LANCAMENTO_REAL_ENTRADAS` desligado) | recusado antes de criar a execução; só "Simular" |
+| NF e fornecedor (ou a marca) já numa requisição da extração de antes ou de uma extração guardada | `ERRO`; nada salvo, o pedido nem é aberto |
+| A requisição da NF sumiu de uma extração posterior que cobre a data dela (excluída no SCPI) | não conta: o recebimento é lançado |
+| Journal que não grava antes do Salvar ou com o número | `FalhaCritica`; o recebimento fica travado e, com o número, ele vai ao banco e ao log |
 | Robô de saídas rodando | recusado pela trava |
 | Segundo recebimento do mesmo pedido com o primeiro em `VERIFICAR` | `ignorada` ("o pedido tem um recebimento em verificação") |
+
+## O que a garantia cobre, e o que não cobre
+
+O que o Central garante é **nunca lançar duas vezes o mesmo recebimento**: a ordem das gravações,
+a trava única do lançamento e os estados `EM_LANCAMENTO` e `VERIFICAR`, que nunca voltam à fila
+sozinhos. Não é uma garantia de que o SCPI não terá duas entradas da mesma NF:
+
+- **Quem lança direto no SCPI** não passa pelo Central. O robô só deixa de lançar o que o
+  registro oficial já mostra: a conferência do "Já Entrou" da tela (a entrada feita pelo mesmo
+  item do pedido) e a NF com o fornecedor nas extrações (a de antes e as guardadas, 60 dias).
+- **Fora do que foi extraído** o robô não enxerga: a entrada da mesma NF feita à mão por outro
+  item, com uma data que nenhuma extração guardada cobre, ou feita entre a extração de antes e o
+  Salvar, não é barrada.
+- Esses casos são **detectados depois**, não impedidos: a conciliação dá o veredito Duplicado e
+  registra a entrada fora do Central, com a trava do pedido (PR 6).
+
+O lançamento real das entradas tem trava própria (`LANCAMENTO_REAL_ENTRADAS`), ligada só depois
+das condições de `deploy/AMBIENTES.md`. Quem tem a permissão de Automações lança o recebimento
+preparado por qualquer pessoa da equipe, como nas saídas; a execução registra quem iniciou.
 
 ## Journal
 

@@ -343,35 +343,35 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### PR 4: o robô de entradas
 
-- [ ] T053 [US2] Criar a branch `claude/entradas-4-robo` a partir de `claude/entradas-3-extracao`
-- [ ] T054 [US2] Acrescentar `ExecucaoRobo.robo` (choices `SAIDAS` "Saídas", `ENTRADAS` "Entradas"; `default="SAIDAS"`) em `pedidos/models.py` e gerar `pedidos/migrations/0007_execucao_robo.py`.
+- [X] T053 [US2] Criar a branch `claude/entradas-4-robo` a partir de `claude/entradas-3-extracao`
+- [X] T054 [US2] Acrescentar `ExecucaoRobo.robo` (choices `SAIDAS` "Saídas", `ENTRADAS` "Entradas"; `default="SAIDAS"`) em `pedidos/models.py` e gerar `pedidos/migrations/0007_execucao_robo.py`.
   - `em_andamento(agora=None, robo=None)` ganha o filtro opcional `robo`, com o comportamento atual sem ele.
   - Nas saídas, por chamada:
     - em `automacoes/views.py`, a última execução e o andamento da aba Lançamento no SCPI (linhas que hoje fazem `ExecucaoRobo.objects...first()` e o `acompanhar_lancamento`) passam a filtrar `robo=SAIDAS`;
     - as recusas (`automacoes/views.py` em `lancar`/`resolver`, `pedidos/servicos.py` em `resolver_lote`/`corrigir_requisicao`, `pedidos/views/almoxarifado.py` e `scpi/disparo.py`) continuam sem filtro: qualquer robô rodando recusa;
     - os botões da aba das saídas ficam desabilitados com qualquer robô rodando, com a dica "O robô de entradas está lançando." quando é ele;
     - `automacoes/historico.py` mostra o robô.
-- [ ] T055 [P] [US2] Escrever `tests/test_entradas_isolamento.py`, com uma execução `ENTRADAS` em andamento e outra concluída:
+- [X] T055 [P] [US2] Escrever `tests/test_entradas_isolamento.py`, com uma execução `ENTRADAS` em andamento e outra concluída:
   - a aba Lançamento no SCPI mostra só a última `SAIDAS` e não acompanha a de entradas;
   - os botões ficam desabilitados com a dica;
   - `iniciar_lancamento` das saídas recusa;
   - o histórico mostra "Entradas";
   - `robos_em_andamento` sai com erro;
   - os testes existentes `tests/test_pagina_lancamentos.py`, `tests/test_lancamento*.py` e `tests/test_historico_automacoes.py` passam sem mudança.
-- [ ] T056 [US2] Criar `TentativaEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#tentativaentrada-pr-4): `execucao` (FK, `PROTECT`), `ordem` (smallint), `recebimento` (FK, `PROTECT`), `versao`, `momento`, `resultado` (choices `LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`), `requisicao` (char 9) e `foto` (JSON nulo). Únicos (`execucao`, `ordem`) e (`execucao`, `recebimento`). Gerar `compras/migrations/0004_tentativa_entrada.py`
-- [ ] T057 [P] [US2] Criar `tests/scpi_entradas_simulado.py` com `SCPIEntradasSimulado`, que implementa o protocolo `SCPIEntradas`.
+- [X] T056 [US2] Criar `TentativaEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#tentativaentrada-pr-4): `execucao` (FK, `PROTECT`), `ordem` (smallint), `recebimento` (FK, `PROTECT`), `versao`, `momento`, `resultado` (choices `LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`), `requisicao` (char 9) e `foto` (JSON nulo). Únicos (`execucao`, `ordem`) e (`execucao`, `recebimento`). Gerar `compras/migrations/0004_tentativa_entrada.py`
+- [X] T057 [P] [US2] Criar `tests/scpi_entradas_simulado.py` com `SCPIEntradasSimulado`, que implementa o protocolo `SCPIEntradas`.
   - **Estado**: `pedidos[(ano, numero)] = {item: {codigo, quantidade, anulado, ja_entrou, pedida}}`, `salvas` (as requisições salvas, com a observação, a NF, a data e os itens), `proximo_numero` e `chamadas`.
   - **Falhas**: `falha_antes={"abrir"|"preencher"}`, `salva_e_falha`, `tela_mudou={item: ja_entrou}`, `perde_observacoes`, `nf_errada`, `entrada_manual(...)` (uma requisição à mão, sem marca) e `falhas_relatorio`.
   - **Relatórios**: `relatorio_entradas(de, ate) -> bytes` pela T043, e `relatorio_pedidos() -> bytes` pela T009.
   - **Efeito do Salvar**: `salvar` soma o `ja_entrou` como o SCPI faria.
-- [ ] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
-- [ ] T059 [US2] Implementar em `compras/regras.py`:
+- [X] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
+- [X] T059 [US2] Implementar em `compras/regras.py`:
   - as dataclasses `LinhaTela`, `TelaItens`, `EsperadoItem` e `RecebimentoParaLancar` ([contracts/robo-entradas.md](contracts/robo-entradas.md#o-recebimento-que-o-robô-recebe-recebimentoparalancar));
   - `conferir_tela(esperado, tela) -> list[str]`, com as mensagens "O SCPI mudou: item 13, Já Entrou 2 na tela, esperado 1";
   - `foto(rec, tela) -> dict`.
 
   A T058 passa.
-- [ ] T060 [US2] Implementar `compras/robo.py`:
+- [X] T060 [US2] Implementar `compras/robo.py`:
   - `selecionar(rotulos) -> Selecao`, com os aptos e os bloqueados com o motivo: pedido travado, ausente, fora do exercício, com recebimento `EM_LANCAMENTO` ou `VERIFICAR`, ou o recebimento não `PREPARADO`;
   - `para_lancar(recebimento) -> RecebimentoParaLancar`, com o esperado da [R11](research.md#r11-conferência-antes-do-salvar);
   - `periodo_da_execucao(...)`, sobre `conciliacao.regras.periodo`;
@@ -381,7 +381,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - `tentativa_lancada(...)`.
 
   Usar a pausa zerada nos testes, por um fixture autouse como o `extracao_sem_pausa` de `tests/conftest.py`.
-- [ ] T061 [US2] Escrever `tests/test_lancamento_entradas.py` com o `SCPIEntradasSimulado`, uma linha por garantia de [contracts/robo-entradas.md](contracts/robo-entradas.md#garantias-testadas-com-o-simulado):
+- [X] T061 [US2] Escrever `tests/test_lancamento_entradas.py` com o `SCPIEntradasSimulado`, uma linha por garantia de [contracts/robo-entradas.md](contracts/robo-entradas.md#garantias-testadas-com-o-simulado):
   - sucesso, com o número, `via=ROBO`, `visivel_desde` e a tentativa `LANCADA`;
   - a falha ao abrir e ao preencher (`ERRO`, nada salvo);
   - a tela mudada (`ERRO`, pedido travado `TELA`, nada salvo);
@@ -395,14 +395,14 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o segundo recebimento do mesmo pedido com o primeiro em `VERIFICAR` (`ignorada`);
   - o aviso de data de outro mês, a cargo do simulado;
   - a extração de antes que falha (nada muda) e a de depois que falha (a execução não piora).
-- [ ] T062 [US2] Implementar `scpi/lancamento_entradas.py`: o protocolo `SCPIEntradas`, `JOURNAL = "lancar_entradas_journal.jsonl"`, `_journal`, `_gravar` (com `critico`), `_travar` e `_lancar_um`, mais `lancar(execucao, abrir_scpi, *, recebimentos, extrair) -> Resumo` e `executar_lancamento_entradas(...)`.
+- [X] T062 [US2] Implementar `scpi/lancamento_entradas.py`: o protocolo `SCPIEntradas`, `JOURNAL = "lancar_entradas_journal.jsonl"`, `_journal`, `_gravar` (com `critico`), `_travar` e `_lancar_um`, mais `lancar(execucao, abrir_scpi, *, recebimentos, extrair) -> Resumo` e `executar_lancamento_entradas(...)`.
   - **Ordem**: a de [contracts/robo-entradas.md](contracts/robo-entradas.md#ordem).
   - **Travas**: `TRAVA_LANCAMENTO` e `trava(trava_importacao(Importacao.Tipo.PEDIDOS_COMPRA))`.
   - **Reaproveitados por importação, sem mudar `scpi/lancamento.py`**: `Resumo`, `RegistroNaExecucao` e `_progresso`/`_salvar_progresso`/`_salvar_resumo`, renomeados para públicos só se for preciso, com alias.
   - **O `_travar`**: confere `status == PREPARADO`, `versao` e o pedido sem trava aberta, com `select_for_update` no recebimento e no pedido, e grava `EM_LANCAMENTO` e a tentativa `VERIFICAR` com a foto na mesma transação.
 
   A T061 passa.
-- [ ] T063 [US2] Implementar `scpi/lancador_entradas.py`: `NavegadorEntradas(Sessao)` com `abrir_pedido`, `preencher`, `salvar`, `depois_de_salvar`, `encerrar_simulacao`, `descartar` e `reiniciar`, mais `navegador()` (perfil `entradas`, `browser.orm_liberado`).
+- [X] T063 [US2] Implementar `scpi/lancador_entradas.py`: `NavegadorEntradas(Sessao)` com `abrir_pedido`, `preencher`, `salvar`, `depois_de_salvar`, `encerrar_simulacao`, `descartar` e `reiniciar`, mais `navegador()` (perfil `entradas`, `browser.orm_liberado`).
   - **Reaproveita de `scpi/lancador.py`**: `campo`, `mensagem_scpi`, `checar_mensagem`, `salvar_requisicao`, `fechar_janelas_pos_salvar`, `cancelar_formulario` e `pausar`.
   - **Navegação**:
     - o item é achado pelo número no pedido;
@@ -413,22 +413,22 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - a NF vai sem zeros;
     - as Observações levam `texto_observacoes`.
   - **Teste de estrutura** em `tests/test_lancador_entradas.py`: implementa o protocolo e não importa o Playwright no topo.
-- [ ] T064 [US2] Criar o comando `lancar_entradas` (`--recebimento` obrigatório e repetível, `--dry-run`) em `scpi/management/commands/lancar_entradas.py`.
+- [X] T064 [US2] Criar o comando `lancar_entradas` (`--recebimento` obrigatório e repetível, `--dry-run`) em `scpi/management/commands/lancar_entradas.py`.
   - Sem `--dry-run`, exige `LANCAMENTO_REAL` e recusa com `LANCAMENTO_BLOQUEADO` antes de criar a execução.
   - Cria a `ExecucaoRobo(robo=ENTRADAS)`.
   - O real passa `extrair=relatorios.baixar_entradas`.
   - Implementar `iniciar_lancamento_entradas(usuario, *, simulacao, recebimentos)` em `scpi/disparo.py`, que confere de novo `operar_automacoes` e recusa com qualquer robô rodando, com o log em `lancar_entradas.log`.
   - No `importar_pedidos_compra` (T017), antes de começar, recusar com "Um lançamento de entradas está em andamento: a importação de pedidos espera ele terminar." se `ExecucaoRobo.em_andamento(robo="ENTRADAS")` existir. A trava do tipo continua como última barreira.
   - Testes em `tests/test_lancamento_entradas.py`, inclusive a recusa da importação com uma execução de entradas em andamento.
-- [ ] T065 [US2] Parametrizar em `pedidos/andamento.py` o substantivo do cartão ("requisição"/"recebimento") com o padrão de hoje, para o `acompanhamento` servir às entradas sem mudar o texto das saídas; teste em `tests/test_andamento.py`, que confere que o texto das saídas é o mesmo
-- [ ] T066 [US2] Criar a aba "Entradas no SCPI" (`("entradas", "Entradas no SCPI")` em `ABAS`, depois de `lancamento`) em `automacoes/views.py`, com `contexto_entradas`, as regiões em `REGIOES` (`div#fila-entradas` e o andamento) e o template `automacoes/templates/automacoes/_entradas.html`.
+- [X] T065 [US2] Parametrizar em `pedidos/andamento.py` o substantivo do cartão ("requisição"/"recebimento") com o padrão de hoje, para o `acompanhamento` servir às entradas sem mudar o texto das saídas; teste em `tests/test_andamento.py`, que confere que o texto das saídas é o mesmo
+- [X] T066 [US2] Criar a aba "Entradas no SCPI" (`("entradas", "Entradas no SCPI")` em `ABAS`, depois de `lancamento`) em `automacoes/views.py`, com `contexto_entradas`, as regiões em `REGIOES` (`div#fila-entradas` e o andamento) e o template `automacoes/templates/automacoes/_entradas.html`.
   - **A fila** (`compras.consultas.fila_entradas`): caixa de marcar, "marcar todas", a contagem, os bloqueados sem caixa e com o motivo, e "Simular" e "Lançar no SCPI", este com a confirmação e o cadeado com o lançamento real bloqueado.
   - **O andamento**: `pedidos.andamento` com "recebimento".
   - **Reaproveitar `pedidos/static/pedidos/js/fila-robo.js`** pelos mesmos atributos. Se ele depender de seletores das saídas, generalizá-lo sem mudar o comportamento da aba das saídas.
   - **Rota `automacoes:lancar_entradas`** (POST): valida os `recebimentos` contra a fila de agora e chama `iniciar_lancamento_entradas`; entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - **Testes** em `tests/test_automacoes_entradas.py`: a aba, a fila, os bloqueados, as recusas do contrato e a atualização a cada 3 s só com execução em andamento.
-- [ ] T067 [US2] Atualizar o `CLAUDE.md`: o robô de entradas (a ordem, a conferência da tela, as duas travas, o journal, o comando e o `--dry-run`), `ExecucaoRobo.robo`, quais chamadas filtram `SAIDAS` e a aba nova
-- [ ] T068 [US2] Portões do PR 4; pedir ao usuário a segunda parte do quickstart, passo 4 (o `--dry-run` com os pontos de [R25](research.md#r25-o-que-só-o-scpi-real-confirma)), e registrar os resultados no PR; commit
+- [X] T067 [US2] Atualizar o `CLAUDE.md`: o robô de entradas (a ordem, a conferência da tela, as duas travas, o journal, o comando e o `--dry-run`), `ExecucaoRobo.robo`, quais chamadas filtram `SAIDAS` e a aba nova
+- [ ] T068 [US2] (portões automáticos prontos em 12/11/2026; **falta só a segunda parte do passo 4 do quickstart, o `--dry-run`, do usuário**) Portões do PR 4; pedir ao usuário a segunda parte do quickstart, passo 4 (o `--dry-run` com os pontos de [R25](research.md#r25-o-que-só-o-scpi-real-confirma)), e registrar os resultados no PR; commit
 
 **Checkpoint**: o robô lança sem nunca duplicar. Um recebimento em verificação ainda só se resolve esperando ou pelo admin, e a fase seguinte resolve isso.
 
@@ -688,6 +688,6 @@ Esse corte já tem valor em produção: o saldo livre e a NF única, sem o robô
 ## Phase 9: Convergence
 
 - [X] T102 Alinhar o filtro SQL da lista de pedidos (`compras/views.py`) à `regras.disponibilidade`: só entra o pedido com item de código no cadastro e visível, ou com recebimento aberto, per contracts/tela-e-acoes.md `compras:pedidos` (partial)
-- [ ] T103 Trocar `compras.servicos.tem_tentativa` (hoje pelo `status`) pela existência de uma `TentativaEntrada` real que chegou ao `EM_LANCAMENTO`, sem contar a que parou antes do Salvar nem a simulação, quando o modelo existir no PR 4, per R6 (partial)
+- [X] T103 Trocar `compras.servicos.tem_tentativa` (hoje pelo `status`) pela existência de uma `TentativaEntrada` real que chegou ao `EM_LANCAMENTO`, sem contar a que parou antes do Salvar nem a simulação, quando o modelo existir no PR 4, per R6 (partial)
 - [ ] T104 (o resultado do passo 2 do quickstart já está registrado na T022, feito em 12/11/2026; **falta só a conferência visual da T039**) Registrar no PR 1 o resultado do passo 2 do quickstart e fazer a conferência visual da T039 (375 px, teclado, sem depender de cor) com o usuário, per US1/AC1 e SC-002 (missing)
 

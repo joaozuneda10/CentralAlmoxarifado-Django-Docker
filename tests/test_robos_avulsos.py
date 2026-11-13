@@ -204,6 +204,7 @@ def test_automacoes_tem_uma_aba_por_robo(client, usuario_logado):
     assert re.findall(r'role="tab"[^>]*data-aba="([\w-]+)"', texto) == [
         "visao-geral",
         "lancamento",
+        "entradas",
         "cadastro",
         "estoque",
         "saidas",

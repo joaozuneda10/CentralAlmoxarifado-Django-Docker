@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
-from pedidos.regras import interpretar_quantidade, qtd_br, texto_erro_quantidade
+from pedidos.regras import interpretar_quantidade, norm_u, qtd_br, texto_erro_quantidade
 
 RE_PEDIDO = re.compile(r"^(\d{5})/(\d{2})$")  # número visível do pedido no SCPI: 00514/26
 TRES_CASAS = Decimal("0.001")
@@ -214,6 +214,21 @@ def recebimento_observado(observacoes: str) -> str:
     return casou.group(1).upper() if casou else ""
 
 
+LIMITE_OBSERVACAO_ITEM = 100  # R25: confirmar o tamanho do campo no SCPI
+
+
+def texto_observacao_item(rotulo: str, observacao: str = "") -> str:
+    """O que o robô escreve na coluna Observação de cada item da entrada: numa entrada por pedido
+    o campo do cabeçalho é bloqueado (SCPI, 12/11/2026), então a marca vai em cada item, numa
+    linha só.
+    A marca vem inteira; a observação do recebimento ("Obs.: …", sem ";" nem quebras) só entra no
+    que couber em `LIMITE_OBSERVACAO_ITEM`."""
+    marca = f"Central Almoxarifado {rotulo}"
+    obs = " ".join((observacao or "").replace(";", ",").split())
+    texto = f"{marca} Obs.: {obs}" if obs else marca
+    return texto[:LIMITE_OBSERVACAO_ITEM].rstrip()
+
+
 def texto_observacoes(rotulo: str, observacao: str = "") -> str:
     """O que o robô escreve nas Observações da entrada: o recebimento na primeira linha e, num
     parágrafo novo, a observação dele, numa linha só.
@@ -224,3 +239,148 @@ def texto_observacoes(rotulo: str, observacao: str = "") -> str:
     marca = f"Central Almoxarifado {rotulo}"
     obs = " ".join((observacao or "").replace(";", ",").split())
     return f"{marca}\nObs.: {obs}" if obs else marca
+
+
+# --- O recebimento no robô: a tela do SCPI e a conferência antes do Salvar (PR 4) -------------
+
+
+@dataclass(frozen=True)
+class LinhaTela:
+    """Uma linha de "Escolha os Itens" como o robô a leu: o item do pedido, o código e os números
+    que o SCPI mostra."""
+
+    item: int
+    codigo: str
+    quantidade: Decimal
+    ja_entrou: Decimal
+    ja_pedida: Decimal
+    saldo: Decimal
+
+
+@dataclass(frozen=True)
+class TelaItens:
+    linhas: tuple[LinhaTela, ...] = ()
+
+
+@dataclass(frozen=True)
+class ItemParaLancar:
+    item: int  # o número do item no pedido (a coluna Item da tela)
+    codigo: str
+    quantidade: Decimal
+
+
+@dataclass(frozen=True)
+class EsperadoItem:
+    """O que a tela deve mostrar para um item do recebimento (R11): o "Já Entrou" e o saldo da
+    última importação mais o que os lançados do Central ainda não refletiram naquele item."""
+
+    item: int
+    codigo: str
+    quantidade: Decimal  # a do recebimento
+    ja_entrou: Decimal
+    saldo: Decimal
+
+
+@dataclass(frozen=True)
+class RecebimentoParaLancar:
+    """O recebimento como o robô o recebe: dado puro, montado pela seleção (`compras.robo`)."""
+
+    id: int
+    rotulo: str  # RC-0001
+    versao: int
+    pedido_id: int
+    pedido_ano: int
+    pedido_numero: int
+    pedido_rotulo: str  # 00514/26
+    fornecedor_codigo: str
+    nf: str
+    data: date
+    observacoes: str  # o texto já montado, com a marca "Central Almoxarifado RC-…"
+    itens: tuple[ItemParaLancar, ...]
+    esperado: tuple[EsperadoItem, ...]
+
+    def __str__(self) -> str:
+        return self.rotulo
+
+
+def esperado_do_item(
+    *, ja_entrou: Decimal, saldo: Decimal, nao_refletido: Decimal = Decimal(0)
+) -> tuple[Decimal, Decimal]:
+    """O "Já Entrou" e o saldo esperados na tela: os da última importação com o que os recebimentos
+    lançados do Central, ainda não refletidos nela, já tiraram do saldo (R5)."""
+    return ja_entrou + nao_refletido, saldo - nao_refletido
+
+
+def _qtd(valor: Decimal) -> str:
+    """Decimal sem zeros à direita, para as mensagens ('2', '1.5')."""
+    texto = format(valor.normalize(), "f")
+    return texto if texto != "-0" else "0"
+
+
+def conferir_tela(
+    esperado: tuple[EsperadoItem, ...] | list[EsperadoItem], tela: TelaItens
+) -> list[str]:
+    """As divergências entre o que o recebimento espera e a tela "Escolha os Itens" do SCPI; vazia
+    quando a tela confere. Pura. Cada mensagem começa por "O SCPI mudou:" e diz o item e o que
+    difere (R11). Item ausente na tela, código diferente no mesmo número, "Já Entrou" ou saldo
+    diferentes e quantidade que não cabe no saldo da tela impedem o Salvar."""
+    por_item = {linha.item: linha for linha in tela.linhas}
+    divergencias = []
+    for esp in esperado:
+        linha = por_item.get(esp.item)
+        if linha is None:
+            divergencias.append(f"O SCPI mudou: o item {esp.item} não está na tela.")
+            continue
+        if norm_codigo(linha.codigo) != norm_codigo(esp.codigo):
+            divergencias.append(
+                f"O SCPI mudou: item {esp.item}, código {linha.codigo} na tela, "
+                f"esperado {esp.codigo}."
+            )
+            continue
+        if linha.ja_entrou != esp.ja_entrou:
+            divergencias.append(
+                f"O SCPI mudou: item {esp.item}, Já Entrou {_qtd(linha.ja_entrou)} na tela, "
+                f"esperado {_qtd(esp.ja_entrou)}."
+            )
+        if linha.saldo != esp.saldo:
+            divergencias.append(
+                f"O SCPI mudou: item {esp.item}, saldo {_qtd(linha.saldo)} na tela, "
+                f"esperado {_qtd(esp.saldo)}."
+            )
+        if esp.quantidade > linha.saldo:
+            divergencias.append(
+                f"O SCPI mudou: item {esp.item}, a quantidade {_qtd(esp.quantidade)} passa do "
+                f"saldo {_qtd(linha.saldo)} na tela."
+            )
+    return divergencias
+
+
+def norm_codigo(codigo: str) -> str:
+    """O código como o resto do sistema o compara (`pedidos.regras.norm_u`)."""
+    return norm_u(codigo)
+
+
+def foto(rec: RecebimentoParaLancar, tela: TelaItens | None = None) -> dict:
+    """O que o robô vai digitar e o que a tela mostrou para cada item na conferência: serve à
+    comparação com a requisição oficial e à terceira prova da liberação (R16). JSON puro."""
+    lidas = {linha.item: linha for linha in tela.linhas} if tela else {}
+    return {
+        "pedido": rec.pedido_rotulo,
+        "fornecedor": rec.fornecedor_codigo,
+        "nf": rec.nf,
+        "data": rec.data.isoformat(),
+        "observacoes": rec.observacoes,
+        "itens": [
+            {"item": i.item, "codigo": i.codigo, "quantidade": _qtd(i.quantidade)}
+            for i in rec.itens
+        ],
+        "tela": [
+            {
+                "item": i.item,
+                "ja_entrou": _qtd(lidas[i.item].ja_entrou),
+                "saldo": _qtd(lidas[i.item].saldo),
+            }
+            for i in rec.itens
+            if i.item in lidas
+        ],
+    }
