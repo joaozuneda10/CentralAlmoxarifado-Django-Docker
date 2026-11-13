@@ -14,6 +14,7 @@ ganha as duas permissões do ⋮.
 | `lancamento_pendentes`, `lancamento_travados`, `lancamento_em_andamento`, `lancamento_real` | já existem | já existem | só com `operar_automacoes` (spec 012), como hoje |
 | `saude` | lista | já existe | sempre |
 | `saude_erros`, `saude_avisos` | int | contagem de `saude` por `nivel` | sempre |
+| `contadores` (do menu) | dict | `contadores_do_menu(request)`: Painel = pedidos aguardando; Automações = requisições travadas + recebimentos travados (spec 014) | página inteira |
 | `pode_imprimir`, `pode_editar` | bool | `pode_abrir(user, "pedidos:marcar_impressos")`, `pode_abrir(user, "pedidos:editar")` | sempre, também no trecho do HTMX |
 
 ## Indicadores
@@ -74,7 +75,8 @@ O formulário continua o `FiltrosPainel`: GET para `pedidos:painel`, com o mesmo
 - O "mais antigo" ignora os aguardando autorização e os recusados, e some com zero pedido.
 - "+N aguardando autorização": conta só os `AGUARDANDO` e some com zero.
 - Os contadores do menu aparecem só para quem abre o item, mostram os mesmos números do painel e não
-  aparecem com zero. A página do painel não conta duas vezes (`django_assert_num_queries` no trecho
+  aparecem com zero. O de Automações soma os recebimentos de compra em verificação, em lançamento ou
+  com erro; o cartão do robô não os soma. A página do painel não conta duas vezes (`django_assert_num_queries` no trecho
   dos contadores).
 - O ⋮: os itens de cada estado (aguardando, atendido com lote pendente, lançado, EPI aguardando
   autorização, saída avulsa) e de cada papel (com e sem as permissões).

@@ -51,8 +51,9 @@ O CSS total não cresce mais que 30% (hoje são cerca de 860 linhas comuns mais 
 preservado (FR-007); impressão do recibo idêntica; contraste AA calculado sobre os tokens; páginas
 sem rolagem lateral entre 320 e 1440px.
 
-**Scale/Scope**: 73 templates em 6 apps; 3 CSS comuns e 3 de apps; 6 scripts comuns e 2 de
-`pedidos`; 52 arquivos de teste citam classes. São 4 entregas (PRs) e 29 requisitos.
+**Scale/Scope**: 83 templates em 7 apps (10 em `compras`, da spec 014); selos de estado em 36 deles;
+3 CSS comuns e 3 de apps; 6 scripts comuns e 2 de `pedidos`; 52 arquivos de teste citam classes.
+São 4 entregas (PRs) e 29 requisitos.
 
 ## Constitution Check
 
@@ -110,8 +111,8 @@ interface/
 │   ├── base.html                  # carrega fundacao.css e menus.js (1 e 2)
 │   ├── base_almoxarifado.html     # casca com o menu estreito (2)
 │   ├── _menu.html                 # ícone + rótulo + contador; conta no pé (2)
-│   └── _icone.html                # ícones novos: kebab, metade, proibido, calendario, documento (1 e 2)
-├── navegacao.py                   # contadores do menu, preguiçosos (2)
+│   └── _icone.html                # ícones novos: kebab, calendario, documento, caminhao (1 e 2)
+├── navegacao.py                   # contadores do menu, preguiçosos; Compras com o ícone caminhao (2)
 └── templatetags/                  # (sem mudança)
 
 pedidos/
@@ -119,7 +120,6 @@ pedidos/
 ├── consultas.py                   # envio_mais_antigo_aguardando, contar_aguardando_autorizacao,
 │                                  # contadores_do_menu (memo por requisição) (2)
 ├── views/almoxarifado.py          # painel: novos números e permissões do ⋮; detalhe: ?imprimir=1 (2)
-├── templatetags/pedidos_extras.py # icone_situacao / icone_scpi ao lado dos badge_* (1)
 ├── templates/pedidos/
 │   ├── painel.html                # indicadores, chips, fab (2)
 │   ├── _painel_lista.html         # colunas Situação e SCPI, recibo pendente, ⋮ (2)
@@ -129,6 +129,9 @@ pedidos/
 │   └── detalhe.html, avulsa.html, … # demais telas (4)
 ├── static/pedidos/css/pedidos.css # (1 a 4)
 └── static/pedidos/js/pedidos.js   # ?imprimir=1 aciona o [data-imprimir] e limpa a URL (2)
+
+compras/                            # contar_recebimentos_travados em consultas.py (2); telas da área
+                                    # Compras e da aba Entradas (4), com regra para as 5 classes sem CSS
 
 catalogo/, automacoes/, conciliacao/, contas/   # templates e CSS das telas (3: login de solicitante
                                                 # e Meus pedidos; 4: as demais)
@@ -159,14 +162,16 @@ Cada entrega é um PR para `develop`, com deploy separado e revisão visual do c
 
 | # | Entrega | Escopo | Muda templates? |
 |---|---------|--------|-----------------|
-| 1 | Fundação | Tokens (`fundacao.css`), componentes comuns, ícones e selos com ícone; constituição 2.2.0, `DESIGN.md`, skill `design-tonal` e `CLAUDE.md`; teste de contraste; script de capturas | Só `base.html`, `_icone.html` e os selos |
-| 2 | Casca e painel | Menu estreito com contadores, painel (indicadores, chips, tabela, ⋮, fab), `?imprimir=1` no detalhe, `menus.js` | Casca e painel |
+| 1 | Fundação | Tokens (`fundacao.css`), componentes comuns, ícones e o ícone do selo pelo tom (no CSS); constituição 2.2.0, `DESIGN.md`, skill `design-tonal` e `CLAUDE.md`; teste de contraste; script de capturas | Só `base.html` e `_icone.html` |
+| 2 | Casca e painel | Menu estreito com contadores (Automações com as travas das saídas e das entradas) e rolagem vertical, Compras com o ícone `caminhao`, painel (indicadores, chips, tabela, ⋮, fab), `?imprimir=1` no detalhe, `menus.js` | Casca e painel |
 | 3 | Formulários públicos | Início, formulário (campos flutuantes, passos, busca, quantidade, Seu pedido, gaveta), sucesso, consulta, login de solicitante, Meus pedidos, folha | Telas públicas |
-| 4 | Demais telas internas | Detalhe, atendimento, edição, saída avulsa, Automações, Curva ABC, Formulários, Autorizações, login, acesso negado; telas da spec 014 já integradas | Telas internas |
+| 4 | Demais telas internas | Detalhe, atendimento, edição, saída avulsa, Automações (com as abas Entradas no SCPI e Pedidos de compra), Compras (lista, pedido, receber, recebimento), Curva ABC, Formulários, Autorizações, login, acesso negado | Telas internas |
 
-**Coordenação com a spec 014**: tela da 014 integrada antes da entrega 4 é convertida nela; tela que
-vier depois da entrega 1 já nasce com os componentes novos. As entregas 1 e 2 tocam pouco nos templates
-internos e devem ser feitas cedo, para encurtar a janela de conflito.
+**Spec 014 (entregue em 2026-11-13)**: as telas dela entram na entrega 4. Da 014, só três coisas
+mudam as entregas anteriores: os selos dela ganham ícone pelo CSS na entrega 1, sem tocar no template;
+na entrega 2, o contador de Automações soma os recebimentos travados e o item Compras troca de ícone.
+Outra spec que corra em paralelo segue a regra: tela integrada antes da entrega 4 é convertida nela,
+e tela que vier depois da entrega 1 já nasce com os componentes novos.
 
 ## Complexity Tracking
 

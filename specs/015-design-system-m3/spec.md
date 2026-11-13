@@ -1,6 +1,6 @@
 # Feature Specification: Troca do design system (Clean → linguagem visual do Material 3)
 
-**Feature Branch**: `claude/gifted-pascal-gsjrf3` (a partir de `develop` em `d011594`)
+**Feature Branch**: `claude/gifted-pascal-gsjrf3` (a partir de `develop` em `d011594`; atualizada em 2026-11-13 com a `develop` em `24f20b7`, depois da entrega da spec 014)
 
 **Created**: 2026-11-12
 
@@ -21,22 +21,24 @@ numa conversa de design antes desta especificação:
 
 ## Contexto
 
-Fatos do código em 2026-11-12 (branch `develop`, `d011594`):
+Fatos do código em 2026-11-12 (branch `develop`, `d011594`), revistos em 2026-11-13 com a spec 014 entregue (`24f20b7`):
 
 | # | Fato | Onde |
 |---|------|------|
 | F1 | O Princípio VI da constituição (versão 2.1.0) diz que "a interface segue o design system Clean (`docs/DESIGN.md`)" e proíbe dependência do Google, de CDN ou de npm. | `.specify/memory/constitution.md` |
 | F2 | A referência de estilo é o `docs/DESIGN.md` com a skill `.claude/skills/clean-design/`. O `CLAUDE.md` manda usar três skills em todo ajuste de UI, com a `clean-design` vencendo as outras. | `docs/DESIGN.md`, `CLAUDE.md` (Convenções) |
-| F3 | A camada visual tem três CSS comuns (`clean.css`, `componentes.css` e `layouts.css`, 859 linhas) e o CSS próprio de `pedidos`, `catalogo` e `contas`. São 73 templates em seis apps (36 em `pedidos`, 18 em `catalogo`). | `interface/static/interface/css/`, `*/templates/` |
+| F3 | A camada visual tem três CSS comuns (`clean.css`, `componentes.css` e `layouts.css`, 859 linhas) e o CSS próprio de `pedidos`, `catalogo` e `contas`. São 83 templates em sete apps (36 em `pedidos`, 18 em `catalogo`, 10 em `compras`). | `interface/static/interface/css/`, `*/templates/` |
 | F4 | As fontes são locais: Geist, DM Sans e Geist Mono, em `.woff2` com licença OFL. O `DESIGN.md` proíbe Inter, Roboto, Arial e system-ui. Os ícones são SVG inline no estilo Lucide, num conjunto fechado (`_icone.html`). | `interface/static/interface/fonts/`, `docs/DESIGN.md` |
 | F5 | Os scripts do projeto acham os elementos sobretudo por atributos `data-*` (cerca de 125 seletores), mas também por nome de classe (cerca de 57). Trocar um nome de classe pode quebrar um comportamento. | `*/static/*/js/*.js` |
 | F6 | 52 arquivos de teste citam classes CSS (`botao-primario`, `carrinho-linha`, `app-lateral`, `campo-rotulo`, `tabela-rolagem`, `selo-erro`…). | `tests/` |
-| F7 | O menu da área interna tem 6 destinos para a equipe (Painel, Saída avulsa, Automações, Curva ABC, Formulários, Cadastros) e 1 para a Segurança do Trabalho (Autorizações). A spec 014 prevê mais telas internas. Até 1286px, a barra lateral vira cabeçalho com o botão de menu. | `interface/navegacao.py`, `docs/DESIGN.md` |
+| F7 | O menu da área interna tem 7 destinos para a equipe (Painel, Saída avulsa, Automações, Compras, Curva ABC, Formulários, Cadastros) e 1 para a Segurança do Trabalho (Autorizações). O item Compras (spec 014) usa o ícone `caixa`, o mesmo da marca. Até 1286px, a barra lateral vira cabeçalho com o botão de menu. | `interface/navegacao.py`, `docs/DESIGN.md` |
 | F8 | O painel já calcula os números que o protótipo usa: pedidos aguardando atendimento, recibos para imprimir, requisições aguardando o robô e requisições travadas. Já existem os filtros por GET `q`, `material`, `origem`, `situacao`, `autorizacao`, `scpi`, `recibo`, `de` e `ate`. | `pedidos/views/almoxarifado.py`, `pedidos/consultas.py` |
 | F9 | As specs 012 e 013 trouxeram as telas de acesso negado, o login de solicitante e "Meus pedidos". | `interface/templates/interface/acesso_negado*.html`, `contas/templates/contas/` |
 | F10 | O recibo tem regras próprias de impressão (texto preto, bordas cinza, uma folha por recibo). | `layouts.css`, `pedidos.css` (`@media print`) |
 | F11 | Os formulários públicos exigem JavaScript (o aviso do `<noscript>`). A área interna funciona sem ele: menu aberto, filtros por GET, painéis empilhados. | `CLAUDE.md`, `docs/DESIGN.md` |
-| F12 | A spec 014 (entrada por pedido) está em andamento em `develop`, com telas internas novas previstas. | `specs/014-entrada-por-pedido/` |
+| F12 | A spec 014 (entrada por pedido) foi entregue em `develop`: a área Compras (lista de pedidos de compra, pedido, preparar e editar o recebimento, recebimento), a aba Entradas no SCPI e a aba do robô Pedidos de compra em Automações, a permissão `contas.receber_compras` (quem só a tem começa em Compras, não no painel) e os recebimentos travados (em verificação, em lançamento ou com erro), que se resolvem na aba Entradas. Ela não mudou CSS, `DESIGN.md` nem a constituição (segue 2.1.0), e não mexeu no painel. | `compras/`, `contas/acesso.py`, `automacoes/` |
+| F13 | Há selos de estado em 36 templates. Nenhum traz ícone, e vários decidem a cor por condição no próprio template, sem filtro comum (por exemplo, `compras/_estado.html`, `compras/_status.html`, os vereditos de `compras/_conferencia.html` e `conciliacao/_conciliacao.html`). | `*/templates/` |
+| F14 | Cinco classes das telas de compras não têm regra em CSS nenhum: `filtros-veredito`, `conferir-cabecalho`, `lista-travas`, `acoes-trava` e `cancelar-entrada`. Esses blocos aparecem sem o espaçamento que as telas equivalentes das saídas (`conciliacao-filtros` e afins) têm. | `compras/templates/compras/` |
 
 ## Pesquisa (alternativas avaliadas na conversa de 2026-11-12)
 
@@ -44,7 +46,7 @@ Fatos do código em 2026-11-12 (branch `develop`, `d011594`):
 |---|---|---|
 | Material Web (`@material/web`, do Google) | Em modo de manutenção desde jun/2024, sem trabalho futuro planejado | Biblioteca parada; web components com Shadow DOM (o CSS e os scripts do projeto não alcançam o interior); npm; Roboto |
 | Advanced Material Web (Viewflow), a do showcase | Pacote criado em 11/08/2026; 4 versões em 4 dias e nenhuma depois; um mantenedor; AGPL-3.0 com exceção | Nova demais e parada; mesmo conflito de Shadow DOM com o `pedidos.js` e o `dropdown.js`; npm |
-| Tailwind v4 com Basecoat ou daisyUI | Ativos | Etapa de build e pacotes npm; reescrita das classes dos 73 templates; o Basecoat tem um mantenedor só |
+| Tailwind v4 com Basecoat ou daisyUI | Ativos | Etapa de build e pacotes npm; reescrita das classes dos 83 templates; o Basecoat tem um mantenedor só |
 | Web Awesome 3 (sucessor do Shoelace) | Ativo, com uma parte paga | Web components com Shadow DOM |
 | **M3 como linguagem visual no CSS próprio** | — | **Escolhida**: nenhuma dependência nova, os scripts e o HTMX continuam iguais, e o projeto controla o resultado |
 
@@ -59,6 +61,31 @@ Fatos do código em 2026-11-12 (branch `develop`, `d011594`):
 - Q2: Nos campos dos formulários públicos, rótulo flutuante dentro da caixa ou rótulo fixo acima?
   → A: **rótulo flutuante** (opção A). O exemplo do campo passa a ser texto de apoio fixo embaixo
   dele (FR-020).
+
+## Revisão de 2026-11-13: spec 014 entregue
+
+A spec 014 entrou em `develop` depois da primeira versão desta spec. Do que ela entregou, só isto
+pede adaptação (F12 a F14):
+
+| O que a 014 trouxe | Adaptação aqui | Por quê |
+|---|---|---|
+| Área Compras e duas abas novas em Automações | Entram na US4 e nas telas-chave das capturas (FR-029) | São telas internas como as outras |
+| Recebimentos travados, resolvidos na aba Entradas | O contador do item Automações soma as travas das saídas e das entradas; o cartão do robô no painel continua só das saídas (FR-013, FR-018c) | Um contador só das saídas mostraria zero com um recebimento travado: pendência em silêncio |
+| Item Compras com o ícone `caixa`, o da marca | Ícone `caminhao` no item Compras (FR-013) | No menu estreito a marca é só o ícone, e dois iguais no topo confundem |
+| 7 destinos no menu | O menu estreito rola na vertical quando não cabe (FR-013) | A 1366×768, a janela do navegador tem cerca de 650px úteis |
+| Selos com a cor decidida no próprio template, em 36 telas | O ícone do selo vem do tom, no CSS (FR-004) | Ícone por estado exigiria mexer nos 36 templates, e a entrega 1 deixaria de ser só de CSS |
+| Cinco classes sem regra de CSS | Ganham regra, ou são trocadas pelas das saídas, na entrega 4 (FR-029) | Hoje esses blocos saem sem espaçamento |
+
+Ficam como estão, de propósito:
+
+- O painel não ganha indicador de entradas. Seria comportamento novo, e a 014 deixou os
+  recebimentos na área Compras e na aba Entradas.
+- Os pedidos de compra travados (`TravaPedido`) não entram no contador de Automações. Eles se
+  resolvem com uma importação de pedidos posterior e o "Destravar", e já aparecem marcados "Com
+  trava" na lista de Compras e na aba Entradas.
+- A constituição continua em 2.1.0 na `develop`, então a emenda da entrega 1 segue sendo a 2.2.0.
+- Quem só recebe compras começa em Compras (`ponto_de_partida`): o menu já mostra só o que cada
+  um abre, e nada no desenho novo depende do painel para essa pessoa.
 
 ## User Scenarios & Testing *(mandatory)*
 
@@ -115,7 +142,7 @@ depois.
 6. **Given** um pedido atendido com o lote ainda pendente, **When** a equipe abre o ⋮ da linha, **Then** vê "Abrir pedido", "Imprimir recibo" e "Editar atendimento"; num pedido aguardando atendimento, só "Abrir pedido"; com o lote já lançado, sem "Editar atendimento".
 7. **Given** "Imprimir recibo" escolhido no ⋮, **When** o detalhe abre, **Then** a impressão começa e a confirmação "O recibo saiu na impressora?" aparece no detalhe; nada é marcado como impresso sem essa confirmação.
 8. **Given** o pedido aguardando mais antigo enviado há 3 dias, **When** o painel abre, **Then** o cartão de atendimento mostra "há 3 dias".
-9. **Given** 1 requisição aguardando o robô e 1 em verificar, **When** o painel abre, **Then** o cartão do robô mostra 1 como número principal e a nota "1 para conferir", com o link para as travas, e o menu mostra 1 em Automações.
+9. **Given** 1 requisição aguardando o robô e 1 em verificar, **When** o painel abre, **Then** o cartão do robô mostra 1 como número principal e a nota "1 para conferir", com o link para as travas, e o menu mostra 1 em Automações; com também 1 recebimento de compra em verificação, o cartão continua igual e o menu mostra 2.
 10. **Given** 2 pedidos de EPI aguardando autorização, **When** o painel abre, **Then** o cartão de atendimento mostra "+2 aguardando autorização", com link para o filtro; com zero, a nota some.
 
 ---
@@ -152,6 +179,8 @@ A equipe encontra o novo desenho nas outras telas internas:
 - detalhe do pedido, com o atendimento e a edição;
 - saída avulsa;
 - Automações (as abas e o histórico);
+- Compras: a lista de pedidos de compra, o pedido, preparar e editar o recebimento e o recebimento;
+- as abas Entradas no SCPI e Pedidos de compra de Automações;
 - Curva ABC e Formulários (configuração);
 - Autorizações (Segurança do Trabalho);
 - login, acesso negado e recibo na tela.
@@ -205,7 +234,7 @@ com os formulários na revisão visual do chefe.
 - **Entre uma entrega e outra**: como os componentes comuns mudam todos na fundação, uma tela cujo layout ainda não foi ajustado fica com o visual novo e a composição antiga, nunca com os dois visuais.
 - **Segurança do Trabalho**: o menu dela mostra só Autorizações, e a marca muda como hoje.
 - **Impressão**: o `@media print` continua escondendo a casca, os botões flutuantes e os chips.
-- **Spec 014 em paralelo**: os templates que a 014 mexer entram em conflito com a troca. A ordem das entregas decide quem converte o quê (FR-029).
+- **Quem só recebe compras** (permissão `contas.receber_compras` sem a de atender) começa em Compras: o menu estreito mostra a ele só os destinos que abre, sem contador de Painel nem de Automações.
 
 ## Requirements *(mandatory)*
 
@@ -216,7 +245,7 @@ com os formulários na revisão visual do chefe.
 - **FR-001**: O sistema DEVE ter um único conjunto de tokens no padrão do M3. Ele inclui: a cor primária (o azul `#2563EB` atual como semente) e os contêineres tonais; cinco níveis de superfície; contornos; os quatro status (ok, aviso, erro, informação), cada um com contêiner e texto; raios de 8, 12, 16 e 28px; duas elevações; e a escala tipográfica. Só tema claro.
 - **FR-002**: As fontes continuam as atuais (Geist, DM Sans e Geist Mono), servidas pelo próprio sistema. Nada de Roboto, Inter ou fonte de CDN.
 - **FR-003**: Os ícones continuam SVG inline no estilo Lucide, no conjunto fechado do `_icone.html`, que só cresce com os ícones que as telas novas usarem.
-- **FR-004**: Estado nunca só por cor. Todo selo de situação traz a palavra e um ícone, e todo aviso traz texto.
+- **FR-004**: Estado nunca só por cor. Todo selo traz a palavra e um ícone, e todo aviso traz texto. O ícone vem do tom do selo (ok, aviso, erro, informação), igual em todo o sistema, também nos selos das telas de compras, de conciliação e de Automações (F13). O selo que já desenha o próprio ícone, como o "N no pedido", não ganha um segundo. O neutro não tem ícone, porque não indica estado que pede atenção.
 - **FR-005**: Os dois ritmos continuam: o público, arejado, e o interno, compacto. Os mesmos tokens servem aos dois, em densidades diferentes.
 
 **Compatibilidade**
@@ -236,7 +265,7 @@ com os formulários na revisão visual do chefe.
 
 **Painel do almoxarifado**
 
-- **FR-013**: Menu estreito, com ícone, rótulo e item atual destacado. Os contadores mostram só números que o sistema já calcula: pedidos aguardando atendimento (no Painel) e requisições travadas (em Automações). Abaixo de 1286px, vale o cabeçalho com o botão de menu de hoje, com todos os destinos.
+- **FR-013**: Menu estreito, com ícone, rótulo e item atual destacado. Os contadores mostram só números que o sistema já calcula: pedidos aguardando atendimento (no Painel) e as travas a conferir em Automações, que são as requisições de saída travadas mais os recebimentos de compra travados (em verificação, em lançamento ou com erro, F12), porque os dois se resolvem lá e um contador só das saídas esconderia o recebimento travado. O item Compras troca o ícone `caixa`, igual ao da marca no menu estreito, pelo ícone `caminhao`. O menu estreito rola na vertical quando os destinos e a conta não cabem na altura da janela. Abaixo de 1286px, vale o cabeçalho com o botão de menu de hoje, com todos os destinos.
 - **FR-014**: A busca de pedidos (o campo `q` de hoje) fica no topo da página.
 - **FR-015**: Os atalhos viram cartões de indicadores, com os mesmos números, ações e bloqueios de hoje:
   - aguardando atendimento, com "Atender";
@@ -254,7 +283,7 @@ com os formulários na revisão visual do chefe.
 
   Cada item só aparece para quem tem a permissão que a ação já exige (spec 012), e o servidor continua recusando quem não a tem. Pedido de EPI não autorizado não ganha "Imprimir recibo" nem "Editar atendimento", porque não tem atendimento. Sem JavaScript, o menu vira os mesmos links visíveis na linha. O ⋮ tem rótulo acessível ("Ações do pedido P-000123"), abre e fecha pelo teclado e fecha com Esc.
 - **FR-018b**: **"O mais antigo há N dias"** no cartão "Aguardando atendimento". É o pedido mais antigo pela data de envio, entre os que o filtro "Aguardando atendimento" já conta (fora os que aguardam autorização e os recusados). N são os dias de calendário entre a data do envio e hoje, no fuso do servidor: "enviado hoje", "enviado ontem" ou "há N dias". Some quando não há pedido aguardando.
-- **FR-018c**: **Requisições travadas no cartão do robô.** O número principal continua o de hoje: as requisições aguardando o robô. As travadas (em verificar, em lançamento ou com erro; o mesmo número que o sistema já conta) continuam no mesmo cartão, como já acontece hoje: numa nota de alerta à parte, com o texto de hoje ("N para conferir"), ícone e o link de hoje para as travas na aba Lançamento no SCPI de Automações, onde elas se resolvem. Os dois números **não** se somam: um é fila, o outro exige ação de alguém, e a soma esconderia o travado dentro da fila. O protótipo somava, e a spec corrige. O contador do item Automações no menu é o mesmo número das travadas.
+- **FR-018c**: **Requisições travadas no cartão do robô.** O número principal continua o de hoje: as requisições aguardando o robô. As travadas (em verificar, em lançamento ou com erro; o mesmo número que o sistema já conta) continuam no mesmo cartão, como já acontece hoje: numa nota de alerta à parte, com o texto de hoje ("N para conferir"), ícone e o link de hoje para as travas na aba Lançamento no SCPI de Automações, onde elas se resolvem. Os dois números **não** se somam: um é fila, o outro exige ação de alguém, e a soma esconderia o travado dentro da fila. O protótipo somava, e a spec corrige. O cartão é só das saídas, como hoje; o contador do item Automações no menu soma estas travadas com os recebimentos travados (FR-013).
 - **FR-018d**: **"+N aguardando autorização"** no cartão "Aguardando atendimento". N são os pedidos de EPI aguardando a decisão da Segurança do Trabalho (o mesmo do filtro Autorização). É um link para a lista filtrada por esse estado e some quando N é zero. Não entra no número principal, porque esses pedidos ainda não podem ser atendidos.
 
 **Formulários públicos**
@@ -287,9 +316,10 @@ com os formulários na revisão visual do chefe.
   - a mensagem "nome completo, com sobrenome" é ilustrativa;
   - a barra de baixo do painel no celular escondia destinos;
   - o cartão do robô somava as travadas com as que aguardam o robô (FR-018c corrige);
+  - os selos do protótipo têm um ícone por estado (relógio em "Aguardando", meio círculo em "Atendido parcialmente"); na spec, o ícone vem do tom do selo (FR-004), o que cobre os 36 templates com selo de uma vez;
   - o menu ⋮ do protótipo aparece em todas as linhas, sem as condições de FR-018a.
   - o protótipo do painel tem uma barra no topo de toda a área interna, com a busca e o usuário. Na spec, a busca fica no topo da página do painel (FR-014), e o usuário com o "Sair" no pé do menu, como hoje: as outras telas não têm busca de pedidos, e uma barra só para o painel seria um layout a mais.
-- **FR-029**: Telas da spec 014: se forem integradas antes da etapa que cobre a área interna (US4), são convertidas nela; se vierem depois da fundação, já nascem no desenho novo.
+- **FR-029**: As telas da spec 014 (F12) já estão integradas e entram na US4, com as demais telas internas. As cinco classes sem regra (F14) ganham regra na entrega que converte essas telas, igual à das telas equivalentes das saídas, ou são trocadas pelas classes delas, sem mudar o comportamento.
 
 ## Success Criteria *(mandatory)*
 
@@ -319,8 +349,8 @@ Cada entrega é um pull request para `develop` com deploy separado, nesta ordem:
 - **Acoplamento a nomes de classe** (F5, F6): renomear sem necessidade quebra scripts e testes. A FR-007 limita as renomeações.
 - **Densidade do painel**: cartões e linhas mais altos podem mostrar menos pedidos. A SC-004 garante que não piora.
 - **Hábito dos usuários**: muda a aparência, não o lugar das coisas. Os textos e a ordem dos passos ficam (FR-006).
-- **Conflito com a spec 014** nos templates internos: a FR-029 e a ordem das entregas resolvem.
-- **Tamanho do trabalho**: são 73 templates e o CSS inteiro, em paralelo com outras specs. As entregas em etapas mantêm cada pull request revisável.
+- **Outra spec em paralelo** nos templates internos: tela integrada antes da entrega 4 é convertida nela; tela que vier depois da entrega 1 já nasce com os componentes novos.
+- **Tamanho do trabalho**: são 83 templates e o CSS inteiro, em paralelo com outras specs. As entregas em etapas mantêm cada pull request revisável.
 
 ## Assumptions
 

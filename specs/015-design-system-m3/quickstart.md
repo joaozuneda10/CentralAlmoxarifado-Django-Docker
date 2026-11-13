@@ -46,7 +46,7 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 |---|---|---|
 | Q-1.1 | `uv run pytest tests/test_contraste_tokens.py` | todos os pares de `contracts/tokens.md` acima do mínimo |
 | Q-1.2 | abrir o painel, o detalhe, um formulário público e Automações | visual novo; nenhum botão, campo ou selo quebrado; o mesmo comportamento |
-| Q-1.3 | selos de situação e do SCPI | ícone + palavra em todos |
+| Q-1.3 | selos no painel, no detalhe, em Compras, na conciliação e em Automações | ícone do tom + palavra em todos; o neutro sem ícone; o "N no pedido" sem ícone duplicado |
 | Q-1.4 | imprimir um recibo para PDF e comparar com o de antes | idêntico (SC-007) |
 | Q-1.5 | `grep -rn "clean" interface/ docs/DESIGN.md CLAUDE.md .specify/memory/constitution.md` | nenhuma referência ao Clean como estilo vigente; constituição em 2.2.0 |
 | Q-1.6 | a skill `design-tonal` carregada numa sessão nova | descreve os tokens e o vocabulário do `DESIGN.md` |
@@ -55,8 +55,10 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 
 | # | Conferência | Esperado |
 |---|---|---|
-| Q-2.1 | menu acima de 1286px | estreito, com ícone e rótulo; contador no Painel e em Automações (só para quem os abre); até 1286px, o cabeçalho com o botão de menu de hoje, com todos os destinos |
+| Q-2.1 | menu acima de 1286px | estreito, com ícone e rótulo; Compras com o ícone `caminhao`; contador no Painel e em Automações (só para quem os abre); a 1366×650, os 7 destinos e a conta visíveis ou a lista rolando, nunca cortada; até 1286px, o cabeçalho com o botão de menu de hoje, com todos os destinos |
 | Q-2.2 | os quatro cartões com os dados de exemplo | os números iguais aos de antes; "há N dias" correto; "+1 aguardando autorização"; "1 para conferir" com o link para as travas, fora do número principal |
+| Q-2.2b | 1 requisição travada e 1 recebimento de compra em verificação | o cartão do robô com "1 para conferir"; o menu com 2 em Automações |
+| Q-2.2c | entrar com um usuário que só recebe compras | começa em Compras; o menu sem Painel nem Automações e sem contador |
 | Q-2.3 | clicar em cada cartão e em cada chip | o mesmo resultado e o mesmo parâmetro na URL dos filtros de hoje; com o JavaScript desligado, também |
 | Q-2.4 | o ⋮ num pedido aguardando, num atendido com lote pendente, num lançado e numa saída avulsa | os itens de `data-model.md`; Esc fecha; o Tab percorre os itens |
 | Q-2.5 | o ⋮ com um usuário sem a permissão de atendimento | sem "Imprimir recibo" e sem "Editar atendimento" |
@@ -82,3 +84,5 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 | Q-4.2 | edição com o robô rodando | a faixa recarrega e o "Salvar" some se o lote travar, como hoje |
 | Q-4.3 | Automações: abas, regiões que recarregam, histórico com filtros | o mesmo comportamento; a pasta da aba ativa |
 | Q-4.4 | a Segurança do Trabalho: fila e decisão | o menu só com Autorizações; as telas no desenho novo |
+| Q-4.5 | Compras: buscar, abrir um pedido, preparar, editar e cancelar um recebimento | o mesmo comportamento; selos com o ícone do tom |
+| Q-4.6 | aba Entradas no SCPI: fila, em verificação, pedidos travados e conferência | o mesmo comportamento; os blocos das 5 classes de F14 com o espaçamento das telas das saídas |

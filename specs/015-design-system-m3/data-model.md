@@ -13,7 +13,9 @@ onde vem cada valor e qual regra o calcula.
 | Aguardando autorização | nota "+N aguardando autorização" | `consultas.contar_aguardando_autorizacao()`: `Pedido` com `autorizacao__situacao=AGUARDANDO` | a mesma condição do filtro Autorização = aguardando; some com 0 |
 | Recibos para imprimir | cartão do painel | `Atendimento` com `recibo_impresso_em` nulo (já existe) | sem mudança |
 | Requisições aguardando o robô | número do cartão do robô | `lotes_pendentes()` (já existe) | sem mudança |
-| Requisições travadas | nota "N para conferir" do cartão do robô; contador do item Automações | `contar_lotes_travados()` (já existe) | sem mudança; nunca somado ao número acima (FR-018c) |
+| Requisições travadas | nota "N para conferir" do cartão do robô | `contar_lotes_travados()` (já existe) | sem mudança; nunca somado ao número acima (FR-018c) |
+| Recebimentos travados (spec 014) | soma do contador do item Automações | `compras.consultas.contar_recebimentos_travados()` (nova): `Recebimento` em `VERIFICAR`, `EM_LANCAMENTO` ou `ERRO`, os mesmos estados de `verificacoes_entradas` | não aparece no painel |
+| Travas a conferir | contador do item Automações | requisições travadas + recebimentos travados | só para quem abre Automações; some com 0 |
 | Saúde do catálogo por nível | 4º cartão | `saude_do_catalogo()` (já existe), contada por `nivel` (`erro`, `aviso`) | a lista completa continua na página |
 | Itens do menu ⋮ de uma linha | `_painel_lista.html` | o pedido com `atendimento` e `atendimento__linhas` já pré-carregados por `pedidos_do_painel` | ver a tabela abaixo |
 
@@ -31,7 +33,8 @@ continua recusando quem não tem a permissão, como hoje.
 
 ## Contadores do menu (R7)
 
-`pedidos.consultas.contadores_do_menu(request)` devolve `{"pedidos:painel": n, "automacoes:pagina": m}`
+`pedidos.consultas.contadores_do_menu(request)` devolve `{"pedidos:painel": n, "automacoes:pagina": m}`,
+com `m` = requisições travadas + recebimentos travados,
 só com as chaves que o usuário pode abrir. O resultado fica guardado na própria requisição, e a
 contagem só roda quando o template desenha o menu. O valor 0 não mostra o contador.
 

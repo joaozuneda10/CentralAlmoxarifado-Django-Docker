@@ -19,7 +19,7 @@ novos (contracts/componentes.md).
 
 **Alternatives considered**:
 
-- Vocabulário novo, como na troca para o Clean: mais limpo no papel, mas reescreve os 73 templates,
+- Vocabulário novo, como na troca para o Clean: mais limpo no papel, mas reescreve os 83 templates,
   os scripts e os testes de uma vez.
 - Uma camada M3 por cima do Clean: dois sistemas convivendo, o que é a dívida que a spec quer evitar.
 
@@ -123,6 +123,15 @@ matrícula e "Sair") fica no pé, compacta: um círculo com as iniciais, com o n
 vale o cabeçalho com o botão de menu de hoje (`shell.js` sem mudança), com o menu aberto em lista
 larga e todos os destinos.
 
+**Altura**: com a spec 014, o menu tem 7 destinos para a equipe. Cada item ocupa cerca de 51px (a
+pílula de 32px, 4px e o rótulo de uma linha). Com 4px entre itens, a marca e a conta, o menu pede
+cerca de 560px. A 1366×768, a janela do navegador tem por volta de 650px úteis: cabe, mas com pouca
+folga. Por isso a lista de destinos tem `overflow-y: auto`, e a marca e a conta ficam presas em cima e
+embaixo. Um destino a mais nunca some; no pior caso, a lista rola. A captura a 1366×650 confere.
+
+**Ícone de Compras**: o item usa hoje o `caixa`, o mesmo da marca, que no menu estreito é só o
+ícone. Passa a `caminhao` (o `truck` do Lucide), do recebimento das compras.
+
 **Rationale**: as classes e o `shell.js` continuam iguais, então o teste
 `test_menu_com_icone_e_botao_acessivel` segue valendo com o contador posto depois do ícone. O protótipo
 punha uma barra no celular que escondia destinos (corrigido na spec).
@@ -133,13 +142,18 @@ punha uma barra no celular que escondia destinos (corrigido na spec).
 ## R7. Contadores do menu: preguiçosos e uma vez por requisição
 
 **Decision**: o context processor `interface.navegacao.menu` põe no item Painel o número de pedidos
-aguardando atendimento, e no item Automações o de requisições travadas, só para quem pode abrir cada
-item. Os números vêm de `pedidos.consultas.contadores_do_menu(request)`, que guarda o resultado na
+aguardando atendimento, e no item Automações o das travas a conferir, só para quem pode abrir cada
+item. As travas a conferir são as requisições de saída travadas (`contar_lotes_travados`) mais os
+recebimentos de compra em verificação, em lançamento ou com erro
+(`compras.consultas.contar_recebimentos_travados`, nova: um `count` pelos mesmos estados que a
+`verificacoes_entradas` lista, sem montar as candidatas). As duas se resolvem em Automações (abas
+Lançamento no SCPI e Entradas no SCPI), e um contador só das saídas esconderia o recebimento travado.
+O cartão do robô no painel continua só das saídas. Os números vêm de `pedidos.consultas.contadores_do_menu(request)`, que guarda o resultado na
 própria requisição; a view do painel usa a mesma função e não conta duas vezes. Os valores são
 preguiçosos: a contagem só roda se o template desenhar o menu, e os trechos do HTMX não desenham.
 
-**Rationale**: as duas contagens já existem (`filtrar_situacao(...,"aguardando")` e
-`contar_lotes_travados`) e são baratas no volume atual. Por serem preguiçosas, a página sem menu (a
+**Rationale**: as contagens já existem ou são um `count` simples (`filtrar_situacao(...,"aguardando")`,
+`contar_lotes_travados` e a nova contagem dos recebimentos) e são baratas no volume atual. Por serem preguiçosas, a página sem menu (a
 pública) e os trechos do HTMX não pagam nada.
 
 **Alternatives considered**: contadores só no painel (o menu mostraria número numa página e não na
@@ -194,16 +208,42 @@ exigiriam um calendário que o sistema não tem.
 link para `automacoes:pagina?aba=lancamento#travas`. A entrega 2 só o reestiliza como a nota de alerta
 do indicador. A spec foi alinhada a isso (FR-018c).
 
-## R12. Selos com ícone
+## R12. Selos com ícone, pelo tom e no CSS
 
-**Decision**: ao lado de `badge_situacao`, `badge_scpi` e `badge_autorizacao`, entram os filtros
-`icone_situacao`, `icone_scpi` e `icone_autorizacao` em `pedidos_extras.py`. Eles devolvem o nome do
-ícone pela mesma chave (por exemplo: aguardando → `relogio`, parcial → `metade`, atendido → `check`,
-recusado → `fechar`, lançado → `check`, verificar ou erro → `alerta`, não lançar → `proibido`). Cada
-selo desenha `{% include "interface/_icone.html" %}` antes da palavra. Entram os ícones `metade`,
-`proibido`, `kebab`, `calendario` e `documento`, com os traços do Lucide.
+**Decision**: o ícone do selo vem do **tom** e é desenhado pelo CSS, no `::before` do `.selo`, com
+`mask-image` de um SVG do Lucide em `data:` URI. Não há arquivo externo. A cor é o `currentColor` do
+selo.
 
-**Rationale**: o mapa fica num lugar só, junto da cor, e o selo continua com a palavra (FR-004).
+| Tom | Ícone |
+|---|---|
+| `selo-ok` | `check` |
+| `selo-aviso` | `alerta` em triângulo |
+| `selo-erro` | `alerta` em círculo |
+| `selo-info` | `info` |
+| `selo-neutro` | nenhum |
+
+O selo que já traz o próprio ícone no markup (`.selo:has(svg)`, como o "N no pedido" e os selos das
+abas) não ganha o segundo. Os templates não mudam.
+
+**Rationale**:
+
+- Com a spec 014 há selos em 36 templates, e vários decidem a cor por condição no próprio template
+  (`compras/_estado.html`, `compras/_status.html`, os vereditos de compras e de conciliação). Um ícone
+  por estado exigiria mexer em todos e criar um mapa para cada domínio; a entrega 1 deixaria de ser
+  só de CSS.
+- Pelo tom, um lugar só cobre o sistema inteiro, inclusive as telas futuras, e o ícone nunca
+  contradiz a cor.
+- A palavra continua lá (FR-004); o ícone é reforço, `aria-hidden` por ser pseudo-elemento.
+
+**Alternatives considered**:
+
+- Um ícone por estado (relógio em "Aguardando", meio círculo em "Parcial"), como no protótipo: mais
+  expressivo, mas 36 templates e um mapa por domínio. Fica possível depois, selo a selo, porque
+  `.selo:has(svg)` já respeita o ícone posto no markup.
+- Filtros `icone_*` só em `pedidos`: deixaria de fora compras, conciliação e Automações (F13).
+
+**Ícones novos no `_icone.html`**: `kebab`, `calendario`, `documento` e `caminhao`. O `metade` e o
+`proibido` da primeira versão deste plano saem: serviam só aos ícones por estado.
 
 ## R13. Densidade do painel (SC-004)
 

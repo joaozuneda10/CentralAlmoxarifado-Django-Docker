@@ -10,7 +10,7 @@ testes que a usam. O `docs/DESIGN.md` da entrega 1 é a versão normativa desta 
 |---|---|---|
 | Botões | `botao` + `botao-primario`, `botao-secundario` (`botao-destaque`, `botao-perigo`, `botao-ok`), `botao-texto`, `botao-icone`, `botao-bloco`, `botao-suave` | pílula (`--raio-pilula`); primário = cheio; secundário = contorno (`--contorno`); suave = tonal (`--secundario-superficie`); texto = sem fundo, hover em `--destaque-superficie`; ícone = círculo de 40px |
 | Campos | `campo`, `campo-rotulo`, `campo-entrada`, `campo-dica`, `campo-erro`, `campo-com-erro`, `campo-busca`, … | caixa com `--contorno`; foco com borda de 2px em `--destaque`; erro com `--erro-forte` na borda, no rótulo e no texto com ícone. Na área interna o rótulo continua fixo acima |
-| Selos | `selo` + `selo-ok`, `selo-aviso`, `selo-erro`, `selo-info`, `selo-neutro` | contêiner de status, raio de 6px, **ícone antes da palavra** (R12) |
+| Selos | `selo` + `selo-ok`, `selo-aviso`, `selo-erro`, `selo-info`, `selo-neutro` | contêiner de status, raio de 6px, **ícone pelo tom no `::before`** (R12): `check`, triângulo de alerta, `alerta` e `info`; o neutro sem ícone; o selo com `svg` próprio não ganha outro |
 | Avisos | `aviso` + variações | contêiner de status com raio de 16px e ícone |
 | Cartões | `cartao`, `cartao-titulo`, `cartao-sutil`, `cartao-opcao` | `cartao`: fundo branco com `--borda` e raio de 16px; `cartao-sutil`: `--superficie-media` sem borda; `cartao-opcao`: ícone num quadrado de 48px em `--destaque-superficie` |
 | Tabela | `tabela-rolagem`, `tabela`, … | cabeçalho em `--texto-secundario` 500; divisórias em `--borda`; hover em `--superficie` |
@@ -41,9 +41,9 @@ testes que a usam. O `docs/DESIGN.md` da entrega 1 é a versão normativa desta 
 
 ## Ícones novos (`_icone.html`)
 
-`kebab` (ellipsis-vertical), `metade` (círculo meio preenchido: atendido parcialmente), `proibido`
-(ban: não lançar), `calendario` e `documento` (file-text), com os traços do Lucide e `stroke-width`
-1.5, como os demais.
+`kebab` (ellipsis-vertical), `calendario`, `documento` (file-text) e `caminhao` (truck, para o item
+Compras do menu), com os traços do Lucide e `stroke-width` 1.5, como os demais. Os ícones dos selos
+não passam pelo `_icone.html`: são máscaras no CSS (R12).
 
 ## Telas-chave (capturas, R14)
 
@@ -53,6 +53,8 @@ O script de capturas percorre esta lista a 320, 375, 768, 1280 e 1440px:
   formulário das viaturas com a folha aberta, sucesso, consulta pública, login de solicitante, Meus
   pedidos;
 - internas: painel (sem filtro, com filtro e com o ⋮ aberto), detalhe aguardando atendimento,
-  detalhe atendido, edição, saída avulsa, Automações (Visão geral e Lançamento no SCPI), Curva ABC,
+  detalhe atendido, edição, saída avulsa, Automações (Visão geral, Lançamento no SCPI, Entradas no
+  SCPI e Pedidos de compra), Compras (lista de pedidos, pedido, receber e recebimento), Curva ABC,
   Formulários, Autorizações (Segurança do Trabalho), login, acesso negado;
+- o menu estreito a 1366×650 (a altura útil da janela num monitor de 1366×768);
 - impressão: o recibo em PDF (SC-007).
