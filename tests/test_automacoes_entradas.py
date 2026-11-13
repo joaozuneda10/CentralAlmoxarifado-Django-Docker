@@ -250,3 +250,12 @@ def test_o_cartao_das_entradas_nao_aponta_para_as_travas_das_saidas(client, loga
         },
     )
     assert 'href="#travas"' not in client.get(ENTRADAS).text
+
+
+def test_execucao_antiga_interrompida_nao_esconde_a_que_tem_a_trava(client, logado, trava_ocupada):
+    """Uma execução que morreu sem registrar o fim volta a contar como em andamento quando outra
+    ocupa a trava: o cartão mostra a nova."""
+    antiga = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    ExecucaoRobo.objects.filter(pk=antiga.pk).update(inicio=timezone.now() - timedelta(hours=3))
+    nova = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    assert client.get(ENTRADAS).context["execucao_entradas"] == nova

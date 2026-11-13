@@ -189,10 +189,12 @@ def contexto_entradas() -> dict:
     entradas = ExecucaoRobo.Robo.ENTRADAS
     # A que está rodando vem antes da mais recente: um comando disparado durante o lançamento
     # cria outra execução, que a trava encerra como falha, e ela não pode esconder o andamento.
+    # Com a trava ocupada, uma execução antiga que morreu sem registrar o fim também conta como
+    # em andamento: entre as duas, vale a mais nova, que é a dona da trava.
     rodando = ExecucaoRobo.em_andamento(agora, robo=entradas).select_related("iniciada_por")
     em_andamento = rodando.exists()
     execucao = (
-        rodando.order_by("inicio").first()
+        rodando.order_by("-inicio").first()  # a mais nova: uma antiga, interrompida, fica atrás
         or ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
     )
     qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
