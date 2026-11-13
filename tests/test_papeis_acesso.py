@@ -6,7 +6,7 @@ import subprocess
 import uuid
 
 import pytest
-from django.contrib.auth.models import Group
+from django.contrib.auth.models import Group, Permission
 from django.http import HttpResponse
 from django.test import Client, override_settings
 from django.urls import include, path, reverse
@@ -18,6 +18,7 @@ from contas.acesso import (
     GRUPO_ATENDIMENTO,
     GRUPO_GESTAO,
     PUBLICA,
+    RECEBER,
     REGRAS_POR_ROTA,
     SEGURANCA,
     Regra,
@@ -78,6 +79,11 @@ def sem_a_regra(regra: Regra):
     """Um usuário com o outro papel (ou os dois sem staff, nas gravações da spec 009)."""
     if regra.exige_staff:
         return usuario_com(GRUPO_ATENDIMENTO, GRUPO_GESTAO, username="sem")
+    if RECEBER in regra.permissoes:
+        # Os dois papéis têm `receber_compras` (spec 014): sem ela, só uma permissão avulsa.
+        usuario = usuario_com(username="sem")
+        usuario.user_permissions.add(Permission.objects.get(codename="atender_pedidos"))
+        return usuario
     outro = GRUPO_GESTAO if ATENDER in regra.permissoes else GRUPO_ATENDIMENTO
     return usuario_com(outro, username="sem")
 
@@ -111,7 +117,7 @@ def test_categorias_do_contrato():
         "pedidos:decidir",
     }
     assert regra_da_rota("admin:index") == ADMIN
-    assert sum(isinstance(r, Regra) for r in REGRAS_POR_ROTA.values()) == 25
+    assert sum(isinstance(r, Regra) for r in REGRAS_POR_ROTA.values()) == 35
 
 
 @pytest.mark.parametrize(
@@ -234,11 +240,13 @@ def test_menu_por_papel():
     assert rotulos_do_menu(usuario_com(GRUPO_ATENDIMENTO, username="1")) == [
         "Painel",
         "Saída avulsa",
+        "Compras",
     ]
     assert rotulos_do_menu(usuario_com(GRUPO_ATENDIMENTO, GRUPO_GESTAO, username="2")) == [
         "Painel",
         "Saída avulsa",
         "Automações",
+        "Compras",
         "Curva ABC",
         "Formulários",
     ]

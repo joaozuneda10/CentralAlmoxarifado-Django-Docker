@@ -53,7 +53,8 @@ ATENDER = "contas.atender_pedidos"
 AUTOMACOES = "contas.operar_automacoes"
 CURVA = "contas.ver_curva"
 FORMULARIOS = "contas.ver_formularios"
-PERMISSOES_INTERNAS = (ATENDER, AUTOMACOES, CURVA, FORMULARIOS)
+RECEBER = "contas.receber_compras"
+PERMISSOES_INTERNAS = (ATENDER, AUTOMACOES, CURVA, FORMULARIOS, RECEBER)
 
 GRUPO_ATENDIMENTO = "Atendimento"
 GRUPO_GESTAO = "Gestão"
@@ -86,6 +87,7 @@ LOGADO = "logado"  # qualquer usuário autenticado (a troca de senha)
 _ATENDIMENTO = Regra((ATENDER,), "Esta página é de quem atende os pedidos.")
 _AUTOMACOES = Regra((AUTOMACOES,), "Esta página é de quem opera as automações.")
 _CURVA = Regra((CURVA,), "Esta página é da gestão do almoxarifado.")
+_COMPRAS = Regra((RECEBER,), "Receber compras é do Atendimento e da Gestão.")
 _FORMULARIOS = Regra((FORMULARIOS,), "Esta página é da gestão do almoxarifado.")
 _ALTERAR = "Alterar os formulários exige acesso aos cadastros e a permissão do cadastro afetado."
 _ALTERAR_CENTROS = Regra((FORMULARIOS, "catalogo.change_centrocusto"), _ALTERAR, True)
@@ -122,10 +124,20 @@ REGRAS_POR_ROTA: dict[str, Regra | str] = {
     "automacoes:atualizar": _AUTOMACOES,
     "automacoes:importar": _AUTOMACOES,
     "automacoes:lancar": _AUTOMACOES,
+    "automacoes:lancar_entradas": _AUTOMACOES,
+    "automacoes:resolver_entrada": _AUTOMACOES,
+    "automacoes:conferir_entradas": _AUTOMACOES,
+    "automacoes:destravar_pedido": _AUTOMACOES,
     "automacoes:resolver": _AUTOMACOES,
     "automacoes:conferir": _AUTOMACOES,
     "automacoes:corrigir": _AUTOMACOES,
     "catalogo:curva": _CURVA,
+    "compras:pedidos": _COMPRAS,
+    "compras:pedido": _COMPRAS,
+    "compras:receber": _COMPRAS,
+    "compras:recebimento": _COMPRAS,
+    "compras:editar_recebimento": _COMPRAS,
+    "compras:cancelar_recebimento": _COMPRAS,
     "catalogo:formularios": _FORMULARIOS,
     "catalogo:formularios_material": _FORMULARIOS,
     # A prévia do lote é leitura (GET); a aplicação (POST) passa ainda pelo `exige` da view.
@@ -204,12 +216,14 @@ def eh_solicitante(usuario) -> bool:
 
 def ponto_de_partida(usuario) -> str:
     """O nome da rota para onde o usuário vai depois de entrar ou quando abre uma página que não é
-    dele: a fila de autorizações (Segurança do Trabalho), "Meus pedidos" (solicitante) ou o
-    painel."""
+    dele: a fila de autorizações (Segurança do Trabalho), "Meus pedidos" (solicitante), Compras
+    (quem recebe compras sem atender pedidos) ou o painel."""
     if da_seguranca_trabalho(usuario):
         return "pedidos:autorizacoes"
     if eh_solicitante(usuario):
         return "pedidos:meus_pedidos"
+    if not usuario.has_perm(ATENDER) and usuario.has_perm(RECEBER):
+        return "compras:pedidos"  # o painel exige ATENDER: quem só recebe compras abre Compras
     return "pedidos:painel"
 
 

@@ -30,4 +30,8 @@ class Usuario(AbstractUser):
             ("operar_automacoes", "Operar as automações (SCPI, importações e conferência)"),
             ("ver_curva", "Ver a Curva ABC"),
             ("ver_formularios", "Ver a configuração dos formulários"),
+            (
+                "receber_compras",
+                "Receber compras (preparar, editar e cancelar recebimentos)",
+            ),
         ]

@@ -13,13 +13,17 @@ pytestmark = pytest.mark.django_db
 SITUACAO = "section#situacao-catalogo"
 
 
-def catalogo(resposta):
-    """A página sem a aba do lançamento, que tem seus próprios botões desabilitados."""
-    html = resposta.text
-    if 'id="painel-lancamento"' not in html:
+def _sem_painel(html: str, painel: str) -> str:
+    if f'id="{painel}"' not in html:
         return html
-    inicio = html.index('id="painel-lancamento"')
+    inicio = html.index(f'id="{painel}"')
     return html[:inicio] + html[html.index('role="tabpanel"', inicio + 1) :]
+
+
+def catalogo(resposta):
+    """A página sem as abas do lançamento e das entradas, que têm seus próprios botões
+    desabilitados."""
+    return _sem_painel(_sem_painel(resposta.text, "painel-lancamento"), "painel-entradas")
 
 
 def test_pagina_exige_login(client):

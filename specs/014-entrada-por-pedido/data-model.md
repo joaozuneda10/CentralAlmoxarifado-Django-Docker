@@ -90,20 +90,20 @@ Um pedido de compra do SCPI num exercício.
 | `codigo` | char(30) | `CADPRO` |
 | `unidade` | char(20) | `UNID1` |
 | `controle` | char(1) | `TPCONTROLE_SALDO`: `Q` quantidade, `T` valor |
-| `quantidade` | decimal(14,4) | `QTD` |
-| `anulado` | decimal(14,4) | `QTDANU` |
-| `ja_entrou` | decimal(14,4) | `QTDENT` da última importação |
-| `ja_entrou_anterior` | decimal(14,4), nulo | `QTDENT` da importação anterior; nulo na primeira, que é a base ([R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029)) |
-| `pedida` | decimal(14,4) | `QTDPEDIDA` (subpedido) |
-| `saldo_scpi` | decimal(14,4) | `QTDFALTA`, conferido na leitura |
-| `preco` | decimal(14,4) | `PRCUNT` |
+| `quantidade` | decimal(18,6) | `QTD` |
+| `anulado` | decimal(18,6) | `QTDANU` |
+| `ja_entrou` | decimal(18,6) | `QTDENT` da última importação |
+| `ja_entrou_anterior` | decimal(18,6), nulo | `QTDENT` da importação anterior; nulo na primeira, que é a base ([R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029)) |
+| `pedida` | decimal(18,6) | `QTDPEDIDA` (subpedido) |
+| `saldo_scpi` | decimal(18,6) | `QTDFALTA`, conferido na leitura |
+| `preco` | decimal(14,4), arredondado a 4 casas (o SCPI manda 5 ou mais) | `PRCUNT` |
 | `ausente_desde` | FK → `Importacao`, nula | o item não veio: o saldo no SCPI é zero |
 
 **Restrições**:
 - único (`pedido`, `item`);
 - índice em (`pedido`, `codigo`).
 
-As quantidades guardam 4 casas para não perder o que o SCPI mandou. A disponibilidade exige até 3.
+As quantidades guardam 6 casas para não perder o que o SCPI manda (5 casas, como 1,66651; migration `compras/0002`). A disponibilidade exige até 3.
 
 ## `Recebimento` (PR 2)
 
@@ -224,7 +224,7 @@ Espelham `ExtracaoOficial`, `RequisicaoOficial` e `ItemOficial` da spec 010
 | `recebimento_observado` | a marca `RC-…` lida das observações, com índice |
 | `responsavel` | `RESPONSA` |
 
-**`ItemEntradaOficial`**: `ordem`, `codigo` (`CADPRO`), `quantidade` (`QUAN1`, decimal(14,4)) e
+**`ItemEntradaOficial`**: `ordem`, `codigo` (`CADPRO`), `quantidade` (`QUAN1`, decimal(18,6), como a do pedido: o SCPI manda 5 casas) e
 `unidade`.
 
 **Validação**:

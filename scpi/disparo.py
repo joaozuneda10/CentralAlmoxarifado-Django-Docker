@@ -38,6 +38,7 @@ COMANDOS_IMPORTACAO = {
     "cadastro": "importar_cadastro",
     "estoque": "importar_estoque",
     "saidas": "importar_saidas_scpi",
+    "pedidos_compra": "importar_pedidos_compra",
 }
 
 
@@ -64,9 +65,9 @@ def iniciar_importacao(
 ) -> bool:
     """Inicia `manage.py importar_<tipo>` num processo separado, com os parâmetros escolhidos.
 
-    `tipo` é "cadastro", "estoque" ou "saidas". `completo` e `forcar` valem só para o cadastro
-    (e não com período); `desde` e `ate` valem para o cadastro (importação parcial) e para as
-    saídas. Com
+    `tipo` é "cadastro", "estoque", "saidas" ou "pedidos_compra". `completo` e `forcar` valem para
+    o cadastro (e não com período); o `forcar` vale também para os pedidos de compra, que não têm
+    `completo`. `desde` e `ate` valem para o cadastro (importação parcial) e para as saídas. Com
     `arquivo` (CSV já baixado), o navegador não é aberto e o arquivo é apagado ao fim. Devolve
     False, sem iniciar nada, se já houver importação em andamento.
     """
@@ -78,6 +79,8 @@ def iniciar_importacao(
             argumentos.append("--completo")
         if forcar:
             argumentos.append("--forcar")
+    elif tipo == "pedidos_compra" and forcar:
+        argumentos.append("--forcar")
     if tipo in ("cadastro", "saidas"):
         if desde:
             argumentos += ["--desde", f"{desde:%d/%m/%Y}"]
@@ -98,6 +101,19 @@ def iniciar_conciliacao() -> bool:
     if ExecucaoRobo.em_andamento().exists() or Importacao.em_andamento().exists():
         return False
     _iniciar_comando(["conciliar_lancamentos"], "conciliar_lancamentos.log", "Conferir agora")
+    return True
+
+
+def iniciar_conciliacao_entradas() -> bool:
+    """Inicia `manage.py conciliar_entradas` (o "Conferir agora" da aba Entradas no SCPI): uma
+    extração das entradas do período padrão e a conciliação, num processo separado.
+
+    Devolve False, sem iniciar nada, com lançamento ou importação (inclusive a de pedidos) em
+    andamento; o comando recusa de novo, pelas travas, se outro começar entre a checagem e a
+    partida."""
+    if ExecucaoRobo.em_andamento().exists() or Importacao.em_andamento().exists():
+        return False
+    _iniciar_comando(["conciliar_entradas"], "conciliar_entradas.log", "Conferir entradas agora")
     return True
 
 
@@ -125,6 +141,45 @@ def iniciar_lancamento(usuario, *, simulacao: bool, lotes: list[str]) -> Execuca
     try:
         _iniciar_comando(
             argumentos, "lancar_saidas.log", "Simular no SCPI" if simulacao else "Lançar no SCPI"
+        )
+    except Exception as exc:
+        # O processo não subiu: a execução não pode ficar "em andamento" à toa.
+        ExecucaoRobo.objects.filter(pk=execucao.pk).update(
+            situacao=ExecucaoRobo.Situacao.FALHA, erro=str(exc), fim=timezone.now()
+        )
+        raise
+    return execucao
+
+
+def iniciar_lancamento_entradas(
+    usuario, *, simulacao: bool, recebimentos: list[str]
+) -> ExecucaoRobo | None:
+    """Cria a `ExecucaoRobo` (robô de entradas) e inicia `manage.py lancar_entradas` num processo
+    separado, com o log em `lancar_entradas.log`.
+
+    O robô processa só os recebimentos de `recebimentos` (`--recebimento` de cada um). Devolve
+    None, sem criar nada, se qualquer robô já estiver rodando (a trava do lançamento é uma só).
+    Como no lançamento das saídas, a trava (`GET_LOCK`) faz a segunda execução terminar como
+    falha sem tocar em nenhum recebimento."""
+    # Segunda barreira, além da rota (spec 012, FR-007): o lançamento é irreversível no SCPI.
+    if not usuario.has_perm(AUTOMACOES):
+        registrar_recusa_de(usuario, "scpi.disparo.iniciar_lancamento_entradas", "-", AUTOMACOES)
+        raise PermissionDenied("Lançar no SCPI é de quem opera as automações.")
+    if ExecucaoRobo.em_andamento().exists():
+        return None
+    execucao = ExecucaoRobo.objects.create(
+        iniciada_por=usuario, simulacao=simulacao, robo=ExecucaoRobo.Robo.ENTRADAS
+    )
+    argumentos = ["lancar_entradas", "--execucao", str(execucao.pk)]
+    if simulacao:
+        argumentos.append("--dry-run")
+    for rotulo in recebimentos:
+        argumentos += ["--recebimento", rotulo]
+    try:
+        _iniciar_comando(
+            argumentos,
+            "lancar_entradas.log",
+            "Simular entradas no SCPI" if simulacao else "Lançar entradas no SCPI",
         )
     except Exception as exc:
         # O processo não subiu: a execução não pode ficar "em andamento" à toa.

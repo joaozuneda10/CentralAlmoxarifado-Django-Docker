@@ -55,8 +55,10 @@ def test_atualizar_catalogo_termina_com_a_extracao_diaria(monkeypatch):
         "importar_estoque",
         "importar_saidas_scpi",
         "conciliar_lancamentos",
+        "conciliar_entradas",
+        "importar_pedidos_compra",
     ]
-    assert feitos[-1][1]["diaria"] is True
+    assert dict(feitos)["conciliar_lancamentos"]["diaria"] is True
 
 
 def test_falha_no_passo_das_requisicoes_nao_desfaz_os_tres_primeiros(monkeypatch, capsys):

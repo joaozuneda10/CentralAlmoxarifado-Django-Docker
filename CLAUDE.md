@@ -112,9 +112,14 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 (`docker compose ... exec web python manage.py ...`), não pelo `uv run`, sempre com o projeto e os
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
-Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`)
-e `atualizar_catalogo` (os três em sequência e, por último, `conciliar_lancamentos --diaria`, a
-extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
+Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`),
+`importar_pedidos_compra` (07.13, `--forcar`), `conciliar_entradas` e `atualizar_catalogo` (os três
+em sequência e, depois, três passos da conciliação: `conciliar_lancamentos --diaria`, a extração
+diária das requisições de saída com a conciliação e a limpeza de 60 dias; `conciliar_entradas
+--diaria`, o mesmo para as entradas por pedido (`compras/limpeza.py`: o bruto e as requisições sem
+ligação de mais de 60 dias, sem apagar a requisição de uma `EntradaForaDoCentral`); e, por último, o
+`importar_pedidos_compra`, que reflete tudo no saldo; seis passos num navegador só, e um que falha não
+impede os seguintes; com
 `--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
 botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
 SCPI só é estável das 7h às 17h) abrem o SCPI pelo Playwright; com `--arquivo`
@@ -788,6 +793,152 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   pode estar apontando para o bruto) e a da conciliação (nenhuma liga uma requisição no meio da
   exclusão); com alguma ocupada, fica para a próxima. Uma falha da conciliação, prevista ou não, não
   impede a limpeza, e as duas falhas saem juntas no erro do comando.
+- Entrada de materiais por pedido de compra (spec `specs/014-entrada-por-pedido/`, entregue em PRs
+  empilhados; o plano diz o que cada um traz). O app `compras` (PR 1) guarda os **pedidos de compra
+  do SCPI**: `PedidoCompra` (exercício, ano e número do `NUMPED` `00514/26`, fornecedor, e o
+  `ausente_desde`) e `ItemPedidoCompra` (quantidade, anulado, `ja_entrou` e o `ja_entrou_anterior`,
+  nulo na primeira importação, que é a base; `saldo_scpi`, `controle` `Q`/`T`). A fonte é o **07.13**
+  "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar"
+  (`scpi.relatorios.baixar_pedidos_compra`, perfil `pedidos_compra`): **nunca o 01.08.03 Imprimir
+  Pedidos**, que grava a Data Emissão e um contador no pedido. `scpi.leitura.ler_pedidos_compra` é
+  pura e tudo ou nada (`QTDFALTA` conferido nos itens `Q`, item repetido, dois fornecedores no
+  pedido, `NUMPED` fora de `00000/00` e relatório cortado são `ErroImportacao`).
+  `compras.importacao.importar` roda sobre `scpi.execucao.executar` (tipo `PEDIDOS_COMPRA`, trava
+  própria): cria e atualiza, e o pedido e o item que somem ficam com `ausente_desde` (volta a nulo
+  se reaparecem), nunca são apagados; marcar ausentes mais de 20% dos itens presentes aborta sem
+  `--forcar` (Princípio IV, como o cadastro). O exercício é o ano corrente e o pedido de outro
+  exercício nunca é tocado. `compras/regras.py` (puro) tem `chave_pedido`, `rotulo_pedido` e
+  `disponibilidade` (o motivo em pt-BR de o item não poder ser recebido, ou `None`: controle `Q`,
+  código no cadastro e visível, pedido do exercício atual e presente, até 3 casas e saldo > 0).
+  `importar_pedidos_compra [--arquivo] [--apagar-arquivo] [--forcar]` e a aba "Pedidos de compra" de
+  Automações (`catalogo.forms.RoboPedidosCompraForm`, com a caixa "Gravar mesmo que muitos itens
+  sumam") a rodam; o admin de `PedidoCompra` é só leitura e `compras.saude` avisa importação com
+  falha ou sem sucesso há mais de um dia útil.
+  **Recebimento da NF (PR 2)**: a permissão `contas.receber_compras` (constante `RECEBER`, migration
+  `contas/0007`, dada aos grupos Atendimento e Gestão e conferida no fim) abre a área Compras
+  (`/painel/compras/`, item "Compras" do menu: `compras:pedidos`, `pedido`, `receber`,
+  `recebimento`, `editar_recebimento` e `cancelar_recebimento`, todas em `REGRAS_POR_ROTA`).
+  `Recebimento` é uma NF de um pedido (estados `PREPARADO`, `ERRO`, `EM_LANCAMENTO`, `VERIFICAR`,
+  `LANCADO`, `CANCELADO`; rótulo `RC-0001`), com `ItemRecebimento` (até 3 casas, > 0) e `TravaPedido`.
+  A NF é única por fornecedor pela `chave_nf` (`"<codif>:<nf>"`, única e **nula** no cancelamento sem
+  tentativa: o MySQL/MariaDB não têm índice único parcial); o número é guardado sem zeros à
+  esquerda. O **saldo livre** é o saldo do SCPI menos o reservado (`regras.saldo_livre`, `reserva_de`:
+  preparado, com erro, em lançamento e em verificação reservam; o lançado reserva até uma importação
+  de pedidos começada depois do `visivel_desde`), nunca negativo; reservado maior que o saldo do SCPI
+  é "precisa de conferência". **`compras/servicos.py` é a porta única** (Princípio II): cada
+  operação trava o `PedidoCompra` (`select_for_update`) e refaz o saldo livre dentro da trava
+  (`preparar_recebimento`, `editar_recebimento`, `cancelar_recebimento`, `travar_pedido`,
+  `destravar_pedido`). O `envio` (UUID gerado quando o formulário abre) decide o reenvio: igual
+  devolve o mesmo recebimento, diferente é "divergente"; a edição confere a `versao` (concorrência
+  otimista) e recria os itens; edição e cancelamento recusam o recebimento com tentativa do robô.
+  Destravar exige motivo e uma importação de pedidos começada depois da trava.
+  **Registro oficial das entradas (PR 3)**: cada extração da "Relação de Requisições" de Entrada
+  (`scpi.relatorios.baixar_entradas(de, ate)`, rádio "Requisições de Entrada", o período filtra a
+  `DATAE`; só lê o SCPI, e a função das saídas não muda) é uma `Importacao` do tipo `ENTRADAS` com
+  uma `compras.ExtracaoEntradas` (motivo, execução do robô quando houver, o bruto em gzip com a
+  impressão SHA-256 e o `mesmo_arquivo_que`, `maior_requisicao`) e as `RequisicaoEntradaOficial` e
+  `ItemEntradaOficial` lidas, uma foto por extração (espelha a `conciliacao.ExtracaoOficial`; a
+  quantidade do item é decimal(18,6) como a do pedido). `compras.extracao.extrair` é a única camada
+  que a grava, também na falha (sem requisições, `maior_requisicao` nulo, bruto guardado se chegou a
+  ser baixado); "Nada a exibir" é extração sem requisições, salvo com recebimento lançado no
+  período, que faz falhar. `scpi.leitura.ler_entradas` é tudo ou nada: `REQUI` fora do formato,
+  `NUMPED` inválido, `QUAN1` ilegível, negativo ou com mais de 6 casas (o zero é dado do SCPI e vale) e cabeçalho (`CABECALHO_ENTRADA`)
+  que varia dentro da requisição são `ErroImportacao`; o `DOCUM` perde os zeros à esquerda (o que
+  não é número fica como veio) e `NUMPED` e `DOCUM` vazios são permitidos. A marca do recebimento
+  nas Observações é "Central Almoxarifado RC-0042" (`compras.regras.texto_observacoes`, escrita
+  pelo robô do PR 4, e `recebimento_observado`, que a lê; o `conciliacao.regras.lote_observado` não
+  lê `RC-`, nem este o `P-`/`AV-`). `conciliar_entradas [--arquivo] [--desde --ate] [--diaria]
+  [--sem-limpeza]` só extrai neste PR (período sem datas: do dia anterior ao menor entre hoje − 9
+  dias, a data dos lançados dos últimos 9 dias e a dos recebimentos em verificação, até amanhã;
+  recusa com qualquer lançamento ou importação em andamento); a conciliação e a limpeza vêm nos
+  PRs seguintes. `TravaPedido.extracao` (FK nula) já existe para a trava `FORA_DO_CENTRAL`.
+  **Robô de entradas (PR 4)**: `scpi/lancamento_entradas.py`, paralelo a `scpi/lancamento.py` (que
+  não muda), com a mesma ordem das gravações (Princípio III) sobre `compras.Recebimento`:
+  `selecionar` (`compras.robo`: só `PREPARADO`, com o pedido do exercício, presente, sem trava e sem
+  outro recebimento `EM_LANCAMENTO`/`VERIFICAR`; `motivo_de_bloqueio` confere de novo antes de abrir
+  cada pedido), extração de antes (3 tentativas; sem ela nada muda, `ExtracaoAntesFalhou`), e, para
+  cada recebimento, `abrir_pedido` (lê "Escolha os Itens"), `compras.regras.conferir_tela` (pura: o
+  "Já Entrou" e o saldo esperados, que somam o lançado do Central ainda não refletido na importação
+  de pedidos; divergência → `ERRO`, pedido travado `TELA`, nada salvo), `preencher`, `_travar` (numa
+  transação com `select_for_update` no recebimento e no pedido: `EM_LANCAMENTO` e a
+  `TentativaEntrada` `VERIFICAR` com a foto e a tela lida; fecha antes do clique), journal
+  `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
+  → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
+  com `FalhaCritica` e o número está no journal). O journal de antes do Salvar e o do número são
+  críticos e a execução para sem conseguir gravá-los, mas o estado difere: sem o de antes do Salvar
+  (nada foi clicado), o recebimento fica `EM_LANCAMENTO` e a tentativa a `VERIFICAR`; sem o do número
+  (o Salvar já aconteceu), o número ainda vai ao banco e ao log, o recebimento fica `LANCADO` e só
+  então a execução para. A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
+  marca) ela já achou numa requisição (`compras.robo.ja_no_scpi`: `ERRO`, nada salvo), e o `ERRO`
+  de antes do Salvar só é gravado se o recebimento continua `PREPARADO` na versão selecionada. O
+  `_travar` trava o pedido e depois o recebimento, a ordem de `compras.servicos`. Roda sob `TRAVA_LANCAMENTO` **e** a trava da
+  importação de pedidos (nenhuma importação de pedidos durante o lançamento); o
+  `importar_pedidos_compra` recusa com uma execução de entradas em andamento. A simulação
+  (`--dry-run`) abre, confere, preenche e cancela, sem tentativa, estado nem extração (a divergência
+  da tela só entra no resumo). `ExecucaoRobo.robo` (`SAIDAS` padrão, `ENTRADAS`; migration
+  `pedidos/0007`, `em_andamento(agora, robo=None)`): a aba Lançamento no SCPI, a visão geral e o
+  histórico filtram `SAIDAS` onde mostram "a última" e "o andamento"; as recusas (`iniciar_lancamento`,
+  `resolver_lote`, o disparo) continuam sem filtro, porque a trava é uma só. O cartão de andamento é o
+  mesmo (`pedidos.andamento`, com `para_entradas`: "recebimento", masculino, só na execução
+  `ENTRADAS`). `compras.TentativaEntrada` (migration `compras/0005`) é o registro de cada tentativa
+  (`LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`); `servicos.tem_tentativa` vale pelo estado ou por uma
+  tentativa `LANCADA`/`VERIFICAR`. O comando `lancar_entradas --recebimento RC-0001 [--dry-run]`
+  recusa o lançamento real sem `LANCAMENTO_REAL` **e** `LANCAMENTO_REAL_ENTRADAS` (a trava própria
+  das entradas, desligada por padrão; `compras.robo.lancamento_real_liberado`; as condições para
+  ligá-la estão em `deploy/AMBIENTES.md`) antes de criar a execução; a aba **Entradas no
+  SCPI** (`automacoes`, `compras/_entradas.html`, `contexto_entradas`, rota `automacoes:lancar_entradas`
+  em `REGRAS_POR_ROTA`) tem a fila (`compras.consultas.fila_entradas`: aptos com caixa, bloqueados com
+  o motivo), Simular e Lançar (com confirmação) e o andamento, e o `fila-robo.js` a atende pelos
+  atributos `data-fila-*` do formulário. O Playwright (`scpi/lancador_entradas.py`) **ainda não foi
+  exercitado no SCPI real**: os pontos incertos estão marcados "R25" e o primeiro `--dry-run`
+  (quickstart, passo 4) os confirma. Nos testes, `tests/scpi_entradas_simulado.py`
+  (`SCPIEntradasSimulado`: pedidos, falhas e os dois relatórios).
+  **Recebimento em verificação (PR 5)**: `compras/conciliacao.py` (`conciliar_verificar`, sob a trava
+  `almoxarifado:conciliacao_entradas`; roda depois da extração de depois e no `conciliar_entradas`;
+  `ARQUIVO` nunca confere) grava, para cada recebimento `VERIFICAR`/`EM_LANCAMENTO` coberto, uma
+  `ConferenciaRecebimento` `VERIFICAR` (só se a extração começou depois da tentativa mais recente;
+  sem tentativa, `SEM_TENTATIVA`) com o intervalo (`conciliacao.regras.intervalo`, o piso é o
+  `maior_requisicao` da extração de antes) e as `CandidataEntrada`. A **candidata** é a que tem a
+  marca `RC-…` ou a NF e o fornecedor do recebimento, em qualquer número ("é esta"), ou a que está no
+  intervalo, é **do mesmo pedido** e não tem a marca de outro recebimento (`regras.candidatas`: sem o
+  filtro do pedido, toda entrada manual do dia bloquearia a liberação). **Liberar** e **cancelar** um
+  recebimento em verificação exigem as três provas (`consultas.liberacao` sobre `regras.tres_provas`:
+  extração de entradas posterior que não seja de arquivo, nenhuma candidata em nenhuma conferência
+  da tentativa e o "Já Entrou" da tela antes do Salvar, gravado na foto, igual na importação de
+  pedidos posterior, que tem de ser lida do SCPI na hora: a de um CSV, `Importacao.de_arquivo`,
+  migration `catalogo/0011`, não prova nada enquanto for a última). O recebimento liberado e depois
+  cancelado pelo serviço comum mantém a NF reservada. `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
+  `TRAVA_LANCAMENTO`, recusa com robô rodando) liga a candidata como `LANCADO` (`via=ROBO`,
+  `visivel_desde` = início da extração), devolve **o mesmo** recebimento a `PREPARADO` com
+  `versao + 1` e a NF ainda reservada (a tentativa antiga passa a `IGNORADA`, para não travar a
+  edição) ou cancela sem liberar a NF. A aba Entradas no SCPI ganha a região "Em verificação e com
+  erro" (`compras/_verificacao.html`, rota `automacoes:resolver_entrada` em `REGRAS_POR_ROTA`).
+  Os testes nunca abrem o navegador: o `conftest` troca o `sync_playwright` por um erro.
+  **Vereditos e entradas fora do Central (PR 6)**: `regras.veredito_entrada` (pura) usa três vínculos,
+  o número gravado, a marca `RC-…` e a NF com o fornecedor: marca ou NF em duas requisições, ou o número
+  numa requisição com a marca de outro recebimento, é Duplicado (mesmo sem a marca do Central); dois
+  vínculos em requisições diferentes, Conflito; nenhum vínculo, Não encontrado só com número maior no
+  relatório (ou uma conferência anterior que já a achou), senão Aguardando; os achados na mesma
+  requisição vão à `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento
+  e a **soma por código** com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho; vínculo que
+  falta, como a marca, vira nota). `compras.conciliacao.conciliar` (trava própria, cada etapa isolada,
+  `ConciliacaoIncompleta` no fim) roda em verificar, `conciliar_fora` e `conciliar_lancados` (primeira
+  conclusiva `LANCAMENTO`, depois `REVISAO` com `alterado_depois`; `ARQUIVO` só dá o primeiro
+  veredito; o recebimento lançado nunca muda). **Entrada fora do Central**: a requisição de um pedido
+  conhecido, sem a marca, ainda não ligada e com número **acima do marco** (`consultas.marco`, o
+  `maior_requisicao` da primeira extração bem-sucedida, ou `MARCO_VAZIO` se ela veio sem entradas) liga à mão o recebimento aberto com a mesma NF
+  e o mesmo fornecedor (`servicos.ligar_a_mao`, `via=MANUAL`) ou vira `EntradaForaDoCentral`
+  (reserva o saldo por código até a importação a refletir e trava o pedido `FORA_DO_CENTRAL`); a marca
+  de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
+  Entrou" por (pedido, código) (`regras.ja_entrou_explicado`: os lançados pelo robô entre as duas
+  importações mais, opcionalmente, um subconjunto dos incertos) e trava `JA_ENTROU` sem explicação,
+  inclusive com delta negativo; cada incerto (somado por código) explica um aumento uma vez só
+  (`IncertoConsumido`, migration `compras/0008`), e a troca de código do item compara o antigo e o novo. A aba Entradas no SCPI ganha "Pedidos travados" (destravar com
+  motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
+  mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
+  entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da
+  primeira execução. A rotina diária (PR 7) é o `atualizar_catalogo`, que ganhou `conciliar_entradas
+  --diaria` e `importar_pedidos_compra`, nessa ordem; o `deploy/crontab` não muda.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela

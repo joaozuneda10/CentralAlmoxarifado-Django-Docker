@@ -7,16 +7,21 @@ from scpi import relatorios
 
 logger = logging.getLogger("scpi")
 
-# Cadastro primeiro: o estoque e as saídas se apoiam nos códigos que ele traz. Por último, as
+# Cadastro primeiro: o estoque e as saídas se apoiam nos códigos que ele traz. Depois, as
 # requisições de todos os tipos para a conciliação com o SCPI (spec 010, R19): extração diária,
-# conciliação e limpeza de 60 dias, na mesma sessão.
+# conciliação e limpeza de 60 dias, na mesma sessão; e as entradas por pedido (spec 014): extração
+# diária das entradas com a conciliação e a limpeza, e a importação dos pedidos de compra.
 COMANDOS = (
     "importar_cadastro",
     "importar_estoque",
     "importar_saidas_scpi",
     "conciliar_lancamentos",
+    "conciliar_entradas",
+    "importar_pedidos_compra",
 )
-OPCOES = {"conciliar_lancamentos": {"diaria": True}}
+# As entradas antes dos pedidos (spec 014, R22): a conciliação liga o que foi feito à mão e confere
+# o que o robô lançou, e a importação seguinte reflete tudo no saldo.
+OPCOES = {"conciliar_lancamentos": {"diaria": True}, "conciliar_entradas": {"diaria": True}}
 
 # Opções de cada comando na carga inicial: o cadastro inteiro (a recarga completa, que oculta o
 # que sumiu) e as saídas desde o início dos dados confiáveis, em vez de só o que é novo.
@@ -29,8 +34,8 @@ CARGA_INICIAL = {
 class Command(BaseCommand):
     help = (
         "Roda as três importações do SCPI em sequência (cadastro, estoque e saídas) e, por último, "
-        "a extração diária das requisições com a conciliação, num navegador só. Uma falha não "
-        "impede as seguintes."
+        "a extração diária das requisições com a conciliação, a das entradas com a conciliação e a "
+        "importação dos pedidos de compra, num navegador só. Uma falha não impede as seguintes."
     )
 
     def add_arguments(self, parser):
@@ -55,5 +60,9 @@ class Command(BaseCommand):
                     falharam.append(nome)
                     self.stderr.write(f"{nome}: {exc}")
                     logger.error("%s falhou: %s", nome, exc)
+                except Exception as exc:  # falha de banco, bug: não pode pular os passos seguintes
+                    falharam.append(nome)
+                    self.stderr.write(f"{nome}: falha inesperada ({exc!r})")
+                    logger.exception("%s falhou", nome)
         if falharam:
             raise CommandError(f"Falharam: {', '.join(falharam)}.")

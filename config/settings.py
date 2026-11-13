@@ -45,6 +45,7 @@ INSTALLED_APPS = [
     "automacoes",
     "implantacao",
     "conciliacao",
+    "compras",
     "axes",
 ]
 
@@ -180,6 +181,11 @@ SCPI_PERFIL_DIR = Path(os.environ.get("SCPI_PERFIL_DIR") or BASE_DIR / ".pw-prof
 # ambiente que lança de verdade (a produção): uma cópia de desenvolvimento ou de teste com as
 # mesmas saídas pendentes lançaria em dobro.
 LANCAMENTO_REAL = ler_bool("LANCAMENTO_REAL", False)
+# Trava própria do lançamento real das entradas por pedido (spec 014), além da de cima: as duas
+# ligadas liberam o robô de entradas. Fica desligada até as condições de `deploy/AMBIENTES.md`
+# ("Liberar o lançamento real das entradas") estarem cumpridas: a produção já tem a
+# `LANCAMENTO_REAL` ligada para as saídas, e as entradas não podem nascer liberadas no deploy.
+LANCAMENTO_REAL_ENTRADAS = ler_bool("LANCAMENTO_REAL_ENTRADAS", False)
 
 if not DEBUG:
     # Não use o nome HTTPS: é variável do CGI, e o wsgiref (runserver) a copia para a

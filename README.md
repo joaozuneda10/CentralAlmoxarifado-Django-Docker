@@ -108,6 +108,8 @@ Duas coisas a saber:
 
 - `LANCAMENTO_REAL` (no `.env`, padrão `0`) libera o lançamento real no SCPI. Fica `0` em todo
   ambiente que não é o que lança de verdade (desenvolvimento, cópias de teste), para não lançar
-  duas vezes as mesmas saídas; só a produção o liga.
+  duas vezes as mesmas saídas; só a produção o liga. O robô de entradas por pedido exige, além
+  dele, `LANCAMENTO_REAL_ENTRADAS=1`, que só se liga depois das condições de
+  [deploy/AMBIENTES.md](deploy/AMBIENTES.md).
 - `uv run python manage.py backup_banco` grava o dump comprimido em `BACKUP_DIR` e apaga os com
   mais de 60 dias (roda todo dia pelo agendador do compose).

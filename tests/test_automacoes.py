@@ -8,11 +8,11 @@ from tests.paginas import item_atual
 pytestmark = pytest.mark.django_db
 
 URL = reverse("automacoes:pagina")
-ABAS = ["visao-geral", "lancamento", "cadastro", "estoque", "saidas"]
+ABAS = ["visao-geral", "lancamento", "entradas", "cadastro", "estoque", "saidas", "pedidos_compra"]
 
 
 def aba_ativa(html):
-    return re.search(r'<button[^>]*id="aba-([a-z-]+)"[^>]*aria-selected="true"', html).group(1)
+    return re.search(r'<button[^>]*id="aba-([a-z_-]+)"[^>]*aria-selected="true"', html).group(1)
 
 
 def test_pagina_exige_login(client):
@@ -20,12 +20,12 @@ def test_pagina_exige_login(client):
     assert r.status_code == 302 and r.url.startswith(reverse("login"))
 
 
-def test_pagina_tem_as_cinco_abas_em_ordem(client, usuario_logado):
+def test_pagina_tem_as_abas_em_ordem(client, usuario_logado):
     r = client.get(URL)
     assert r.status_code == 200
     assert "<h1" in r.text and ">Automações<" in r.text
     assert "data-abas" in r.text
-    ids = re.findall(r'id="aba-([a-z-]+)"', r.text)
+    ids = re.findall(r'id="aba-([a-z_-]+)"', r.text)
     assert ids == ABAS
     for chave in ABAS:
         assert f'id="painel-{chave}"' in r.text
@@ -189,3 +189,61 @@ def test_historico_recarregado_segue_acompanhando_com_robo_em_andamento(
     ExecucaoRobo.objects.create()
     r = client.get(URL, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="div#historico")
     assert 'hx-trigger="every 5s"' in r.text
+
+
+# Pedidos de compra (spec 014, PR 1): o robô de importação do 07.13 e a sua aba.
+
+
+def test_aba_pedidos_de_compra_aparece_com_o_formulario_e_a_caixa_de_forcar(client, usuario_logado):
+    texto = client.get(URL, {"aba": "pedidos_compra"}).text
+    assert aba_ativa(texto) == "pedidos_compra"
+    assert "Pedidos de compra" in texto
+    assert "Gravar mesmo que muitos itens sumam" in texto
+    assert 'action="' + reverse("automacoes:importar", args=["pedidos_compra"]) in texto
+
+
+def test_post_com_csv_inicia_o_comando_de_pedidos_de_compra(
+    client, usuario_logado, monkeypatch, settings, tmp_path
+):
+    from django.core.files.uploadedfile import SimpleUploadedFile
+
+    from scpi import disparo
+    from tests.relacao_pedidos_compra import ItemPedidoCSV, csv_pedidos
+
+    settings.LOG_DIR = tmp_path
+    iniciados = []
+    monkeypatch.setattr(
+        disparo, "_iniciar_comando", lambda args, log, titulo: iniciados.append((args, log))
+    )
+    arquivo = SimpleUploadedFile(
+        "pedidos.csv", csv_pedidos([ItemPedidoCSV("00514/26", 1, "006.011.020")]), "text/csv"
+    )
+    r = client.post(
+        reverse("automacoes:importar", args=["pedidos_compra"]),
+        {"origem": "csv", "arquivo": arquivo, "forcar": "on"},
+    )
+    assert r.status_code == 302
+    ((argumentos, log),) = iniciados
+    assert argumentos[0] == "importar_pedidos_compra"
+    assert "--forcar" in argumentos and "--apagar-arquivo" in argumentos
+    assert log == "importar_pedidos_compra.log"
+
+
+def test_historico_mostra_pedidos_de_compra_com_o_rotulo_e_o_filtro(client, usuario_logado):
+    import re
+
+    from catalogo.models import Importacao
+
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.PEDIDOS_COMPRA, situacao=Importacao.Situacao.SUCESSO, linhas=12
+    )
+    Importacao.objects.create(
+        tipo=Importacao.Tipo.ESTOQUE, situacao=Importacao.Situacao.SUCESSO, linhas=34
+    )
+
+    def robos_do_historico(**filtro):
+        texto = client.get(URL, filtro, HTTP_HX_REQUEST="true", HTTP_HX_TARGET="div#historico").text
+        return re.findall(r'<td class="historico-tipo">([^<]+)', texto)
+
+    assert sorted(robos_do_historico()) == ["Estoque", "Pedidos de compra"]
+    assert robos_do_historico(robo="pedidos_compra") == ["Pedidos de compra"]

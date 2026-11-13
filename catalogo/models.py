@@ -446,6 +446,8 @@ class Importacao(models.Model):
         SAIDAS = "SAIDAS", "Saídas do SCPI"
         DEPARA = "DEPARA", "Pares de/para"
         REQUISICOES = "REQUISICOES", "Requisições do SCPI"
+        PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"
+        ENTRADAS = "ENTRADAS", "Entradas do SCPI"
 
     class Situacao(models.TextChoices):
         ANDAMENTO = "ANDAMENTO", "Em andamento"
@@ -463,6 +465,18 @@ class Importacao(models.Model):
     erro = models.TextField(blank=True)
     periodo_de = models.DateField("período de", null=True, blank=True)
     periodo_ate = models.DateField("período até", null=True, blank=True)
+    exercicio = models.PositiveSmallIntegerField(
+        "exercício",
+        null=True,
+        blank=True,
+        help_text="Só nas importações de pedidos de compra: o exercício em que foram gravadas.",
+    )
+    de_arquivo = models.BooleanField(
+        "de um arquivo",
+        default=False,
+        help_text="Só nas importações de pedidos de compra: lida de um CSV já baixado, e não do "
+        "SCPI na hora. Não se sabe quando o arquivo foi exportado.",
+    )
 
     class Meta:
         ordering = ["-inicio"]

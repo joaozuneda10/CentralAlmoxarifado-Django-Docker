@@ -95,10 +95,10 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **⚠️ CRITICAL**: nenhuma história começa antes desta fase.
 
-- [ ] T005 Criar a branch `claude/entradas-1-pedidos` a partir de `claude/entrada-por-pedido`
-- [ ] T006 Criar o app `compras` com `compras/__init__.py`, `compras/apps.py` (`name = "compras"`, `verbose_name = "Compras"`), `compras/models.py`, `compras/admin.py` e `compras/migrations/__init__.py`; acrescentar `"compras"` em `INSTALLED_APPS` de `config/settings.py`
-- [ ] T007 Acrescentar a `catalogo.Importacao.Tipo` (`catalogo/models.py`) os valores `PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"` e `ENTRADAS = "ENTRADAS", "Entradas do SCPI"`; gerar `catalogo/migrations/0009_importacao_compras.py`, só com os `choices`
-- [ ] T008 Criar `PedidoCompra` e `ItemPedidoCompra` em `compras/models.py`, conforme [data-model.md](data-model.md#pedidocompra-pr-1), e gerar `compras/migrations/0001_initial.py`.
+- [X] T005 Criar a branch `claude/entradas-1-pedidos` a partir de `claude/entrada-por-pedido`
+- [X] T006 Criar o app `compras` com `compras/__init__.py`, `compras/apps.py` (`name = "compras"`, `verbose_name = "Compras"`), `compras/models.py`, `compras/admin.py` e `compras/migrations/__init__.py`; acrescentar `"compras"` em `INSTALLED_APPS` de `config/settings.py`
+- [X] T007 Acrescentar a `catalogo.Importacao.Tipo` (`catalogo/models.py`) os valores `PEDIDOS_COMPRA = "PEDIDOS_COMPRA", "Pedidos de compra"` e `ENTRADAS = "ENTRADAS", "Entradas do SCPI"`; gerar `catalogo/migrations/0009_importacao_compras.py`, só com os `choices`
+- [X] T008 Criar `PedidoCompra` e `ItemPedidoCompra` em `compras/models.py`, conforme [data-model.md](data-model.md#pedidocompra-pr-1), e gerar `compras/migrations/0001_initial.py`.
   - **`PedidoCompra`**:
     - `exercicio` (smallint), `ano` (smallint, "o ano de origem do `NUMPED`"), `numero` (int);
     - `data` (date), `fornecedor_codigo` (char 20), `fornecedor_nome` (char 200);
@@ -112,11 +112,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - `ja_entrou_anterior` (decimal(14,4), nulo: "nulo na primeira, que é a base");
     - `ausente_desde` (FK nula → `Importacao`);
     - único (`pedido`, `item`) e índice em (`pedido`, `codigo`).
-- [ ] T009 [P] Criar `tests/relacao_pedidos_compra.py`: um gerador de CSV sintético do 07.13 no formato real de [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#0713-relação-de-pedidos-condição-da-entrega).
+- [X] T009 [P] Criar `tests/relacao_pedidos_compra.py`: um gerador de CSV sintético do 07.13 no formato real de [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#0713-relação-de-pedidos-condição-da-entrega).
   - Formato: as 79 colunas na ordem real, `;`, sem aspas, `\r\n`, com BOM e com `GRUPO`/`GRUPO_1` iguais a `DATPED`.
   - Função: `csv_pedidos(itens: list[dict]) -> bytes`, com padrões para as colunas não usadas e a opção `quebrar_registro=True`, que põe uma quebra de linha dentro de `OBSITEM`.
   - Sem nome de pessoa real.
-- [ ] T010 [P] Escrever `tests/test_scpi_leitura_pedidos_compra.py`. Casos:
+- [X] T010 [P] Escrever `tests/test_scpi_leitura_pedidos_compra.py`. Casos:
   - a leitura correta de `Q` e `T`;
   - `QTDFALTA` diferente de `QTD − QTDANU − QTDENT − QTDPEDIDA` num item `Q` → `ErroImportacao`;
   - relatório cortado (contagem de campos);
@@ -128,13 +128,13 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - coluna obrigatória faltando;
   - CSV sem itens;
   - quantidade com 4 casas lida sem perda.
-- [ ] T011 Implementar em `scpi/leitura.py` a dataclass `LinhaPedidoCompra` (ano, numero, data, fornecedor_codigo, fornecedor_nome, item, codigo, unidade, controle, quantidade, anulado, ja_entrou, pedida, saldo, preco) e `ler_pedidos_compra(conteudo: bytes) -> Leitura`, pura, tudo ou nada, sobre `_tabela`, `decimal_br` e `data_br`, com as colunas e regras do contrato; a T010 passa
-- [ ] T012 [P] Escrever a parte de disponibilidade em `tests/test_compras_regras.py`. Casos:
+- [X] T011 Implementar em `scpi/leitura.py` a dataclass `LinhaPedidoCompra` (ano, numero, data, fornecedor_codigo, fornecedor_nome, item, codigo, unidade, controle, quantidade, anulado, ja_entrou, pedida, saldo, preco) e `ler_pedidos_compra(conteudo: bytes) -> Leitura`, pura, tudo ou nada, sobre `_tabela`, `decimal_br` e `data_br`, com as colunas e regras do contrato; a T010 passa
+- [X] T012 [P] Escrever a parte de disponibilidade em `tests/test_compras_regras.py`. Casos:
   - `chave_pedido("00514/26") == (2026, 514)`, e o inválido levanta `ValueError`;
   - `rotulo_pedido(2026, 514) == "00514/26"`;
   - `disponibilidade` com cada motivo: `T`, código fora do cadastro, material oculto, pedido de outro exercício, pedido ausente, item ausente, quantidade com 4 casas, saldo zero; e o disponível.
-- [ ] T013 Implementar em `compras/regras.py` (puro, sem ORM) `chave_pedido`, `rotulo_pedido` e `disponibilidade(item, *, material_visivel: bool, exercicio_atual: int) -> str | None`. Devolve `None` se o item é disponível ou o motivo em pt-BR ([R4](research.md#r4-item-disponível-para-recebimento)). A T012 passa
-- [ ] T014 [P] Escrever `tests/test_compras_importacao.py`, com o CSV da T009 e um `obter_csv` falso. Casos:
+- [X] T013 Implementar em `compras/regras.py` (puro, sem ORM) `chave_pedido`, `rotulo_pedido` e `disponibilidade(item, *, material_visivel: bool, exercicio_atual: int) -> str | None`. Devolve `None` se o item é disponível ou o motivo em pt-BR ([R4](research.md#r4-item-disponível-para-recebimento)). A T012 passa
+- [X] T014 [P] Escrever `tests/test_compras_importacao.py`, com o CSV da T009 e um `obter_csv` falso. Casos:
   - a primeira importação cria pedidos e itens com `ja_entrou_anterior` nulo;
   - a segunda atualiza e guarda o `ja_entrou_anterior`;
   - o item e o pedido que somem ficam `ausente_desde` e nada é apagado;
@@ -143,31 +143,31 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o exercício vem do ano corrente, e o pedido igual noutro exercício é outro `PedidoCompra`;
   - a falha de leitura deixa a `Importacao` `FALHA` sem mudar nada;
   - a trava do tipo ocupada levanta `ImportacaoEmAndamento`.
-- [ ] T015 Implementar `compras/importacao.py`, com `gravar(linhas, importacao, *, exercicio, forcar=False) -> Resultado` (`scpi.execucao.Resultado`) e `importar(obter_csv, *, forcar=False) -> Importacao`, sobre `scpi.execucao.executar(Importacao.Tipo.PEDIDOS_COMPRA, ...)`.
+- [X] T015 Implementar `compras/importacao.py`, com `gravar(linhas, importacao, *, exercicio, forcar=False) -> Resultado` (`scpi.execucao.Resultado`) e `importar(obter_csv, *, forcar=False) -> Importacao`, sobre `scpi.execucao.executar(Importacao.Tipo.PEDIDOS_COMPRA, ...)`.
   - Na gravação: `bulk_create` e `bulk_update` em blocos, `ausente_desde` e o corte de 20% ([R3](research.md#r3-fonte-dos-pedidos-o-0713-com-saldo-a-entregar)).
   - Os avisos em `Resultado.avisos`.
   - A T014 passa.
-- [ ] T016 Implementar `baixar_pedidos_compra() -> bytes` em `scpi/relatorios.py`, conforme [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md).
+- [X] T016 Implementar `baixar_pedidos_compra() -> bytes` em `scpi/relatorios.py`, conforme [contracts/relatorios-scpi.md](contracts/relatorios-scpi.md).
   - Navegação: Relatórios › 07.13 "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar" e Salvar Arquivo › CSV (Dados), pelo `interceptar_csv`.
   - Os campos são achados pelo rótulo (`JS_CAMPO_ABAIXO_DO_ROTULO` e a legenda do quadro), nunca pelo ID.
   - O relatório termina com "Fechar relatório" e "Sair", e o perfil é `pedidos_compra`.
   - Sem teste de navegação (Princípio V). Num comentário no topo da função: nunca o 01.08.03.
-- [ ] T017 Criar o comando `importar_pedidos_compra` (`--arquivo`, `--apagar-arquivo`, `--forcar`) em `compras/management/commands/importar_pedidos_compra.py`, conforme [contracts/comandos.md](contracts/comandos.md#importar_pedidos_compra-pr-1).
+- [X] T017 Criar o comando `importar_pedidos_compra` (`--arquivo`, `--apagar-arquivo`, `--forcar`) em `compras/management/commands/importar_pedidos_compra.py`, conforme [contracts/comandos.md](contracts/comandos.md#importar_pedidos_compra-pr-1).
   - Lê o arquivo enviado ou chama `baixar_pedidos_compra`, dentro de `relatorios.sessao_compartilhada` quando for chamado pelo `atualizar_catalogo`.
   - A saída lista as contagens.
   - A `FALHA` sai com `CommandError`.
   - A recusa com execução de entradas em andamento depende de `ExecucaoRobo.robo` e entra no PR 4 (T064). Até lá, a trava do tipo é a barreira.
   - Testes em `tests/test_compras_importacao.py`: o comando com `--arquivo` e o `--apagar-arquivo`, mesmo quando falha.
-- [ ] T018 Ligar a importação a Automações:
+- [X] T018 Ligar a importação a Automações:
   - `Robo("pedidos_compra", "Pedidos de compra", ...)` com um `RoboPedidosCompraForm(RoboForm)`, que tem o campo `forcar` "Gravar mesmo que muitos itens sumam", em `catalogo/forms.py` (a aba vem do `ABAS`);
   - `"pedidos_compra": "importar_pedidos_compra"` em `COMANDOS_IMPORTACAO` (`scpi/disparo.py`);
   - os rótulos do tipo em `automacoes/historico.py`.
 
   Testes em `tests/test_automacoes.py`: a aba aparece, o POST com CSV inicia o comando e o histórico mostra "Pedidos de compra".
-- [ ] T019 [P] Registrar `PedidoCompra` (com os itens em linha) só para leitura em `compras/admin.py`, com `has_add_permission`, `has_change_permission` e `has_delete_permission` falsos; teste em `tests/test_compras_admin.py`: a lista abre, e adicionar, alterar e apagar são recusados
-- [ ] T020 [P] Criar `compras/saude.py`, com `avisos() -> list[str]` (importação de pedidos com falha na última execução ou sem sucesso há mais de um dia útil, como `conciliacao.saude.um_dia_util_depois`), e chamá-la em `catalogo.saude._demais`; testes em `tests/test_compras_saude.py`
-- [ ] T021 Atualizar o `CLAUDE.md`: o app `compras` (pedidos de compra, 07.13, nunca o 01.08.03, ausentes e o corte de 20%), o comando `importar_pedidos_compra` e a aba "Pedidos de compra"
-- [ ] T022 Portões do PR 1: `uv run pytest`, `ruff check`, `ruff format --check` e `makemigrations --check --dry-run`; pedir ao usuário o [quickstart, passo 2](quickstart.md#2-pedidos-de-compra-do-scpi-real-pr-1-manual) (o Log do pedido sem alteração) e anotar o resultado no PR; commit
+- [X] T019 [P] Registrar `PedidoCompra` (com os itens em linha) só para leitura em `compras/admin.py`, com `has_add_permission`, `has_change_permission` e `has_delete_permission` falsos; teste em `tests/test_compras_admin.py`: a lista abre, e adicionar, alterar e apagar são recusados
+- [X] T020 [P] Criar `compras/saude.py`, com `avisos() -> list[str]` (importação de pedidos com falha na última execução ou sem sucesso há mais de um dia útil, como `conciliacao.saude.um_dia_util_depois`), e chamá-la em `catalogo.saude._demais`; testes em `tests/test_compras_saude.py`
+- [X] T021 Atualizar o `CLAUDE.md`: o app `compras` (pedidos de compra, 07.13, nunca o 01.08.03, ausentes e o corte de 20%), o comando `importar_pedidos_compra` e a aba "Pedidos de compra"
+- [X] T022 (portões automáticos verdes em 12/11/2026, 2609 testes; **passo manual 2 do quickstart feito pelo usuário em 12/11/2026, contra o SCPI real**: importação de 693 pedidos e 2877 itens, a repetição com 0 itens novos e nenhum ausente, itens `T`, de serviço (grupo 800) e de combustível fora dos disponíveis e o Log do pedido 00545/26 sem nenhuma alteração nos horários das importações. O teste achou quatro ajustes na navegação e na leitura do 07.13: o item do menu ("07.13. Relação de Pedidos Entregues e Não Entregues"), o rádio Analítico pelo nome exato, o formulário como aba e quantidades com 5 casas, que ganharam a migration `compras/0002`) Portões do PR 1: `uv run pytest`, `ruff check`, `ruff format --check` e `makemigrations --check --dry-run`; pedir ao usuário o [quickstart, passo 2](quickstart.md#2-pedidos-de-compra-do-scpi-real-pr-1-manual) (o Log do pedido sem alteração) e anotar o resultado no PR; commit
 
 **Checkpoint**: os pedidos e os itens disponíveis estão no banco, e a importação é segura.
 
@@ -181,17 +181,17 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### Tests for User Story 1
 
-- [ ] T023 [US1] Criar a branch `claude/entradas-2-recebimento` a partir de `claude/entradas-1-pedidos`
-- [ ] T024 [P] [US1] Criar `tests/compras_cenario.py`, com:
+- [X] T023 [US1] Criar a branch `claude/entradas-2-recebimento` a partir de `claude/entradas-1-pedidos`
+- [X] T024 [P] [US1] Criar `tests/compras_cenario.py`, com:
   - `importar_pedido(itens, *, data, fornecedor="19502", exercicio=None) -> PedidoCompra`, que importa pelo CSV da T009 e cria o `Material` de cada código;
   - `preparar(pedido, usuario, itens: dict[int, str], nf="501", data=None, **kw) -> Recebimento`;
   - `usuario_recebedor()`, com `tests/papeis.py`.
-- [ ] T025 [P] [US1] Acrescentar a `tests/test_compras_regras.py` os casos de NF, saldo livre e validação:
+- [X] T025 [P] [US1] Acrescentar a `tests/test_compras_regras.py` os casos de NF, saldo livre e validação:
   - NF: `nf_normalizada("000000000501") == "501"`; vazio, zero, letra e mais de 12 dígitos recusados; `chave_nf("19502", "501") == "19502:501"`;
   - saldo livre no exemplo 100 → 30 → 20, com as reservas por estado da [tabela do data-model](data-model.md#recebimento-pr-2); o lançado reserva até uma importação começada depois do `visivel_desde`;
   - `sugestao_total` = o saldo livre de cada item disponível;
   - `validar_recebimento`: data futura, data antes do pedido, nenhum item, `1.5`, 4 casas, ≤ 0, acima do saldo livre (com o valor na mensagem), item de outro pedido; os erros juntados.
-- [ ] T026 [P] [US1] Escrever `tests/test_compras_recebimento.py`, os cenários 1 a 8 da US1, pelo serviço:
+- [X] T026 [P] [US1] Escrever `tests/test_compras_recebimento.py`, os cenários 1 a 8 da US1, pelo serviço:
   - "total" sugere 50;
   - 51 é recusado e nada é gravado;
   - parcial;
@@ -204,12 +204,12 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o pedido travado, ausente ou de outro exercício recusa;
   - a anulação depois do preparado (o reservado fica maior que o saldo do SCPI) deixa o pedido "precisa de conferência", com o saldo livre zero;
   - a edição e o cancelamento depois de uma tentativa `VERIFICAR` recusados.
-- [ ] T027 [P] [US1] Acrescentar a `tests/test_compras_recebimento.py` o teste de concorrência do cenário 7 (`pytest.mark.django_db(transaction=True)`, duas threads com conexões próprias, como os testes de travas de `tests/test_lancamento.py`): as duas preparam "total" do mesmo item; uma grava e a outra recebe a recusa com o saldo livre atualizado; a soma reservada ≤ saldo
-- [ ] T028 [P] [US1] Escrever `tests/test_compras_acesso.py`:
+- [X] T027 [P] [US1] Acrescentar a `tests/test_compras_recebimento.py` o teste de concorrência do cenário 7 (`pytest.mark.django_db(transaction=True)`, duas threads com conexões próprias, como os testes de travas de `tests/test_lancamento.py`): as duas preparam "total" do mesmo item; uma grava e a outra recebe a recusa com o saldo livre atualizado; a soma reservada ≤ saldo
+- [X] T028 [P] [US1] Escrever `tests/test_compras_acesso.py`:
   - as seis rotas `compras:*` com o usuário sem papel (403), o Atendimento e a Gestão (abrem), o solicitante (recusa pública) e a Segurança do Trabalho (bloqueada pelo middleware);
   - o item "Compras" do menu só para quem tem `receber_compras`;
   - a migration deu `receber_compras` aos grupos Atendimento e Gestão.
-- [ ] T029 [P] [US1] Escrever `tests/test_compras_telas.py`:
+- [X] T029 [P] [US1] Escrever `tests/test_compras_telas.py`:
   - a lista com a busca por número, fornecedor e código;
   - o detalhe com o saldo livre e o motivo de indisponibilidade;
   - o formulário "total" preenchido e o "parcial" vazio;
@@ -220,11 +220,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### Implementation for User Story 1
 
-- [ ] T030 [US1] Acrescentar `("receber_compras", "Receber compras (preparar, editar e cancelar recebimentos)")` a `Usuario.Meta.permissions` (`contas/models.py`) e `RECEBER = "contas.receber_compras"` a `PERMISSOES_INTERNAS` (`contas/acesso.py`); criar `contas/migrations/0007_receber_compras.py`.
+- [X] T030 [US1] Acrescentar `("receber_compras", "Receber compras (preparar, editar e cancelar recebimentos)")` a `Usuario.Meta.permissions` (`contas/models.py`) e `RECEBER = "contas.receber_compras"` a `PERMISSOES_INTERNAS` (`contas/acesso.py`); criar `contas/migrations/0007_receber_compras.py`.
   - A migration é RunPython: cria a permissão, a dá aos grupos `"Atendimento"` e `"Gestão"` (literais) e levanta erro se algum dos dois ficar sem ela.
   - Na volta, `noop`.
   - Depende de `contas/0006_solicitante`.
-- [ ] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0002_recebimento.py`.
+- [X] T031 [US1] Criar `Recebimento`, `ItemRecebimento` e `TravaPedido` em `compras/models.py`, conforme [data-model.md](data-model.md#recebimento-pr-2), e gerar `compras/migrations/0003_recebimento.py`.
   - **`Recebimento`**:
     - `envio` (UUID, único), `pedido` (FK, `PROTECT`);
     - `nf` (char 12, "só dígitos, sem os zeros à esquerda, diferente de zero"), `fornecedor_codigo` (char 20);
@@ -238,14 +238,14 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - `CheckConstraint`: com `LANCADO`, `requisicao_scpi` preenchido; com `VERIFICAR` ou `EM_LANCAMENTO`, `chave_nf` não nula.
   - **`ItemRecebimento`**: `quantidade` decimal(14,3), `CheckConstraint` `quantidade > 0`, único (`recebimento`, `item`).
   - **`TravaPedido`**: `motivo` com os choices `TELA`, `JA_ENTROU`, `FORA_DO_CENTRAL` e `MARCA_SEM_LANCAMENTO`; FKs nulas para `execucao`, `importacao`, `extracao` (esta acrescentada na T047) e `recebimento`; e `destravada_em`, `destravada_por` e `motivo_destrave`.
-- [ ] T032 [US1] Implementar em `compras/regras.py` `nf_normalizada`, `chave_nf`, `reserva_de(status, *, visivel_desde, inicio_ultima_importacao)`, `saldo_livre(saldo_scpi, reservas)`, `sugestao_total` e `validar_recebimento(...) -> list[Erro]`. `Erro` traz `campo` e `item` para a tela. As mensagens são as de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#formulário-do-recebimento), e a quantidade é lida por `pedidos.regras.interpretar_quantidade(texto, True)`. A T025 passa
-- [ ] T033 [US1] Implementar em `compras/consultas.py`:
+- [X] T032 [US1] Implementar em `compras/regras.py` `nf_normalizada`, `chave_nf`, `reserva_de(status, *, visivel_desde, inicio_ultima_importacao)`, `saldo_livre(saldo_scpi, reservas)`, `sugestao_total` e `validar_recebimento(...) -> list[Erro]`. `Erro` traz `campo` e `item` para a tela. As mensagens são as de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#formulário-do-recebimento), e a quantidade é lida por `pedidos.regras.interpretar_quantidade(texto, True)`. A T025 passa
+- [X] T033 [US1] Implementar em `compras/consultas.py`:
   - `ultima_importacao_pedidos()`, a última `PEDIDOS_COMPRA` com `SUCESSO`;
   - `reservado_por_item(pedido)`, uma consulta por tabela;
   - `saldos_do_pedido(pedido) -> list[LinhaSaldo]`, com o item, o material, a disponibilidade, o saldo do SCPI, o reservado e o saldo livre;
   - `travas_abertas(pedido)`;
   - `estado_do_pedido(pedido)`: disponível, travado, precisa de conferência (algum item com o reservado maior que o saldo do SCPI), ausente ou fora do exercício.
-- [ ] T034 [US1] Implementar `compras/servicos.py`.
+- [X] T034 [US1] Implementar `compras/servicos.py`.
   - **Operações**, cada uma em `transaction.atomic()` com `select_for_update` no `PedidoCompra`, refazendo o saldo livre dentro da trava:
     - `preparar_recebimento(pedido_id, usuario, *, envio, nf, data_recebimento, observacao, itens) -> Resposta`;
     - `editar_recebimento(recebimento_id, usuario, *, versao, ...)`;
@@ -260,22 +260,22 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - **Gravação**: a edição recria os itens e soma 1 na `versao`; o cancelamento sem tentativa põe `chave_nf=None`.
   - **Resposta**: o padrão de `pedidos.servicos` (sucesso, objeto e erros).
   - As T026 e T027 passam.
-- [ ] T035 [US1] Criar `compras/forms.py`, com `FormularioRecebimento` (NF, data, observação, `envio`, `versao` e um par caixa/quantidade por item disponível, montado a partir de `saldos_do_pedido` e do modo `total`/`parcial`) e `FormularioCancelamento` (motivo, `confirmado`)
-- [ ] T036 [US1] Criar `compras/views.py` e `compras/urls.py` (`app_name = "compras"`) com `pedidos`, `pedido`, `receber`, `recebimento`, `editar_recebimento` e `cancelar_recebimento`, nas URLs de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#compras-permissão-contasreceber_compras-atendimento-e-gestão).
+- [X] T035 [US1] Criar `compras/forms.py`, com `FormularioRecebimento` (NF, data, observação, `envio`, `versao` e um par caixa/quantidade por item disponível, montado a partir de `saldos_do_pedido` e do modo `total`/`parcial`) e `FormularioCancelamento` (motivo, `confirmado`)
+- [X] T036 [US1] Criar `compras/views.py` e `compras/urls.py` (`app_name = "compras"`) com `pedidos`, `pedido`, `receber`, `recebimento`, `editar_recebimento` e `cancelar_recebimento`, nas URLs de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#compras-permissão-contasreceber_compras-atendimento-e-gestão).
   - A view só lê e chama `compras.servicos`; a lista tem 50 por página com `_paginacao.html`.
   - Incluir `path("painel/compras/", include("compras.urls"))` em `config/urls.py`.
   - Acrescentar as seis rotas a `REGRAS_POR_ROTA` (`contas/acesso.py`), com `Regra` exigindo `contas.receber_compras` e o motivo "Receber compras é do Atendimento e da Gestão.".
-- [ ] T037 [US1] Criar os templates em `compras/templates/compras/`, sobre `base_almoxarifado.html`, com as skills `clean-design`, `ui-ux-pro-max` e `frontend-design`:
+- [X] T037 [US1] Criar os templates em `compras/templates/compras/`, sobre `base_almoxarifado.html`, com as skills `clean-design`, `ui-ux-pro-max` e `frontend-design`:
   - `pedidos.html`;
   - `pedido.html`, com os itens, o saldo livre, os recebimentos e as travas abertas em texto, e o estado "precisa de conferência" em texto (também na lista);
   - `receber.html`, o formulário com o resumo de erros no topo, o erro no campo e no item, e `inputmode="numeric"` na NF;
   - `recebimento.html`, com o histórico e o cancelamento num `<details>` com `confirmado=1`.
-- [ ] T038 [US1] Acrescentar o item "Compras" a `ITENS_MENU` em `interface/navegacao.py`, com um ícone já existente em `interface/templates/interface/_icone.html` (ou o SVG Lucide `package` acrescentado lá) e a rota `compras:pedidos`; a T028 e a T029 passam
+- [X] T038 [US1] Acrescentar o item "Compras" a `ITENS_MENU` em `interface/navegacao.py`, com um ícone já existente em `interface/templates/interface/_icone.html` (ou o SVG Lucide `package` acrescentado lá) e a rota `compras:pedidos`; a T028 e a T029 passam
 - [ ] T039 [US1] Conferir à mão no navegador local (servidor da porta 8000; dizer de qual checkout e branch ele serve), com screenshots:
   - a lista, o pedido, o "total" de 30 itens (SC-002) e o "parcial" com erro;
   - a 375 px, pelo teclado e sem depender de cor.
-- [ ] T040 [US1] Atualizar o `CLAUDE.md`: a permissão `receber_compras` na seção de papéis, a área Compras (rotas, saldo livre, reservas, NF única com `chave_nf` nula, `envio` e `versao`) e `compras/servicos.py` como porta única
-- [ ] T041 [US1] Portões do PR 2 (`pytest`, `ruff`, `makemigrations --check`, `DEBUG=0 check --deploy --fail-level WARNING`); commit
+- [X] T040 [US1] Atualizar o `CLAUDE.md`: a permissão `receber_compras` na seção de papéis, a área Compras (rotas, saldo livre, reservas, NF única com `chave_nf` nula, `envio` e `versao`) e `compras/servicos.py` como porta única
+- [X] T041 [US1] Portões do PR 2 (`pytest`, `ruff`, `makemigrations --check`, `DEBUG=0 check --deploy --fail-level WARNING`); commit
 
 **Checkpoint**: o recebimento é preparado, editado e cancelado com o saldo certo. Ele ainda não vai ao SCPI.
 
@@ -289,11 +289,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### PR 3: registro oficial das entradas
 
-- [ ] T042 [US2] Criar a branch `claude/entradas-3-extracao` a partir de `claude/entradas-2-recebimento`
-- [ ] T043 [P] [US2] Criar `tests/relacao_entradas.py`: um gerador de CSV sintético do relatório de entradas no formato real ([contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#070401-relação-de-requisições-requisições-de-entrada)).
+- [X] T042 [US2] Criar a branch `claude/entradas-3-extracao` a partir de `develop` (o PR 2 já foi mergeado)
+- [X] T043 [P] [US2] Criar `tests/relacao_entradas.py`: um gerador de CSV sintético do relatório de entradas no formato real ([contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#070401-relação-de-requisições-requisições-de-entrada)).
   - Formato: as 65 colunas na ordem real, `;`, sem aspas, `\r\n`, com BOM e com `GRUPO` = `DATAE`.
   - Função: `csv_entradas(requisicoes: list[dict]) -> bytes`, com a opção de registro quebrado em `OBS_CABECALHO`.
-- [ ] T044 [P] [US2] Escrever `tests/test_scpi_leitura_entradas.py`. Casos:
+- [X] T044 [P] [US2] Escrever `tests/test_scpi_leitura_entradas.py`. Casos:
   - a leitura com e sem `NUMPED`, `DOCUM` vazio e `SAID=S`;
   - a NF sem zeros;
   - a marca `RC-…` lida;
@@ -303,8 +303,8 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - `REQUI` inválido;
   - `QUAN1` ilegível;
   - coluna obrigatória faltando.
-- [ ] T045 [US2] Implementar em `scpi/leitura.py` as dataclasses `EntradaLida` e `ItemEntradaLido` e `ler_entradas(conteudo: bytes) -> Leitura`, pura, tudo ou nada; implementar `recebimento_observado(texto) -> str` e `texto_observacoes(rotulo, observacao)` (`;` → `,`, `Obs.: ` numa linha só) em `compras/regras.py`, com o padrão `central\s+almoxarifado\s+(RC-[0-9]{1,9})\b` (IGNORECASE). A T044 passa, e o teste confere que `conciliacao.regras.lote_observado` não lê `RC-`
-- [ ] T046 [P] [US2] Escrever `tests/test_compras_extracao.py`. Casos:
+- [X] T045 [US2] Implementar em `scpi/leitura.py` as dataclasses `EntradaLida` e `ItemEntradaLido` e `ler_entradas(conteudo: bytes) -> Leitura`, pura, tudo ou nada; implementar `recebimento_observado(texto) -> str` e `texto_observacoes(rotulo, observacao)` (`;` → `,`, `Obs.: ` numa linha só) em `compras/regras.py`, com o padrão `central\s+almoxarifado\s+(RC-[0-9]{1,9})\b` (IGNORECASE). A T044 passa, e o teste confere que `conciliacao.regras.lote_observado` não lê `RC-`
+- [X] T046 [P] [US2] Escrever `tests/test_compras_extracao.py`. Casos:
   - a extração com sucesso grava as requisições e o `maior_requisicao`;
   - a falha não grava requisições e deixa o `maior_requisicao` nulo;
   - "Nada a exibir" é sucesso sem requisições;
@@ -313,7 +313,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a impressão igual a uma origem sem bytes guarda os seus;
   - a trava do tipo ocupada;
   - `ANTES`/`DEPOIS` sem execução é recusado pela `CheckConstraint`.
-- [ ] T047 [US2] Criar `ExtracaoEntradas`, `RequisicaoEntradaOficial` e `ItemEntradaOficial` em `compras/models.py`, conforme [data-model.md](data-model.md#extracaoentradas-requisicaoentradaoficial-itementradaoficial-pr-3), mais a FK nula `TravaPedido.extracao`; gerar `compras/migrations/0003_extracao_entradas.py`.
+- [X] T047 [US2] Criar `ExtracaoEntradas`, `RequisicaoEntradaOficial` e `ItemEntradaOficial` em `compras/models.py`, conforme [data-model.md](data-model.md#extracaoentradas-requisicaoentradaoficial-itementradaoficial-pr-3), mais a FK nula `TravaPedido.extracao`; gerar `compras/migrations/0004_extracao_entradas.py` (a 0003 é a do recebimento).
   - **`ExtracaoEntradas`**:
     - `importacao` (OneToOne, `PROTECT`), `motivo` (choices `ANTES`, `DEPOIS`, `DIARIA`, `MANUAL`, `ARQUIVO`), `execucao` (FK nula, `PROTECT`);
     - `impressao` (char 64), `arquivo` (`BinaryField` nulo), `mesmo_arquivo_que` (FK self nula), `arquivo_apagado_em` e `maior_requisicao` (char 9 nulo);
@@ -323,55 +323,55 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - os campos da tabela do data-model;
     - único (`extracao`, `ano`, `numero`);
     - índices em (`fornecedor_codigo`, `nf`), (`pedido_ano`, `pedido_numero`) e `recebimento_observado`.
-  - **`ItemEntradaOficial`**: `quantidade` decimal(14,4).
-- [ ] T048 [US2] Implementar `compras/extracao.py`, com `extrair(motivo, periodo, obter_csv, *, execucao=None) -> ExtracaoEntradas` sobre `scpi.execucao.executar(Importacao.Tipo.ENTRADAS, ..., ao_criar=...)`.
+  - **`ItemEntradaOficial`**: `quantidade` decimal(18,6), como a do pedido.
+- [X] T048 [US2] Implementar `compras/extracao.py`, com `extrair(motivo, periodo, obter_csv, *, execucao=None) -> ExtracaoEntradas` sobre `scpi.execucao.executar(Importacao.Tipo.ENTRADAS, ..., ao_criar=...)`.
   - O bruto vai em gzip com `conciliacao.extracao.impressao`, com o `mesmo_arquivo_que`.
   - O período é conferido contra as `DATAE`.
   - `NadaAExibir` vira uma extração sem requisições.
   - A T046 passa.
-- [ ] T049 [US2] Implementar `baixar_entradas(de, ate) -> bytes` em `scpi/relatorios.py`, numa função nova (`_relacao_de_requisicoes` não muda).
+- [X] T049 [US2] Implementar `baixar_entradas(de, ate) -> bytes` em `scpi/relatorios.py`, numa função nova (`_relacao_de_requisicoes` não muda).
   - Navegação: Relatórios › Requisições › Relação de Requisições, rádio "Requisições de Entrada", só o período.
   - "Nada a exibir" levanta `NadaAExibir`.
   - O perfil é `entradas_relatorio`.
   - Sem teste de navegação.
-- [ ] T050 [US2] Criar o comando `conciliar_entradas` em `compras/management/commands/conciliar_entradas.py` (`--arquivo`, `--desde`/`--ate`, `--diaria`, `--sem-limpeza`), que nesta fase só extrai.
+- [X] T050 [US2] Criar o comando `conciliar_entradas` em `compras/management/commands/conciliar_entradas.py` (`--arquivo`, `--desde`/`--ate`, `--diaria`, `--sem-limpeza`), que nesta fase só extrai.
   - Período e motivo conforme [contracts/comandos.md](contracts/comandos.md#conciliar_entradas-pr-3-extrai-pr-5-e-pr-6-conciliam-pr-7-limpa).
   - Recusa com lançamento, extração ou importação de pedidos em andamento.
   - Testes em `tests/test_compras_extracao.py`.
-- [ ] T051 [P] [US2] Registrar `ExtracaoEntradas` (sem o bruto na lista) e `RequisicaoEntradaOficial` com os itens, só para leitura, em `compras/admin.py`; o mesmo teste da T019 para as extrações e as requisições, em `tests/test_compras_admin.py`
-- [ ] T052 [US2] Atualizar o `CLAUDE.md` (o registro oficial das entradas, `baixar_entradas`, `ler_entradas`, o comando e a marca `RC-`) e passar os portões do PR 3; pedir ao usuário a primeira parte do [quickstart, passo 4](quickstart.md#4-registro-oficial-e-navegação-do-robô-no-scpi-real-prs-3-e-4-manual); commit
+- [X] T051 [P] [US2] Registrar `ExtracaoEntradas` (sem o bruto na lista) e `RequisicaoEntradaOficial` com os itens, só para leitura, em `compras/admin.py`; o mesmo teste da T019 para as extrações e as requisições, em `tests/test_compras_admin.py`
+- [ ] T052 [US2] (CLAUDE.md e portões automáticos prontos em 12/11/2026; **falta só a primeira parte do passo 4 do quickstart, do usuário**) Atualizar o `CLAUDE.md` (o registro oficial das entradas, `baixar_entradas`, `ler_entradas`, o comando e a marca `RC-`) e passar os portões do PR 3; pedir ao usuário a primeira parte do [quickstart, passo 4](quickstart.md#4-registro-oficial-e-navegação-do-robô-no-scpi-real-prs-3-e-4-manual); commit
 
 ### PR 4: o robô de entradas
 
-- [ ] T053 [US2] Criar a branch `claude/entradas-4-robo` a partir de `claude/entradas-3-extracao`
-- [ ] T054 [US2] Acrescentar `ExecucaoRobo.robo` (choices `SAIDAS` "Saídas", `ENTRADAS` "Entradas"; `default="SAIDAS"`) em `pedidos/models.py` e gerar `pedidos/migrations/0007_execucao_robo.py`.
+- [X] T053 [US2] Criar a branch `claude/entradas-4-robo` a partir de `claude/entradas-3-extracao`
+- [X] T054 [US2] Acrescentar `ExecucaoRobo.robo` (choices `SAIDAS` "Saídas", `ENTRADAS` "Entradas"; `default="SAIDAS"`) em `pedidos/models.py` e gerar `pedidos/migrations/0007_execucao_robo.py`.
   - `em_andamento(agora=None, robo=None)` ganha o filtro opcional `robo`, com o comportamento atual sem ele.
   - Nas saídas, por chamada:
     - em `automacoes/views.py`, a última execução e o andamento da aba Lançamento no SCPI (linhas que hoje fazem `ExecucaoRobo.objects...first()` e o `acompanhar_lancamento`) passam a filtrar `robo=SAIDAS`;
     - as recusas (`automacoes/views.py` em `lancar`/`resolver`, `pedidos/servicos.py` em `resolver_lote`/`corrigir_requisicao`, `pedidos/views/almoxarifado.py` e `scpi/disparo.py`) continuam sem filtro: qualquer robô rodando recusa;
     - os botões da aba das saídas ficam desabilitados com qualquer robô rodando, com a dica "O robô de entradas está lançando." quando é ele;
     - `automacoes/historico.py` mostra o robô.
-- [ ] T055 [P] [US2] Escrever `tests/test_entradas_isolamento.py`, com uma execução `ENTRADAS` em andamento e outra concluída:
+- [X] T055 [P] [US2] Escrever `tests/test_entradas_isolamento.py`, com uma execução `ENTRADAS` em andamento e outra concluída:
   - a aba Lançamento no SCPI mostra só a última `SAIDAS` e não acompanha a de entradas;
   - os botões ficam desabilitados com a dica;
   - `iniciar_lancamento` das saídas recusa;
   - o histórico mostra "Entradas";
   - `robos_em_andamento` sai com erro;
   - os testes existentes `tests/test_pagina_lancamentos.py`, `tests/test_lancamento*.py` e `tests/test_historico_automacoes.py` passam sem mudança.
-- [ ] T056 [US2] Criar `TentativaEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#tentativaentrada-pr-4): `execucao` (FK, `PROTECT`), `ordem` (smallint), `recebimento` (FK, `PROTECT`), `versao`, `momento`, `resultado` (choices `LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`), `requisicao` (char 9) e `foto` (JSON nulo). Únicos (`execucao`, `ordem`) e (`execucao`, `recebimento`). Gerar `compras/migrations/0004_tentativa_entrada.py`
-- [ ] T057 [P] [US2] Criar `tests/scpi_entradas_simulado.py` com `SCPIEntradasSimulado`, que implementa o protocolo `SCPIEntradas`.
+- [X] T056 [US2] Criar `TentativaEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#tentativaentrada-pr-4): `execucao` (FK, `PROTECT`), `ordem` (smallint), `recebimento` (FK, `PROTECT`), `versao`, `momento`, `resultado` (choices `LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`), `requisicao` (char 9) e `foto` (JSON nulo). Únicos (`execucao`, `ordem`) e (`execucao`, `recebimento`). Gerar `compras/migrations/0004_tentativa_entrada.py`
+- [X] T057 [P] [US2] Criar `tests/scpi_entradas_simulado.py` com `SCPIEntradasSimulado`, que implementa o protocolo `SCPIEntradas`.
   - **Estado**: `pedidos[(ano, numero)] = {item: {codigo, quantidade, anulado, ja_entrou, pedida}}`, `salvas` (as requisições salvas, com a observação, a NF, a data e os itens), `proximo_numero` e `chamadas`.
   - **Falhas**: `falha_antes={"abrir"|"preencher"}`, `salva_e_falha`, `tela_mudou={item: ja_entrou}`, `perde_observacoes`, `nf_errada`, `entrada_manual(...)` (uma requisição à mão, sem marca) e `falhas_relatorio`.
   - **Relatórios**: `relatorio_entradas(de, ate) -> bytes` pela T043, e `relatorio_pedidos() -> bytes` pela T009.
   - **Efeito do Salvar**: `salvar` soma o `ja_entrou` como o SCPI faria.
-- [ ] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
-- [ ] T059 [US2] Implementar em `compras/regras.py`:
+- [X] T058 [P] [US2] Acrescentar a `tests/test_compras_regras.py` os casos de `conferir_tela`: a tela igual; o "Já Entrou" maior; o saldo menor; o item ausente na tela; o código diferente no mesmo número; a quantidade acima do saldo da tela; o esperado com um lançado ainda não refletido
+- [X] T059 [US2] Implementar em `compras/regras.py`:
   - as dataclasses `LinhaTela`, `TelaItens`, `EsperadoItem` e `RecebimentoParaLancar` ([contracts/robo-entradas.md](contracts/robo-entradas.md#o-recebimento-que-o-robô-recebe-recebimentoparalancar));
   - `conferir_tela(esperado, tela) -> list[str]`, com as mensagens "O SCPI mudou: item 13, Já Entrou 2 na tela, esperado 1";
   - `foto(rec, tela) -> dict`.
 
   A T058 passa.
-- [ ] T060 [US2] Implementar `compras/robo.py`:
+- [X] T060 [US2] Implementar `compras/robo.py`:
   - `selecionar(rotulos) -> Selecao`, com os aptos e os bloqueados com o motivo: pedido travado, ausente, fora do exercício, com recebimento `EM_LANCAMENTO` ou `VERIFICAR`, ou o recebimento não `PREPARADO`;
   - `para_lancar(recebimento) -> RecebimentoParaLancar`, com o esperado da [R11](research.md#r11-conferência-antes-do-salvar);
   - `periodo_da_execucao(...)`, sobre `conciliacao.regras.periodo`;
@@ -381,7 +381,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - `tentativa_lancada(...)`.
 
   Usar a pausa zerada nos testes, por um fixture autouse como o `extracao_sem_pausa` de `tests/conftest.py`.
-- [ ] T061 [US2] Escrever `tests/test_lancamento_entradas.py` com o `SCPIEntradasSimulado`, uma linha por garantia de [contracts/robo-entradas.md](contracts/robo-entradas.md#garantias-testadas-com-o-simulado):
+- [X] T061 [US2] Escrever `tests/test_lancamento_entradas.py` com o `SCPIEntradasSimulado`, uma linha por garantia de [contracts/robo-entradas.md](contracts/robo-entradas.md#garantias-testadas-com-o-simulado):
   - sucesso, com o número, `via=ROBO`, `visivel_desde` e a tentativa `LANCADA`;
   - a falha ao abrir e ao preencher (`ERRO`, nada salvo);
   - a tela mudada (`ERRO`, pedido travado `TELA`, nada salvo);
@@ -395,14 +395,14 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - o segundo recebimento do mesmo pedido com o primeiro em `VERIFICAR` (`ignorada`);
   - o aviso de data de outro mês, a cargo do simulado;
   - a extração de antes que falha (nada muda) e a de depois que falha (a execução não piora).
-- [ ] T062 [US2] Implementar `scpi/lancamento_entradas.py`: o protocolo `SCPIEntradas`, `JOURNAL = "lancar_entradas_journal.jsonl"`, `_journal`, `_gravar` (com `critico`), `_travar` e `_lancar_um`, mais `lancar(execucao, abrir_scpi, *, recebimentos, extrair) -> Resumo` e `executar_lancamento_entradas(...)`.
+- [X] T062 [US2] Implementar `scpi/lancamento_entradas.py`: o protocolo `SCPIEntradas`, `JOURNAL = "lancar_entradas_journal.jsonl"`, `_journal`, `_gravar` (com `critico`), `_travar` e `_lancar_um`, mais `lancar(execucao, abrir_scpi, *, recebimentos, extrair) -> Resumo` e `executar_lancamento_entradas(...)`.
   - **Ordem**: a de [contracts/robo-entradas.md](contracts/robo-entradas.md#ordem).
   - **Travas**: `TRAVA_LANCAMENTO` e `trava(trava_importacao(Importacao.Tipo.PEDIDOS_COMPRA))`.
   - **Reaproveitados por importação, sem mudar `scpi/lancamento.py`**: `Resumo`, `RegistroNaExecucao` e `_progresso`/`_salvar_progresso`/`_salvar_resumo`, renomeados para públicos só se for preciso, com alias.
   - **O `_travar`**: confere `status == PREPARADO`, `versao` e o pedido sem trava aberta, com `select_for_update` no recebimento e no pedido, e grava `EM_LANCAMENTO` e a tentativa `VERIFICAR` com a foto na mesma transação.
 
   A T061 passa.
-- [ ] T063 [US2] Implementar `scpi/lancador_entradas.py`: `NavegadorEntradas(Sessao)` com `abrir_pedido`, `preencher`, `salvar`, `depois_de_salvar`, `encerrar_simulacao`, `descartar` e `reiniciar`, mais `navegador()` (perfil `entradas`, `browser.orm_liberado`).
+- [X] T063 [US2] Implementar `scpi/lancador_entradas.py`: `NavegadorEntradas(Sessao)` com `abrir_pedido`, `preencher`, `salvar`, `depois_de_salvar`, `encerrar_simulacao`, `descartar` e `reiniciar`, mais `navegador()` (perfil `entradas`, `browser.orm_liberado`).
   - **Reaproveita de `scpi/lancador.py`**: `campo`, `mensagem_scpi`, `checar_mensagem`, `salvar_requisicao`, `fechar_janelas_pos_salvar`, `cancelar_formulario` e `pausar`.
   - **Navegação**:
     - o item é achado pelo número no pedido;
@@ -413,22 +413,22 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - a NF vai sem zeros;
     - as Observações levam `texto_observacoes`.
   - **Teste de estrutura** em `tests/test_lancador_entradas.py`: implementa o protocolo e não importa o Playwright no topo.
-- [ ] T064 [US2] Criar o comando `lancar_entradas` (`--recebimento` obrigatório e repetível, `--dry-run`) em `scpi/management/commands/lancar_entradas.py`.
+- [X] T064 [US2] Criar o comando `lancar_entradas` (`--recebimento` obrigatório e repetível, `--dry-run`) em `scpi/management/commands/lancar_entradas.py`.
   - Sem `--dry-run`, exige `LANCAMENTO_REAL` e recusa com `LANCAMENTO_BLOQUEADO` antes de criar a execução.
   - Cria a `ExecucaoRobo(robo=ENTRADAS)`.
   - O real passa `extrair=relatorios.baixar_entradas`.
   - Implementar `iniciar_lancamento_entradas(usuario, *, simulacao, recebimentos)` em `scpi/disparo.py`, que confere de novo `operar_automacoes` e recusa com qualquer robô rodando, com o log em `lancar_entradas.log`.
   - No `importar_pedidos_compra` (T017), antes de começar, recusar com "Um lançamento de entradas está em andamento: a importação de pedidos espera ele terminar." se `ExecucaoRobo.em_andamento(robo="ENTRADAS")` existir. A trava do tipo continua como última barreira.
   - Testes em `tests/test_lancamento_entradas.py`, inclusive a recusa da importação com uma execução de entradas em andamento.
-- [ ] T065 [US2] Parametrizar em `pedidos/andamento.py` o substantivo do cartão ("requisição"/"recebimento") com o padrão de hoje, para o `acompanhamento` servir às entradas sem mudar o texto das saídas; teste em `tests/test_andamento.py`, que confere que o texto das saídas é o mesmo
-- [ ] T066 [US2] Criar a aba "Entradas no SCPI" (`("entradas", "Entradas no SCPI")` em `ABAS`, depois de `lancamento`) em `automacoes/views.py`, com `contexto_entradas`, as regiões em `REGIOES` (`div#fila-entradas` e o andamento) e o template `automacoes/templates/automacoes/_entradas.html`.
+- [X] T065 [US2] Parametrizar em `pedidos/andamento.py` o substantivo do cartão ("requisição"/"recebimento") com o padrão de hoje, para o `acompanhamento` servir às entradas sem mudar o texto das saídas; teste em `tests/test_andamento.py`, que confere que o texto das saídas é o mesmo
+- [X] T066 [US2] Criar a aba "Entradas no SCPI" (`("entradas", "Entradas no SCPI")` em `ABAS`, depois de `lancamento`) em `automacoes/views.py`, com `contexto_entradas`, as regiões em `REGIOES` (`div#fila-entradas` e o andamento) e o template `automacoes/templates/automacoes/_entradas.html`.
   - **A fila** (`compras.consultas.fila_entradas`): caixa de marcar, "marcar todas", a contagem, os bloqueados sem caixa e com o motivo, e "Simular" e "Lançar no SCPI", este com a confirmação e o cadeado com o lançamento real bloqueado.
   - **O andamento**: `pedidos.andamento` com "recebimento".
   - **Reaproveitar `pedidos/static/pedidos/js/fila-robo.js`** pelos mesmos atributos. Se ele depender de seletores das saídas, generalizá-lo sem mudar o comportamento da aba das saídas.
   - **Rota `automacoes:lancar_entradas`** (POST): valida os `recebimentos` contra a fila de agora e chama `iniciar_lancamento_entradas`; entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - **Testes** em `tests/test_automacoes_entradas.py`: a aba, a fila, os bloqueados, as recusas do contrato e a atualização a cada 3 s só com execução em andamento.
-- [ ] T067 [US2] Atualizar o `CLAUDE.md`: o robô de entradas (a ordem, a conferência da tela, as duas travas, o journal, o comando e o `--dry-run`), `ExecucaoRobo.robo`, quais chamadas filtram `SAIDAS` e a aba nova
-- [ ] T068 [US2] Portões do PR 4; pedir ao usuário a segunda parte do quickstart, passo 4 (o `--dry-run` com os pontos de [R25](research.md#r25-o-que-só-o-scpi-real-confirma)), e registrar os resultados no PR; commit
+- [X] T067 [US2] Atualizar o `CLAUDE.md`: o robô de entradas (a ordem, a conferência da tela, as duas travas, o journal, o comando e o `--dry-run`), `ExecucaoRobo.robo`, quais chamadas filtram `SAIDAS` e a aba nova
+- [ ] T068 [US2] (portões automáticos prontos em 12/11/2026; **falta só a segunda parte do passo 4 do quickstart, o `--dry-run`, do usuário**) Portões do PR 4; pedir ao usuário a segunda parte do quickstart, passo 4 (o `--dry-run` com os pontos de [R25](research.md#r25-o-que-só-o-scpi-real-confirma)), e registrar os resultados no PR; commit
 
 **Checkpoint**: o robô lança sem nunca duplicar. Um recebimento em verificação ainda só se resolve esperando ou pelo admin, e a fase seguinte resolve isso.
 
@@ -440,38 +440,38 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: com o SCPI simulado que salva e perde a resposta, a liberação é recusada. Com o que falha sem salvar, ela é permitida depois de uma extração e de uma importação posteriores (quickstart, passo 5).
 
-- [ ] T069 [US3] Criar a branch `claude/entradas-5-verificar` a partir de `claude/entradas-4-robo`
-- [ ] T070 [P] [US3] Acrescentar a `tests/test_compras_regras.py`:
+- [X] T069 [US3] Criar a branch `claude/entradas-5-verificar` a partir de `claude/entradas-4-robo`
+- [X] T070 [P] [US3] Acrescentar a `tests/test_compras_regras.py`:
   - **intervalo**: pela `conciliacao.regras.intervalo` com as tentativas de entrada;
   - **`candidatas`**: "é esta" pela marca e pela NF com o fornecedor fora do intervalo; outro pedido no intervalo não entra; a marca de outro recebimento não entra; a ordem pela semelhança;
   - **`tres_provas`**: sem extração posterior; com candidata numa conferência antiga; o "Já Entrou" diferente da foto; o item ausente na importação posterior; a importação anterior à tentativa; a extração `ARQUIVO`; tudo certo; a lacuna na numeração não conta.
-- [ ] T071 [P] [US3] Escrever `tests/test_compras_verificar.py`, os cenários 1 a 5 da US3 com o simulado e as extrações e importações reais, mais:
+- [X] T071 [P] [US3] Escrever `tests/test_compras_verificar.py`, os cenários 1 a 5 da US3 com o simulado e as extrações e importações reais, mais:
   - o "É esta" liga como `LANCADO` (`via=ROBO`, o número da candidata, `visivel_desde` igual ao início da extração);
   - liberar devolve o **mesmo** recebimento a `PREPARADO` com `versao + 1` e a NF ainda reservada;
   - cancelar sem as provas é recusado, e com elas, permitido, sem liberar a NF;
   - a recusa com execução em andamento;
   - a requisição já ligada a outro recebimento não serve para "É esta".
-- [ ] T072 [US3] Criar `ConferenciaRecebimento` e `CandidataEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#conferenciarecebimento-e-candidataentrada-pr-5-e-pr-6), com o modelo inteiro, já com os vereditos do PR 6.
+- [X] T072 [US3] Criar `ConferenciaRecebimento` e `CandidataEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#conferenciarecebimento-e-candidataentrada-pr-5-e-pr-6), com o modelo inteiro, já com os vereditos do PR 6.
   - Tipos: `LANCAMENTO`, `REVISAO` e `VERIFICAR`.
   - Vereditos: `AGUARDANDO`, `COMPROVADO`, `DIVERGENTE`, `NAO_ENCONTRADO`, `DUPLICADO`, `CONFLITO`, `INTERVALO_VAZIO`, `COM_CANDIDATAS` e `SEM_TENTATIVA`.
   - `vinculos` (JSON), `diferencas`, `notas`, `alterado_depois`, `intervalo_de`, `intervalo_ate` e `tentativa`.
   - Único (`recebimento`, `extracao`, `tipo`).
 
-  Gerar `compras/migrations/0005_conferencia.py`.
-- [ ] T073 [US3] Implementar em `compras/regras.py` `candidatas(...)` ([R15](research.md#r15-candidatas-de-um-recebimento-em-verificação)) e `tres_provas(...) -> list[str]`, que devolve as faltas com as mensagens de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#automações--entradas-no-scpi-permissão-contasoperar_automacoes-gestão) ([R16](research.md#r16-liberação-para-relançar-as-três-provas)); a T070 passa
-- [ ] T074 [US3] Implementar `compras/conciliacao.py` com `TRAVA_CONCILIACAO_ENTRADAS`, `piso(execucao)` e `conciliar_verificar(extracao)`.
+  Gerar `compras/migrations/0006_conferencia.py` (a 0005 é a da tentativa).
+- [X] T073 [US3] Implementar em `compras/regras.py` `candidatas(...)` ([R15](research.md#r15-candidatas-de-um-recebimento-em-verificação)) e `tres_provas(...) -> list[str]`, que devolve as faltas com as mensagens de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#automações--entradas-no-scpi-permissão-contasoperar_automacoes-gestão) ([R16](research.md#r16-liberação-para-relançar-as-três-provas)); a T070 passa
+- [X] T074 [US3] Implementar `compras/conciliacao.py` com `TRAVA_CONCILIACAO_ENTRADAS`, `piso(execucao)` e `conciliar_verificar(extracao)`.
   - Para cada recebimento `VERIFICAR` ou `EM_LANCAMENTO` coberto, grava a `ConferenciaRecebimento` `VERIFICAR`, mas só se a extração começou depois da tentativa mais recente; sem tentativa, `SEM_TENTATIVA`.
   - Grava também o intervalo e as `CandidataEntrada`.
   - `ARQUIVO` nunca confere.
   - Chamar em `compras.robo.extrair_depois` e no `conciliar_entradas`.
-- [ ] T075 [US3] Implementar `compras.consultas.liberacao(recebimento) -> list[str]` sobre `tres_provas`, e `compras.servicos.resolver_recebimento(recebimento_id, usuario, *, acao, requisicao_id=None, conferi=False, motivo="", confirmado=False)`.
+- [X] T075 [US3] Implementar `compras.consultas.liberacao(recebimento) -> list[str]` sobre `tres_provas`, e `compras.servicos.resolver_recebimento(recebimento_id, usuario, *, acao, requisicao_id=None, conferi=False, motivo="", confirmado=False)`.
   - As ações são `e_esta`, `liberar` e `cancelar`.
   - Corre sob a `TRAVA_LANCAMENTO` (recusa com execução em andamento) e com `select_for_update` no pedido.
   - A T071 passa.
-- [ ] T076 [US3] Acrescentar à aba "Entradas no SCPI" a região "Em verificação e com erro" (`compras/templates/compras/_verificacao.html` incluído em `_entradas.html`): por recebimento, a mensagem, as candidatas com "É esta", "Liberar para relançar" (com "Conferi no SCPI") e "Cancelar" em dois passos.
+- [X] T076 [US3] Acrescentar à aba "Entradas no SCPI" a região "Em verificação e com erro" (`compras/templates/compras/_verificacao.html` incluído em `_entradas.html`): por recebimento, a mensagem, as candidatas com "É esta", "Liberar para relançar" (com "Conferi no SCPI") e "Cancelar" em dois passos.
   - Criar a rota `automacoes:resolver_entrada` (POST) em `automacoes/urls.py` e `automacoes/views.py`, que chama `resolver_recebimento` e volta à aba com a mensagem; entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T077 [US3] Atualizar o `CLAUDE.md` (as candidatas por pedido, as três provas e a foto com a tela); portões do PR 5; commit
+- [X] T077 [US3] Atualizar o `CLAUDE.md` (as candidatas por pedido, as três provas e a foto com a tela); portões do PR 5; commit
 
 **Checkpoint**: nenhum recebimento em verificação é liberado sem prova (SC-006), e o "salvou e perdeu a resposta" se resolve pelo "É esta".
 
@@ -483,35 +483,35 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: com relatórios sintéticos, conferir cada veredito, inclusive uma requisição editada no SCPI depois do lançamento e uma excluída (quickstart, passo 6).
 
-- [ ] T078 [US4] Criar a branch `claude/entradas-6-vereditos` a partir de `claude/entradas-5-verificar`
-- [ ] T079 [P] [US4] Acrescentar a `tests/test_compras_regras.py` os casos de `veredito_entrada`, `comparar_entrada` e `alteracoes_entrada`:
+- [X] T078 [US4] Criar a branch `claude/entradas-6-vereditos` a partir de `claude/entradas-5-verificar`
+- [X] T079 [P] [US4] Acrescentar a `tests/test_compras_regras.py` os casos de `veredito_entrada`, `comparar_entrada` e `alteracoes_entrada`:
   - cada linha da tabela de [R17](research.md#r17-vereditos-de-um-recebimento-lançado), inclusive o Duplicado pela NF sem a marca;
   - a soma por código com o código repetido;
   - a `DTLAN` e o empenho nunca comparados;
   - a marca ausente como nota;
   - a revisão com as alterações.
-- [ ] T080 [P] [US4] Escrever `tests/test_compras_vereditos.py`, os cenários 1 a 6 da US4, com o `conciliar_entradas`, mais:
+- [X] T080 [P] [US4] Escrever `tests/test_compras_vereditos.py`, os cenários 1 a 6 da US4, com o `conciliar_entradas`, mais:
   - a primeira conclusiva `LANCAMENTO` e as seguintes `REVISAO` com `alterado_depois`;
   - a `AGUARDANDO` provisória;
   - `--arquivo` dá só o primeiro veredito;
   - o recebimento lançado nunca muda (FR-027);
   - a conciliação incompleta sai com erro e a contagem parcial.
-- [ ] T081 [US4] Implementar em `compras/regras.py` `veredito_entrada`, `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento, soma por código com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho) e `alteracoes_entrada`; a T079 passa
-- [ ] T082 [US4] Implementar em `compras/conciliacao.py`:
+- [X] T081 [US4] Implementar em `compras/regras.py` `veredito_entrada`, `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento, soma por código com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho) e `alteracoes_entrada`; a T079 passa
+- [X] T082 [US4] Implementar em `compras/conciliacao.py`:
   - `conciliar_lancados(extracao)`: os recebimentos `LANCADO` com data no período e lançados antes do início da extração; a primeira conclusiva `LANCAMENTO`, depois `REVISAO`;
   - `conciliar(extracao) = conciliar_verificar + conciliar_lancados`, sob a trava da conciliação de entradas, com cada etapa e cada recebimento isolados, e `ConciliacaoIncompleta` no fim, como `conciliacao.servicos.conciliar`;
   - `compras.consultas.veredito_atual` e `vereditos(filtro, pagina)`;
   - trocar as chamadas da T074 (em `compras.robo.extrair_depois` e no `conciliar_entradas`) por `conciliar`.
 
   A T080 passa.
-- [ ] T083 [US4] Acrescentar à aba a região "Conferência" (`compras/templates/compras/_conferencia.html`):
+- [X] T083 [US4] Acrescentar à aba a região "Conferência" (`compras/templates/compras/_conferencia.html`):
   - a última extração;
   - "Conferir agora" (`automacoes:conferir_entradas` → `scpi.disparo.iniciar_conciliacao_entradas`, desabilitado com lançamento, extração ou importação de pedidos em andamento);
   - "Atualizar pedidos" (o POST de `automacoes:importar` com `pedidos_compra`);
   - o veredito atual com o filtro `?veredito_entradas=` (Divergências, Aguardando, Comprovados e Todos) e 50 por página, com as diferenças em texto.
 
   A rota entra em `REGRAS_POR_ROTA`. Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T084 [US4] Atualizar o `CLAUDE.md` (os três vínculos, a comparação, os vereditos e o "Conferir agora" das entradas)
+- [X] T084 [US4] Atualizar o `CLAUDE.md` (os três vínculos, a comparação, os vereditos e o "Conferir agora" das entradas)
 
 **Checkpoint**: todo recebimento lançado tem veredito, e uma edição à mão no SCPI aparece como revisão.
 
@@ -523,7 +523,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: importar um relatório de pedidos sintético, depois um de entradas com uma requisição sem marca, e conferir o saldo livre, o aviso e a trava (quickstart, passo 6).
 
-- [ ] T085 [P] [US5] Acrescentar a `tests/test_compras_regras.py` os casos de `ja_entrou_explicado(delta, certos, incertos)`:
+- [X] T085 [P] [US5] Acrescentar a `tests/test_compras_regras.py` os casos de `ja_entrou_explicado(delta, certos, incertos)`:
   - só os certos;
   - certos e um subconjunto dos incertos;
   - nenhuma combinação;
@@ -531,7 +531,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - os incertos vazios.
 
   E os do saldo livre com a `EntradaForaDoCentral` não refletida, inclusive o código repetido, que reserva em cada item.
-- [ ] T086 [P] [US5] Escrever `tests/test_compras_fora_do_central.py`, os cenários 3 a 6 da US5. Casos:
+- [X] T086 [P] [US5] Escrever `tests/test_compras_fora_do_central.py`, os cenários 3 a 6 da US5. Casos:
   - a requisição sem marca com a NF de um recebimento `PREPARADO`, `ERRO` ou `VERIFICAR` é ligada (`via=MANUAL`) e sai da fila;
   - a NF desconhecida vira `EntradaForaDoCentral`, reserva e trava `FORA_DO_CENTRAL`;
   - a entrada com saída (`SAID=S`) também;
@@ -540,21 +540,21 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a importação com o "Já Entrou" não explicado trava `JA_ENTROU` e gera aviso, e a explicada pelos lançamentos do robô não trava;
   - o destravamento sem motivo, ou sem uma importação posterior, é recusado; depois dela é permitido, com o saldo recalculado;
   - a mesma requisição em duas extrações não duplica a `EntradaForaDoCentral`.
-- [ ] T087 [US5] Criar `EntradaForaDoCentral` em `compras/models.py`, conforme [data-model.md](data-model.md#entradaforadocentral-pr-6): `pedido` (FK, `PROTECT`), `requisicao` (FK → `RequisicaoEntradaOficial`, `PROTECT`), `ano` e `numero` (únicos juntos), `visivel_desde` (datetime) e `itens` (JSON `[{codigo, quantidade}]`). Gerar `compras/migrations/0006_entrada_fora_do_central.py`
-- [ ] T088 [US5] Implementar em `compras/regras.py` `ja_entrou_explicado`. Estender `saldo_livre` e `compras.consultas.reservado_por_item` com as `EntradaForaDoCentral` não refletidas. Implementar `compras.consultas.marco()`, o `maior_requisicao` da primeira `ExtracaoEntradas` bem-sucedida, comparado pela `conciliacao.regras.chave`. A T085 passa
-- [ ] T089 [US5] Implementar `conciliar_fora(extracao)` em `compras/conciliacao.py` ([R18](research.md#r18-entrada-por-pedido-feita-fora-do-central-fr-028)) e incluí-la em `conciliar`, depois de `conciliar_verificar` e antes de `conciliar_lancados`.
+- [X] T087 [US5] Criar `EntradaForaDoCentral` em `compras/models.py`, conforme [data-model.md](data-model.md#entradaforadocentral-pr-6): `pedido` (FK, `PROTECT`), `requisicao` (FK → `RequisicaoEntradaOficial`, `PROTECT`), `ano` e `numero` (únicos juntos), `visivel_desde` (datetime) e `itens` (JSON `[{codigo, quantidade}]`). Gerar `compras/migrations/0007_entrada_fora_do_central.py`
+- [X] T088 [US5] Implementar em `compras/regras.py` `ja_entrou_explicado`. Estender `saldo_livre` e `compras.consultas.reservado_por_item` com as `EntradaForaDoCentral` não refletidas. Implementar `compras.consultas.marco()`, o `maior_requisicao` da primeira `ExtracaoEntradas` bem-sucedida, comparado pela `conciliacao.regras.chave`. A T085 passa
+- [X] T089 [US5] Implementar `conciliar_fora(extracao)` em `compras/conciliacao.py` ([R18](research.md#r18-entrada-por-pedido-feita-fora-do-central-fr-028)) e incluí-la em `conciliar`, depois de `conciliar_verificar` e antes de `conciliar_lancados`.
   - Liga à mão o recebimento aberto com a mesma NF e o mesmo fornecedor, pelo `compras.servicos`, com `select_for_update`.
   - Cria a `EntradaForaDoCentral` com a trava `FORA_DO_CENTRAL`.
   - Trava `MARCA_SEM_LANCAMENTO`.
   - Ignora o que está abaixo do marco e o que já está ligado.
-- [ ] T090 [US5] Ligar a explicação do "Já Entrou" à importação em `compras/importacao.py`: por (pedido, código), entre esta importação e a anterior, os certos e os incertos de [R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029), a trava `JA_ENTROU` por `compras.servicos.travar_pedido` e um aviso em `Resultado.avisos`. A T086 passa
-- [ ] T091 [US5] Acrescentar à aba a região "Pedidos travados" (`compras/templates/compras/_travas.html`): as travas abertas com o detalhe, a data da última importação e "Destravar" com o motivo.
+- [X] T090 [US5] Ligar a explicação do "Já Entrou" à importação em `compras/importacao.py`: por (pedido, código), entre esta importação e a anterior, os certos e os incertos de [R19](research.md#r19-já-entrou-que-o-central-não-explica-fr-029), a trava `JA_ENTROU` por `compras.servicos.travar_pedido` e um aviso em `Resultado.avisos`. A T086 passa
+- [X] T091 [US5] Acrescentar à aba a região "Pedidos travados" (`compras/templates/compras/_travas.html`): as travas abertas com o detalhe, a data da última importação e "Destravar" com o motivo.
   - Criar a rota `automacoes:destravar_pedido` (POST), que chama `compras.servicos.destravar_pedido` e entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - Mostrar as travas e as entradas fora do Central também em `compras/templates/compras/pedido.html`.
   - Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T092 [US5] Completar `compras/saude.py` com os avisos de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#saúde-catalogosaude_demais): os pedidos travados, os recebimentos em verificação ou com erro, a extração de entradas com falha e as entradas fora do Central nos últimos 30 dias. Acrescentar as linhas "Pedidos de compra" e "Entradas" à visão geral de Automações (`automacoes/visao_geral.py` e `catalogo.saude.situacao_do_catalogo`). Testes em `tests/test_compras_saude.py`
-- [ ] T093 [US5] Conferir à mão no navegador local as regiões novas da aba (verificação, conferência e travas) e as travas no detalhe do pedido, a 375 px e sem depender de cor, com screenshots
-- [ ] T094 [US5] Atualizar o `CLAUDE.md` (entrada fora do Central, o marco, a explicação do "Já Entrou", as travas e o destravamento) e passar os portões do PR 6; commit
+- [X] T092 [US5] Completar `compras/saude.py` com os avisos de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#saúde-catalogosaude_demais): os pedidos travados, os recebimentos em verificação ou com erro, a extração de entradas com falha e as entradas fora do Central nos últimos 30 dias. Acrescentar as linhas "Pedidos de compra" e "Entradas" à visão geral de Automações (`automacoes/visao_geral.py` e `catalogo.saude.situacao_do_catalogo`). Testes em `tests/test_compras_saude.py`
+- [ ] T093 (**falta a conferência visual com o usuário**) [US5] Conferir à mão no navegador local as regiões novas da aba (verificação, conferência e travas) e as travas no detalhe do pedido, a 375 px e sem depender de cor, com screenshots
+- [X] T094 [US5] Atualizar o `CLAUDE.md` (entrada fora do Central, o marco, a explicação do "Já Entrou", as travas e o destravamento) e passar os portões do PR 6; commit
 
 **Checkpoint**: toda entrada feita fora do Central trava o pedido (SC-005), e o saldo livre bate com o SCPI menos o reservado (SC-003).
 
@@ -564,8 +564,8 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Purpose**: a atualização diária sem intervenção e a limpeza de 60 dias. Fecha a FR-021 (diária) e o SC-005 ("até a próxima atualização diária").
 
-- [ ] T095 Criar a branch `claude/entradas-7-diaria` a partir de `claude/entradas-6-vereditos`
-- [ ] T096 [P] Escrever `tests/test_compras_diaria.py`. Casos:
+- [X] T095 Criar a branch `claude/entradas-7-diaria` a partir de `claude/entradas-6-vereditos`
+- [X] T096 [P] Escrever `tests/test_compras_diaria.py`. Casos:
   - o `atualizar_catalogo` roda Entradas (`conciliar_entradas --diaria`) e depois Pedidos de compra, na mesma sessão;
   - um passo que falha não desfaz os anteriores nem impede o seguinte;
   - `--carga-inicial` roda os dois;
@@ -573,11 +573,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a limpeza esvazia o bruto de mais de 60 dias, inclusive o de quem aponta para ele, e apaga as requisições sem conferência que as ligue ou as liste como candidatas;
   - a limpeza com a trava ocupada fica para a próxima;
   - `--sem-limpeza`.
-- [ ] T097 Implementar `compras/limpeza.py`, com `limpar(agora=None)`, como `conciliacao.limpeza`: retenção de 60 dias, a trava da extração `ENTRADAS` e a da conciliação de entradas. A `RequisicaoEntradaOficial` ligada a uma `EntradaForaDoCentral` nunca é apagada. Chamá-la no fim do `conciliar_entradas`, salvo com `--sem-limpeza`
-- [ ] T098 Acrescentar os passos Entradas e Pedidos de compra, nessa ordem, ao comando `atualizar_catalogo` (`scpi/management/commands/atualizar_catalogo.py`), depois de Requisições e dentro de `relatorios.sessao_compartilhada`, com o resumo dos seis passos. O `deploy/crontab` não muda. A T096 passa
-- [ ] T099 Atualizar o `CLAUDE.md`: os seis passos do `atualizar_catalogo` e a limpeza das entradas
+- [X] T097 Implementar `compras/limpeza.py`, com `limpar(agora=None)`, como `conciliacao.limpeza`: retenção de 60 dias, a trava da extração `ENTRADAS` e a da conciliação de entradas. A `RequisicaoEntradaOficial` ligada a uma `EntradaForaDoCentral` nunca é apagada. Chamá-la no fim do `conciliar_entradas`, salvo com `--sem-limpeza`
+- [X] T098 Acrescentar os passos Entradas e Pedidos de compra, nessa ordem, ao comando `atualizar_catalogo` (`scpi/management/commands/atualizar_catalogo.py`), depois de Requisições e dentro de `relatorios.sessao_compartilhada`, com o resumo dos seis passos. O `deploy/crontab` não muda. A T096 passa
+- [X] T099 Atualizar o `CLAUDE.md`: os seis passos do `atualizar_catalogo` e a limpeza das entradas
 - [ ] T100 Marcar a spec como implementada (`specs/014-entrada-por-pedido/spec.md`, status) e este `tasks.md`
-- [ ] T101 Portões finais: `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run python manage.py makemigrations --check --dry-run` e `DEBUG=0 uv run python manage.py check --deploy --fail-level WARNING`. Anotar no PR o [quickstart, passo 8](quickstart.md#8-primeiro-lançamento-real-depois-do-pr-4-em-produção-manual-a-pedido-do-usuário) como pendência do usuário (L3 e L8). Commit
+- [ ] T101 (portões automáticos prontos; **falta o passo 8 do quickstart, do usuário**) Portões finais: `uv run pytest`, `uv run ruff check .`, `uv run ruff format --check .`, `uv run python manage.py makemigrations --check --dry-run` e `DEBUG=0 uv run python manage.py check --deploy --fail-level WARNING`. Anotar no PR o [quickstart, passo 8](quickstart.md#8-primeiro-lançamento-real-depois-do-pr-4-em-produção-manual-a-pedido-do-usuário) como pendência do usuário (L3 e L8). Commit
 
 ---
 
@@ -682,3 +682,12 @@ Esse corte já tem valor em produção: o saldo livre e a NF única, sem o robô
 - **[P]**: arquivos diferentes, sem dependência de tarefa incompleta.
 - **Commits**: um ao fim de cada fase, na branch do PR. Push, PR e merge só a pedido do usuário. O merge
   é de baixo para cima, um de cada vez, nunca pelo botão de stack nem pelo `merge-async`.
+
+---
+
+## Phase 9: Convergence
+
+- [X] T102 Alinhar o filtro SQL da lista de pedidos (`compras/views.py`) à `regras.disponibilidade`: só entra o pedido com item de código no cadastro e visível, ou com recebimento aberto, per contracts/tela-e-acoes.md `compras:pedidos` (partial)
+- [X] T103 Trocar `compras.servicos.tem_tentativa` (hoje pelo `status`) pela existência de uma `TentativaEntrada` real que chegou ao `EM_LANCAMENTO`, sem contar a que parou antes do Salvar nem a simulação, quando o modelo existir no PR 4, per R6 (partial)
+- [ ] T104 (o resultado do passo 2 do quickstart já está registrado na T022, feito em 12/11/2026; **falta só a conferência visual da T039**) Registrar no PR 1 o resultado do passo 2 do quickstart e fazer a conferência visual da T039 (375 px, teclado, sem depender de cor) com o usuário, per US1/AC1 e SC-002 (missing)
+

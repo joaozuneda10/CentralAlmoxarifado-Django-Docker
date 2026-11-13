@@ -36,3 +36,4 @@ STATIC_URL = "/static/"
 # Os testes do robô exercitam o lançamento real; o bloqueio tem o próprio arquivo de testes
 # (Decisão 9 do plano do subprojeto 5).
 LANCAMENTO_REAL = True
+LANCAMENTO_REAL_ENTRADAS = True

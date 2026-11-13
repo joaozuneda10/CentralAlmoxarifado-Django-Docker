@@ -10,6 +10,9 @@ Log do pedido em 10/11/2026 (F9). O 07.04.01 é o mesmo relatório que o usuári
 
 **Download**: `scpi.relatorios.baixar_pedidos_compra() -> bytes`.
 
+No menu Relatórios o item se chama "07.13. Relação de Pedidos Entregues e Não Entregues" (conferido
+na tela em 12/11/2026); "Relação de Pedidos (Condição da Entrega)" é o título do relatório.
+
 | Filtro | Valor |
 |---|---|
 | Tipo | Analítico |
@@ -30,15 +33,18 @@ relatório" e "Sair").
 | `CADPRO` | código do material | texto, comparado por `norm_u` |
 | `UNID1` | unidade | texto |
 | `TPCONTROLE_SALDO` | `Q` ou `T` | outro valor é erro |
-| `QTD`, `QTDANU`, `QTDENT`, `QTDPEDIDA`, `QTDFALTA` | quantidades | decimal pt-BR (`1361,32`) |
-| `PRCUNT` | preço unitário | decimal pt-BR |
+| `QTD`, `QTDANU`, `QTDENT`, `QTDPEDIDA`, `QTDFALTA` | quantidades | decimal pt-BR (`1361,32`); até 6 casas (o SCPI manda 5: `1,66651` no 00060/25); mais que isso é erro |
+| `PRCUNT` | preço unitário | decimal pt-BR; vem com mais de 4 casas (1,66651 no 00060/25) e é arredondado a 4: só informa, nada do saldo depende dele |
 
 Regras:
 - Os registros quebrados em várias linhas são recolados (`scpi.normalizadores`). Se a contagem de
   campos não fechar, o relatório está cortado: `ErroImportacao`.
 - Nos itens `Q`, `QTDFALTA = QTD − QTDANU − QTDENT − QTDPEDIDA`; diferença é `ErroImportacao`.
-- Relatório sem nenhum item é `ErroImportacao`. "Nada a exibir" também, porque sempre há pedido com
-  saldo no exercício.
+- Relatório sem nenhum item é `ErroImportacao`. "Nada a exibir" levanta `scpi.leitura.NadaAExibir`,
+  que a importação trata como relatório vazio confirmado (todos os itens presentes somem, sob o corte
+  de [comandos.md](comandos.md)).
+- `CODIF` e `CADPRO` vazios, e `DATPED` ou `NOME` diferentes entre os itens do mesmo pedido, são
+  `ErroImportacao`.
 - A leitura é **tudo ou nada**.
 
 ## 07.04.01 "Relação de Requisições", Requisições de Entrada
@@ -67,8 +73,8 @@ uma extração sem requisições. A função das saídas (`_relacao_de_requisico
 | `NUMPED` | `pedido_ano`, `pedido_numero` | vazio é permitido (entrada sem pedido) |
 | `SAID` | `com_saida` | `S` → verdadeiro |
 | `TPREQUI` | `tipo` | |
-| `OBS_CABECALHO` | `observacoes` | a marca `RC-…` é lida daqui |
-| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, maior que 0 |
+| `OBS_CABECALHO` e `OBS` | `observacoes` | a marca `RC-…` é lida daqui: o campo do cabeçalho é bloqueado na entrada por pedido, e o robô escreve a marca na observação de cada item (`OBS`); a leitura junta as duas |
+| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, zero ou mais (o SCPI traz entradas com 0); negativo é erro |
 | `RESPONSA` | `responsavel` | opcional |
 
 Regras:

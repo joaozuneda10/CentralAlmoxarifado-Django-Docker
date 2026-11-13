@@ -1,0 +1,72 @@
+{% extends "interface/base_almoxarifado.html" %}
+{% load interface_extras %}
+{% block title %}{{ recebimento.rotulo }} — Compras — Central Almoxarifado{% endblock %}
+{% block voltar %}<a class="link-voltar" href="{% url 'compras:pedido' pedido.pk %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao pedido {{ pedido.rotulo }}</a>{% endblock %}
+{% block rotulo %}Compras{% endblock %}
+{% block heading %}Recebimento <span class="mono">{{ recebimento.rotulo }}</span>{% endblock %}
+{% block sub %}A NF <span class="mono">{{ recebimento.nf }}</span> do pedido <span class="mono">{{ pedido.rotulo }}</span>.{% endblock %}
+
+{% block page %}
+<div class="pilha-larga">
+  <section class="cartao" aria-labelledby="titulo-dados">
+    <h2 class="cartao-titulo" id="titulo-dados">Dados</h2>
+    <dl class="dados">
+      <div><dt>Situação</dt><dd>{% include "compras/_status.html" %}</dd></div>
+      <div><dt>NF</dt><dd class="mono">{{ recebimento.nf }}</dd></div>
+      <div><dt>Fornecedor</dt><dd><span class="mono">{{ recebimento.fornecedor_codigo }}</span> {{ pedido.fornecedor_nome }}</dd></div>
+      <div><dt>Data do recebimento</dt><dd>{{ recebimento.data_recebimento|date:"d/m/Y" }}</dd></div>
+      <div><dt>Requisição no SCPI</dt><dd class="mono">{{ recebimento.requisicao_scpi|default:"—" }}</dd></div>
+      <div><dt>Observação</dt><dd>{{ recebimento.observacao|default:"—" }}</dd></div>
+    </dl>
+    {% if recebimento.mensagem %}<div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<p>{{ recebimento.mensagem }}</p></div>{% endif %}
+    {% if recebimento.status == "CANCELADO" and recebimento.motivo_cancelamento %}<p><strong>Motivo do cancelamento:</strong> {{ recebimento.motivo_cancelamento }}</p>{% endif %}
+  </section>
+
+  <section class="cartao" aria-labelledby="titulo-itens">
+    <h2 class="cartao-titulo" id="titulo-itens">Itens</h2>
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th scope="col">Item</th><th scope="col">Material</th><th scope="col">Quantidade</th></tr></thead>
+        <tbody>
+          {% for i in itens %}
+          <tr><td class="mono">{{ i.item.item }}</td><td class="mono">{{ i.item.codigo }}</td><td>{{ i.quantidade|quantidade }} {{ i.item.unidade }}</td></tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section class="cartao" aria-labelledby="titulo-historico">
+    <h2 class="cartao-titulo" id="titulo-historico">Histórico</h2>
+    <ul>
+      <li>Preparado por {{ recebimento.preparado_por.get_full_name|default:recebimento.preparado_por.username }} em {{ recebimento.preparado_em|date:"d/m/Y H:i" }}.</li>
+      {% if recebimento.alterado_em %}<li>Última alteração por {{ recebimento.alterado_por.get_full_name|default:recebimento.alterado_por.username }} em {{ recebimento.alterado_em|date:"d/m/Y H:i" }} (versão {{ recebimento.versao }}).</li>{% endif %}
+      {% if recebimento.lancado_em %}<li>Lançado no SCPI em {{ recebimento.lancado_em|date:"d/m/Y H:i" }}.</li>{% endif %}
+    </ul>
+  </section>
+
+  {% if pode_alterar %}
+  <section class="cartao" aria-labelledby="titulo-acoes">
+    <h2 class="cartao-titulo" id="titulo-acoes">Ações</h2>
+    <div class="acoes">
+      <a class="botao botao-secundario" href="{% url 'compras:editar_recebimento' recebimento.pk %}">{% include "interface/_icone.html" with nome="lapis" %}Editar</a>
+    </div>
+    <details class="cancelar">
+      <summary>Cancelar este recebimento</summary>
+      <form method="post" action="{% url 'compras:cancelar_recebimento' recebimento.pk %}" class="pilha-larga">
+        {% csrf_token %}
+        <input type="hidden" name="confirmado" value="1">
+        <div class="campo">
+          <label class="campo-rotulo" for="motivo">Motivo do cancelamento</label>
+          <input id="motivo" class="campo-entrada" type="text" name="motivo" maxlength="300" autocomplete="off" required>
+          <p class="campo-dica">O saldo reservado volta a ficar livre e a NF pode ser usada de novo.</p>
+        </div>
+        <div class="acoes"><button type="submit" class="botao botao-perigo">{% include "interface/_icone.html" with nome="fechar" %}Cancelar recebimento</button></div>
+      </form>
+    </details>
+  </section>
+  {% elif recebimento.status != "CANCELADO" and recebimento.status != "LANCADO" %}
+  <div class="aviso aviso-atencao" role="status">{% include "interface/_icone.html" with nome="alerta" %}<p>O robô já tentou lançar este recebimento: resolva em Automações › Entradas no SCPI.</p></div>
+  {% endif %}
+</div>
+{% endblock %}

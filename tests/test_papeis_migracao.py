@@ -60,11 +60,15 @@ def test_os_grupos_tem_as_permissoes_do_contrato():
     migracao.aplicar(apps, None)
     atendimento = Group.objects.get(name=GRUPO_ATENDIMENTO)
     gestao = Group.objects.get(name=GRUPO_GESTAO)
-    assert set(atendimento.permissions.values_list("codename", flat=True)) == {"atender_pedidos"}
+    assert set(atendimento.permissions.values_list("codename", flat=True)) == {
+        "atender_pedidos",
+        "receber_compras",  # dada depois, pela contas/0007 (spec 014)
+    }
     assert set(gestao.permissions.values_list("codename", flat=True)) == {
         "operar_automacoes",
         "ver_curva",
         "ver_formularios",
+        "receber_compras",
     }
 
 

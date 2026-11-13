@@ -7,13 +7,90 @@ toda leitura dele passa por `_num`.
 
 import math
 import re
-from dataclasses import dataclass
+from dataclasses import dataclass, fields, is_dataclass, replace
 from datetime import datetime, timedelta
 
 from django.utils import timezone
 
 from catalogo.saude import PREFIXO_FALHA_INESPERADA
 from scpi.lancamento import LANCAMENTO_BLOQUEADO
+
+# --- O mesmo cartão para o robô de entradas (spec 014) -----------------------------------------
+#
+# O robô de entradas grava o mesmo `resumo` das saídas, e o cartão é o mesmo; só o substantivo
+# muda: "requisição" (feminino) vira "recebimento" (masculino). O texto das saídas não muda: a
+# troca só vale para a execução `ENTRADAS`, por esta tabela (frases primeiro, depois as palavras).
+
+_FRASES_ENTRADAS = (
+    ("Lendo no SCPI as requisições já gravadas", "Lendo no SCPI as entradas já gravadas"),
+    (
+        "Nenhuma linha mudou: ela continua na fila, pronta para lançar.",
+        "Nenhum recebimento mudou: ele continua preparado, pronto para lançar.",
+    ),
+    (
+        "Nenhuma linha mudou: elas continuam na fila, prontas para lançar.",
+        "Nenhum recebimento mudou: eles continuam preparados, prontos para lançar.",
+    ),
+    ("Nenhuma linha mudou.", "Nenhum recebimento mudou."),
+    ("Nenhuma requisição", "Nenhum recebimento"),
+    ("A requisição", "O recebimento"),
+    ("As requisições", "Os recebimentos"),
+    ("a próxima requisição", "o próximo recebimento"),
+    ("a primeira requisição", "o primeiro recebimento"),
+    ("nesta requisição", "neste recebimento"),
+    ("desta requisição", "deste recebimento"),
+    ("ela foi", "ele foi"),
+    ("elas foram", "eles foram"),
+    ("Lançar as requisições", "Lançar os recebimentos"),
+)
+_PALAVRAS_ENTRADAS = {
+    "requisição": "recebimento",
+    "requisições": "recebimentos",
+    "Requisições": "Recebimentos",
+    "lançada": "lançado",
+    "lançadas": "lançados",
+    "Lançada": "Lançado",
+    "preenchida": "preenchido",
+    "preenchidas": "preenchidos",
+    "Preenchida": "Preenchido",
+    "conferida": "conferido",
+    "conferidas": "conferidos",
+    "salva": "salvo",
+    "salvas": "salvos",
+    "gravada": "gravado",
+    "gravadas": "gravados",
+    "deixada": "deixado",
+    "deixadas": "deixados",
+    "Deixada": "Deixado",
+    "processada": "processado",
+    "feitas": "feitos",
+}
+_RE_PALAVRAS = re.compile(r"\b(" + "|".join(map(re.escape, _PALAVRAS_ENTRADAS)) + r")\b")
+
+
+def para_entradas(texto: str) -> str:
+    """O texto do cartão com o substantivo e a concordância do robô de entradas."""
+    for antigo, novo in _FRASES_ENTRADAS:
+        texto = texto.replace(antigo, novo)
+    texto = re.sub(r"\bAs (\d+) requisições\b", r"Os \1 recebimentos", texto)
+    return _RE_PALAVRAS.sub(lambda m: _PALAVRAS_ENTRADAS[m.group(1)], texto)
+
+
+def _eh_entradas(execucao) -> bool:
+    return getattr(execucao, "robo", "") == "ENTRADAS"
+
+
+def _trocar(valor):
+    """`para_entradas` em todo texto de um valor do cartão (texto, lista, dicionário, dataclass)."""
+    if isinstance(valor, str):
+        return para_entradas(valor)
+    if isinstance(valor, list):
+        return [_trocar(v) for v in valor]
+    if isinstance(valor, dict):
+        return {k: _trocar(v) for k, v in valor.items()}
+    if is_dataclass(valor) and not isinstance(valor, type):
+        return replace(valor, **{f.name: _trocar(getattr(valor, f.name)) for f in fields(valor)})
+    return valor
 
 
 def _num(resumo: dict, chave: str) -> int:
@@ -31,7 +108,8 @@ def n_de_m(execucao) -> str | None:
     total = _num(execucao.resumo or {}, "requisicoes")
     if not total:
         return None
-    return f"{feitas(execucao)} de {total} {_requisicoes(total)}"
+    texto = f"{feitas(execucao)} de {total} {_requisicoes(total)}"
+    return para_entradas(texto) if _eh_entradas(execucao) else texto
 
 
 def duracao(inicio: datetime, fim: datetime | None) -> str:
@@ -79,7 +157,7 @@ def _feminino(execucao, palavra: str) -> str:
     return palavra + ("a" if execucao.simulacao else "o")
 
 
-def contadores(resumo: dict, simulacao: bool) -> list[str]:
+def contadores(resumo: dict, simulacao: bool, entradas: bool = False) -> list[str]:
     """Os contadores da execução diferentes de zero, já com o rótulo: "3 simuladas"."""
     resumo = resumo or {}
     feitas_ = (
@@ -91,11 +169,12 @@ def contadores(resumo: dict, simulacao: bool) -> list[str]:
         ("verificar", "para verificar", "para verificar"),
         ("ignoradas", "deixada de fora", "deixadas de fora"),
     ]
-    return [
+    textos = [
         _plural(_num(resumo, chave), um, varios)
         for chave, um, varios in itens
         if _num(resumo, chave)
     ]
+    return [para_entradas(t) for t in textos] if entradas else textos
 
 
 def precisa_conferir(execucao) -> bool:
@@ -109,6 +188,11 @@ def precisa_conferir(execucao) -> bool:
 
 def frase(execucao, agora: datetime, interrompida: bool) -> str:
     """A execução numa frase: modo, momento, situação e "N de M requisições"."""
+    texto = _frase(execucao, agora, interrompida)
+    return para_entradas(texto) if _eh_entradas(execucao) else texto
+
+
+def _frase(execucao, agora: datetime, interrompida: bool) -> str:
     resumo = execucao.resumo or {}
     total = _num(resumo, "requisicoes")
     Situacao = execucao.Situacao
@@ -142,7 +226,11 @@ class Falha:
     simular_de_novo: bool
 
 
-ERROS_CONHECIDOS = (LANCAMENTO_BLOQUEADO, "Outro lançamento já está em andamento.")
+ERROS_CONHECIDOS = (
+    LANCAMENTO_BLOQUEADO,
+    "Outro lançamento já está em andamento.",
+    "A importação de pedidos está em andamento.",
+)
 
 
 def _o_que_aconteceu(execucao) -> tuple[str, bool]:
@@ -163,6 +251,11 @@ def _o_que_aconteceu(execucao) -> tuple[str, bool]:
 def explicar_falha(execucao) -> Falha | None:
     """A falha em português: o que aconteceu, até onde chegou e o próximo passo. O texto gravado
     pelo robô não muda; o técnico fica para o "Detalhe técnico"."""
+    falha = _explicar_falha(execucao)
+    return _trocar(falha) if falha and _eh_entradas(execucao) else falha
+
+
+def _explicar_falha(execucao) -> Falha | None:
     if execucao.situacao != execucao.Situacao.FALHA:
         return None
     o_que, tecnico = _o_que_aconteceu(execucao)
@@ -177,6 +270,9 @@ def explicar_falha(execucao) -> Falha | None:
     if execucao.simulacao:
         proximo = (
             "Nenhuma linha mudou de estado. Pode simular de novo; se o erro se repetir, avise "
+            "quem cuida do sistema."
+            if not _eh_entradas(execucao)
+            else "Nenhum recebimento mudou. Pode simular de novo; se o erro se repetir, avise "
             "quem cuida do sistema."
         )
     else:
@@ -204,6 +300,9 @@ _ETAPAS = (
     ("etapa: itens", "Preenchendo os materiais"),
     ("etapa: cabeçalho", "Preenchendo o cabeçalho"),
     ("etapa: abrir formulário", "Abrindo o formulário"),
+    ("etapa: abrir pedido", "Abrindo o pedido no SCPI"),
+    ("etapa: conferir a tela", "Conferindo a tela do SCPI"),
+    ("etapa: preencher a entrada", "Preenchendo a entrada"),
     ("→ (", "Abrindo o formulário"),
 )
 _ITEM = re.compile(r"\bitem (\d+)/(\d+)\b")
@@ -541,8 +640,14 @@ def _titulo(execucao, rodando: bool, interrompida: bool) -> str:
 
 
 def acompanhamento(execucao, agora: datetime, interrompida: bool) -> Acompanhamento | None:
-    """A execução por requisição, para o cartão da aba Lançamento no SCPI; None na execução
-    gravada antes da lista de requisições no `resumo`."""
+    """A execução por requisição, para o cartão da aba Lançamento no SCPI (e, com o substantivo
+    "recebimento", o da aba Entradas no SCPI); None na execução gravada antes da lista de
+    requisições no `resumo`."""
+    cartao = _acompanhamento(execucao, agora, interrompida)
+    return _trocar(cartao) if cartao and _eh_entradas(execucao) else cartao
+
+
+def _acompanhamento(execucao, agora: datetime, interrompida: bool) -> Acompanhamento | None:
     resumo = execucao.resumo or {}
     if "lotes" not in resumo:
         return None
