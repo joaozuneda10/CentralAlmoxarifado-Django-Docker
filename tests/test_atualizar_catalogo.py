@@ -39,6 +39,25 @@ def test_atualizar_roda_os_tres_e_segue_depois_de_uma_falha(monkeypatch, capsys,
     )
 
 
+def test_atualizar_segue_depois_de_uma_excecao_inesperada(monkeypatch, capsys, caplog):
+    feitos = []
+
+    def falso(nome, *args, **kwargs):
+        feitos.append(nome)
+        if nome == "conciliar_entradas":
+            raise RuntimeError("o banco caiu")  # não é CommandError
+
+    monkeypatch.setattr("scpi.management.commands.atualizar_catalogo.call_command", falso)
+    with pytest.raises(CommandError, match=r"^Falharam: conciliar_entradas\.$"):
+        call_command("atualizar_catalogo")
+    assert feitos[-1] == "importar_pedidos_compra"  # o passo seguinte rodou
+    assert "conciliar_entradas: falha inesperada" in capsys.readouterr().err
+    assert any(
+        r.name == "scpi" and "conciliar_entradas" in r.getMessage() and r.exc_info
+        for r in caplog.records
+    )
+
+
 def test_atualizar_sem_falhas_termina_bem(monkeypatch):
     monkeypatch.setattr(
         "scpi.management.commands.atualizar_catalogo.call_command", lambda *a, **k: None

@@ -60,5 +60,9 @@ class Command(BaseCommand):
                     falharam.append(nome)
                     self.stderr.write(f"{nome}: {exc}")
                     logger.error("%s falhou: %s", nome, exc)
+                except Exception as exc:  # falha de banco, bug: não pode pular os passos seguintes
+                    falharam.append(nome)
+                    self.stderr.write(f"{nome}: falha inesperada ({exc!r})")
+                    logger.exception("%s falhou", nome)
         if falharam:
             raise CommandError(f"Falharam: {', '.join(falharam)}.")

@@ -11,7 +11,7 @@ import gzip
 from collections.abc import Callable
 from datetime import date
 
-from catalogo.models import Importacao
+from catalogo.models import Importacao, trava_importacao
 from compras import regras
 from compras.models import (
     ExtracaoEntradas,
@@ -21,14 +21,15 @@ from compras.models import (
 )
 from conciliacao.extracao import impressao
 from conciliacao.regras import maior_requisicao
-from scpi.execucao import Resultado, executar
+from scpi.execucao import Resultado, executar, trava
 from scpi.leitura import EntradaLida, ErroImportacao, NadaAExibir, ler_entradas
 
 
-def _bruto(conteudo: bytes | None) -> dict:
+def _bruto(conteudo: bytes | None, *, apontar: bool = True) -> dict:
     """Campos do arquivo bruto de uma extração nova. Com a mesma impressão de uma extração que
     ainda guarda os bytes, aponta para ela em vez de guardar outra cópia; se o bruto daquela já
-    foi apagado, guarda o seu."""
+    foi apagado, guarda o seu. Sem a trava das extrações (`apontar=False`), a limpeza pode estar
+    esvaziando a origem: guarda sempre o seu."""
     if conteudo is None:
         return {}
     digital = impressao(conteudo)
@@ -36,6 +37,8 @@ def _bruto(conteudo: bytes | None) -> dict:
         ExtracaoEntradas.objects.filter(impressao=digital, arquivo__isnull=False)
         .order_by("-pk")
         .first()
+        if apontar
+        else None
     )
     if origem is not None:
         return {"impressao": digital, "arquivo": None, "mesmo_arquivo_que": origem}
@@ -157,9 +160,12 @@ def extrair(
         return recebido["extracao"]
     # A transação da gravação foi desfeita: a falha ganha o seu registro, sem requisições, com o
     # bruto quando ele chegou a ser baixado (um relatório cortado fica guardado para conferência).
-    return ExtracaoEntradas.objects.create(
-        importacao=importacao,
-        motivo=motivo,
-        execucao=execucao,
-        **_bruto(recebido.get("conteudo")),
-    )
+    # O `executar` já soltou a trava das extrações: a limpeza pode rodar entre a escolha da origem
+    # do bruto e a gravação. Só aponta para uma origem com a trava na mão; sem ela, guarda a cópia.
+    with trava(trava_importacao(Importacao.Tipo.ENTRADAS)) as obtida:
+        return ExtracaoEntradas.objects.create(
+            importacao=importacao,
+            motivo=motivo,
+            execucao=execucao,
+            **_bruto(recebido.get("conteudo"), apontar=obtida),
+        )

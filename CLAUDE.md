@@ -865,8 +865,10 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
   → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
   com `FalhaCritica` e o número está no journal). O journal de antes do Salvar e o do número são
-  críticos: sem conseguir gravá-los a execução para, com o recebimento travado (o número ainda vai
-  ao banco e ao log). A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
+  críticos e a execução para sem conseguir gravá-los, mas o estado difere: sem o de antes do Salvar
+  (nada foi clicado), o recebimento fica `EM_LANCAMENTO` e a tentativa a `VERIFICAR`; sem o do número
+  (o Salvar já aconteceu), o número ainda vai ao banco e ao log, o recebimento fica `LANCADO` e só
+  então a execução para. A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
   marca) ela já achou numa requisição (`compras.robo.ja_no_scpi`: `ERRO`, nada salvo), e o `ERRO`
   de antes do Salvar só é gravado se o recebimento continua `PREPARADO` na versão selecionada. O
   `_travar` trava o pedido e depois o recebimento, a ordem de `compras.servicos`. Roda sob `TRAVA_LANCAMENTO` **e** a trava da
