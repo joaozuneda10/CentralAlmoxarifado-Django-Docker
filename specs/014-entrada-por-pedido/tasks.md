@@ -323,7 +323,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - os campos da tabela do data-model;
     - único (`extracao`, `ano`, `numero`);
     - índices em (`fornecedor_codigo`, `nf`), (`pedido_ano`, `pedido_numero`) e `recebimento_observado`.
-  - **`ItemEntradaOficial`**: `quantidade` decimal(14,4).
+  - **`ItemEntradaOficial`**: `quantidade` decimal(18,6), como a do pedido.
 - [X] T048 [US2] Implementar `compras/extracao.py`, com `extrair(motivo, periodo, obter_csv, *, execucao=None) -> ExtracaoEntradas` sobre `scpi.execucao.executar(Importacao.Tipo.ENTRADAS, ..., ao_criar=...)`.
   - O bruto vai em gzip com `conciliacao.extracao.impressao`, com o `mesmo_arquivo_que`.
   - O período é conferido contra as `DATAE`.
