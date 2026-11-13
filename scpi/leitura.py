@@ -183,7 +183,9 @@ def _tabela(
                 f"{rotulo}: o relatório está cortado no registro {numero} "
                 f"({len(linha)} de {len(cabecalho)} campos); nada foi gravado."
             )
-        if exatos and any(c.strip() for c in linha[len(cabecalho) :]):
+        # A posição sem nome no cabeçalho (o `;` final do SCPI) também tem de vir vazia.
+        sobras = [c for nome, c in zip(cabecalho, linha, strict=False) if not nome]
+        if exatos and any(c.strip() for c in (*sobras, *linha[len(cabecalho) :])):
             raise ErroImportacao(
                 f"{rotulo}: o registro {numero} tem {len(linha)} campos e o cabeçalho, "
                 f"{len(cabecalho)} (dois registros colados ou um texto com o separador); "

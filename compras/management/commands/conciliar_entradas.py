@@ -78,8 +78,12 @@ class Command(BaseCommand):
         elif arquivo:
             try:
                 periodo = periodo_do_arquivo(arquivo)
-            except ErroImportacao as exc:
-                raise CommandError(str(exc)) from None
+            except ErroImportacao:
+                # O arquivo não se lê, e o período dele não existe. A extração roda assim mesmo,
+                # com o dia de hoje no lugar, para a falha ficar registrada com o bruto (a leitura
+                # falha de novo em `extrair`, antes de o período ser conferido).
+                hoje = timezone.localdate()
+                periodo = (hoje, hoje)
             except OSError as exc:
                 raise CommandError(f"Não foi possível ler {arquivo}: {exc.strerror}.") from None
         else:
