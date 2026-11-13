@@ -396,3 +396,11 @@ def test_editar_depois_de_liberado_nao_troca_a_nf(pedido, usuario, scpi):
     assert aceita.ok, aceita.erros
     r.refresh_from_db()
     assert r.chave_nf.endswith(":501")
+    # uma reimportação troca o fornecedor do pedido: a chave reservada também não muda
+    chave = r.chave_nf
+    type(pedido).objects.filter(pk=pedido.pk).update(fornecedor_codigo="19503")
+    campos["versao"] = r.versao
+    recusa = servicos.editar_recebimento(r.pk, usuario, nf="501", itens={item: "8"}, **campos)
+    assert not recusa.ok and "fornecedor do pedido mudou" in recusa.erros[0].mensagem
+    r.refresh_from_db()
+    assert r.chave_nf == chave
