@@ -336,7 +336,7 @@ class RecebimentoParaResolver:
 
     recebimento: Recebimento
     em_verificacao: bool
-    candidatas: list  # `CandidataEntrada`, da conferência mais recente, na ordem
+    candidatas: list  # `CandidataEntrada` de todas as conferências da tentativa, uma por número
     faltas: list[str]
 
     @property
