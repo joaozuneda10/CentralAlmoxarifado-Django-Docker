@@ -240,6 +240,17 @@ def test_comando_com_falha_sai_com_erro(tmp_path):
         )
 
 
+def test_arquivo_ilegivel_sem_datas_tambem_fica_registrado_como_falha(tmp_path):
+    """Sem --desde/--ate o período viria do próprio arquivo; se ele não se lê, a falha fica
+    registrada assim mesmo, com o bruto, como acontece com as datas informadas."""
+    conteudo = csv_entradas([])
+    with pytest.raises(CommandError, match="nenhuma entrada"):
+        call_command("conciliar_entradas", arquivo=_arquivo(tmp_path, conteudo))
+    extracao = ExtracaoEntradas.objects.get()
+    assert (extracao.motivo, extracao.bem_sucedida) == ("ARQUIVO", False)
+    assert gzip.decompress(bytes(extracao.arquivo)) == conteudo
+
+
 def test_comando_recusa_so_uma_das_datas():
     with pytest.raises(CommandError, match="--desde e --ate juntos"):
         call_command("conciliar_entradas", desde="22/10/2026")

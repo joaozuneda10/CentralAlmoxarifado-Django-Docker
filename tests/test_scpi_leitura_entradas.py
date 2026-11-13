@@ -184,3 +184,13 @@ def test_registro_colado_ao_anterior_recusa_a_leitura():
     linhas[posicao] = ";" + linhas[posicao].split(";", 1)[1]
     with pytest.raises(ErroImportacao, match="campos"):
         ler_entradas("\r\n".join(linhas).encode("utf-8-sig"))
+
+
+def test_campo_depois_do_separador_final_recusa_a_leitura():
+    """O cabeçalho termina em `;`: a posição sem nome que ele cria também tem de vir vazia."""
+    conteudo = csv_entradas([_entrada()]).decode("utf-8-sig")
+    linhas = conteudo.split("\r\n")
+    posicao = next(i for i, linha in enumerate(linhas) if ";003492/26;" in linha)
+    linhas[posicao] += "EXTRA"
+    with pytest.raises(ErroImportacao, match="campos"):
+        ler_entradas("\r\n".join(linhas).encode("utf-8-sig"))
