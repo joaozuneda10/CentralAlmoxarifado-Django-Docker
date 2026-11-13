@@ -25,8 +25,8 @@ from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
 from compras.consultas import fila_entradas, verificacoes_entradas
 from compras.forms import LancamentoEntradasForm
-from compras.servicos import resolver_recebimento
 from compras.robo import lancamento_real_liberado
+from compras.servicos import resolver_recebimento
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
