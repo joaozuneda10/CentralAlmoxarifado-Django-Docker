@@ -7,11 +7,13 @@ from decimal import Decimal
 import pytest
 from django.utils import timezone
 
+from catalogo.models import Importacao
 from compras import consultas, importacao, servicos
 from compras.models import (
     CandidataEntrada,
     ConferenciaRecebimento,
     ExtracaoEntradas,
+    IncertoConsumido,
     Recebimento,
     TentativaEntrada,
 )
@@ -146,8 +148,15 @@ def test_sem_candidata_e_com_o_ja_entrou_esperado_libera_o_mesmo_recebimento(ped
     _importar_pedidos(scpi)  # o SCPI não salvou: o "Já Entrou" continua 50
     assert consultas.liberacao(r) == []
     versao, chave = r.versao, r.chave_nf
+    IncertoConsumido.objects.create(
+        pedido=pedido,
+        codigo="006.011.020",
+        recebimento=r,
+        importacao=Importacao.objects.filter(tipo="PEDIDOS_COMPRA").latest("inicio"),
+    )  # o que o recebimento explicou na tentativa descartada
     resposta = servicos.resolver_recebimento(r.pk, usuario, acao="liberar", conferi=True)
     assert resposta.ok, resposta.mensagem
+    assert not IncertoConsumido.objects.filter(recebimento=r).exists()
     r.refresh_from_db()
     assert (r.status, r.versao, r.chave_nf) == ("PREPARADO", versao + 1, chave)
     assert (r.requisicao_scpi, r.lancado_em, r.visivel_desde) == ("", None, None)

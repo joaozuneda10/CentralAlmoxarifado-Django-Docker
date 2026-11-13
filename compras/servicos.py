@@ -16,6 +16,7 @@ from django.utils import timezone
 
 from compras import consultas, regras
 from compras.models import (
+    IncertoConsumido,
     ItemRecebimento,
     PedidoCompra,
     Recebimento,
@@ -523,6 +524,9 @@ def _resolver(recebimento_id, usuario, acao, requisicao_id, conferi, motivo, con
             tentativa.resultado = TentativaEntrada.Resultado.IGNORADA
             tentativa.foto = {**(tentativa.foto or {}), "liberada": quem}
             tentativa.save(update_fields=["resultado", "foto"])
+        # O consumo era da tentativa que acabou de ser descartada: a nova, se for a verificar,
+        # volta a poder explicar um aumento do "Já Entrou" (R19).
+        IncertoConsumido.objects.filter(recebimento=recebimento).delete()
         final = f"{recebimento.rotulo} liberado para o próximo lançamento."
     else:
         limite = Recebimento._meta.get_field("motivo_cancelamento").max_length
