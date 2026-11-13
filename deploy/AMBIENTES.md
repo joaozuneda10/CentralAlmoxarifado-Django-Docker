@@ -183,6 +183,30 @@ comando que falhou: não continuar cegamente nem apagar dados/volumes; religar o
 agendador (`docker compose -p almoxarifado_prod start agendador`) só com a versão
 anterior ou a nova inteira no ar.
 
+## Liberar o lançamento real das entradas
+
+O robô de entradas por pedido (spec 014) só salva no SCPI com **duas** variáveis ligadas no
+`.env`: `LANCAMENTO_REAL=1`, que a produção já tem para as saídas, e
+`LANCAMENTO_REAL_ENTRADAS=1`, que nasce desligada. Com a segunda em `0`, o comando
+`lancar_entradas` recusa o lançamento real e a aba Entradas no SCPI só simula. O
+`atualizar.ps1` não confere nem altera essa variável: ligá-la é uma edição do `.env` da
+produção, pelo usuário, seguida de recriar o container `web`.
+
+Ligar só depois de tudo isto, nesta ordem:
+
+1. A versão implantada tem a resolução do recebimento em verificação e a conferência com o SCPI
+   (PRs 5 e 6 da spec 014): sem elas, um recebimento que fica em lançamento ou em verificação
+   não tem como ser resolvido pela tela, e trava o pedido dele.
+2. Uma simulação (`Simular`, ou `lancar_entradas --dry-run`) limpa num pedido com **um empenho
+   só**, em que a janela "Pesquisa de empenhos" não abre. O caso com vários empenhos e itens não
+   consecutivos já passou (pedido 00514/26, 12/11/2026).
+3. No ambiente de teste, uma interrupção ensaiada: uma execução encerrada à força depois de o
+   recebimento entrar em lançamento, resolvida pela aba (extração, "Já Entrou" e liberação).
+4. O primeiro Salvar real acompanhado, com **um** recebimento, seguido de "Conferir agora" na
+   aba: o veredito tem de sair Comprovado antes de lançar o segundo.
+
+Se algum passo falhar, a variável volta a `0` e as entradas seguem sendo feitas no SCPI.
+
 ## Desenvolvimento
 
 O projeto continua `almoxarifado` e preserva seus volumes, mas usa a imagem

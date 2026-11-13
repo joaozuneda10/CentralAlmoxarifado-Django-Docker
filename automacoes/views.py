@@ -32,6 +32,7 @@ from compras.consultas import (
 )
 from compras.forms import LancamentoEntradasForm
 from compras.models import TravaPedido
+from compras.robo import lancamento_real_liberado
 from compras.servicos import destravar_pedido, resolver_recebimento
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
@@ -242,8 +243,16 @@ def contexto_entradas() -> dict:
     Qualquer robô rodando segura a trava do lançamento: a dica diz qual."""
     agora = timezone.now()
     entradas = ExecucaoRobo.Robo.ENTRADAS
-    execucao = ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
-    em_andamento = ExecucaoRobo.em_andamento(agora, robo=entradas).exists()
+    # A que está rodando vem antes da mais recente: um comando disparado durante o lançamento
+    # cria outra execução, que a trava encerra como falha, e ela não pode esconder o andamento.
+    # Com a trava ocupada, uma execução antiga que morreu sem registrar o fim também conta como
+    # em andamento: entre as duas, vale a mais nova, que é a dona da trava.
+    rodando = ExecucaoRobo.em_andamento(agora, robo=entradas).select_related("iniciada_por")
+    em_andamento = rodando.exists()
+    execucao = (
+        rodando.order_by("-inicio").first()  # a mais nova: uma antiga, interrompida, fica atrás
+        or ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
+    )
     qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
     fila = fila_entradas()
     interrompida = bool(execucao and execucao.interrompida)
@@ -270,7 +279,7 @@ def contexto_entradas() -> dict:
         "fila_entradas": fila,
         "verificacoes_entradas": verificacoes_entradas(),
         "pode_executar_entradas": bool(fila.aptos) and not qualquer_robo,
-        "lancamento_real": settings.LANCAMENTO_REAL,
+        "lancamento_real_entradas": lancamento_real_liberado(),
     }
 
 

@@ -297,10 +297,26 @@ def editar_recebimento(
             return Resposta(False, erros=erros, recebimento=recebimento, motivo="erros")
 
         numero_nf = regras.nf_normalizada(nf)
+        nova_chave = regras.chave_nf(pedido.fornecedor_codigo, numero_nf)
+        if nova_chave != recebimento.chave_nf and _ja_foi_ao_salvar(recebimento):
+            # A NF já passou pelo Salvar do robô: trocar a chave aqui (a NF, ou o fornecedor que
+            # uma reimportação mudou no pedido) soltaria a reserva da original, que outro
+            # recebimento poderia usar.
+            texto = (
+                f"A NF {recebimento.nf} não pode ser trocada: o robô já tentou lançar este "
+                "recebimento. Para outra NF, cancele este e prepare um novo."
+                if numero_nf != recebimento.nf
+                else "O fornecedor do pedido mudou depois que o robô tentou lançar este "
+                "recebimento, e a NF reservada não pode mudar de fornecedor. Cancele este e "
+                "prepare um novo."
+            )
+            return Resposta(
+                False, erros=[regras.Erro("nf", texto)], recebimento=recebimento, motivo="erros"
+            )
         try:
             with transaction.atomic():
                 recebimento.nf = numero_nf
-                recebimento.chave_nf = regras.chave_nf(pedido.fornecedor_codigo, numero_nf)
+                recebimento.chave_nf = nova_chave
                 recebimento.data_recebimento = data_recebimento
                 recebimento.observacao = (observacao or "").strip()
                 recebimento.status = Recebimento.Status.PREPARADO  # o erro volta à fila

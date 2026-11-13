@@ -1,10 +1,10 @@
-from django.conf import settings
 from django.core.management import BaseCommand, CommandError
 from django.utils import timezone
 
+from compras import robo
 from pedidos.models import ExecucaoRobo
 from scpi.lancador_entradas import navegador
-from scpi.lancamento import LANCAMENTO_BLOQUEADO, LancamentoEmAndamento
+from scpi.lancamento import LancamentoEmAndamento
 from scpi.lancamento_entradas import executar_lancamento_entradas
 from scpi.leitura import ErroImportacao
 from scpi.relatorios import baixar_entradas
@@ -58,13 +58,14 @@ class Command(BaseCommand):
 
         # O modo é decidido antes de qualquer trabalho: com o lançamento real bloqueado, só a
         # simulação segue. Sem execução do botão, nada é criado; com ela, ela termina em falha.
-        if not simulacao and not settings.LANCAMENTO_REAL:
+        if not simulacao and not robo.lancamento_real_liberado():
+            bloqueio = robo.motivo_do_bloqueio_real()
             if registro is not None:
                 registro.situacao = ExecucaoRobo.Situacao.FALHA
-                registro.erro = LANCAMENTO_BLOQUEADO
+                registro.erro = bloqueio
                 registro.fim = timezone.now()
                 registro.save(update_fields=["situacao", "erro", "fim"])
-            raise CommandError(LANCAMENTO_BLOQUEADO)
+            raise CommandError(bloqueio)
 
         if registro is None:
             registro = ExecucaoRobo.objects.create(

@@ -872,7 +872,9 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `ENTRADAS`). `compras.TentativaEntrada` (migration `compras/0005`) é o registro de cada tentativa
   (`LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`); `servicos.tem_tentativa` vale pelo estado ou por uma
   tentativa `LANCADA`/`VERIFICAR`. O comando `lancar_entradas --recebimento RC-0001 [--dry-run]`
-  recusa o lançamento real sem `LANCAMENTO_REAL` antes de criar a execução; a aba **Entradas no
+  recusa o lançamento real sem `LANCAMENTO_REAL` **e** `LANCAMENTO_REAL_ENTRADAS` (a trava própria
+  das entradas, desligada por padrão; `compras.robo.lancamento_real_liberado`; as condições para
+  ligá-la estão em `deploy/AMBIENTES.md`) antes de criar a execução; a aba **Entradas no
   SCPI** (`automacoes`, `compras/_entradas.html`, `contexto_entradas`, rota `automacoes:lancar_entradas`
   em `REGRAS_POR_ROTA`) tem a fila (`compras.consultas.fila_entradas`: aptos com caixa, bloqueados com
   o motivo), Simular e Lançar (com confirmação) e o andamento, e o `fila-robo.js` a atende pelos
