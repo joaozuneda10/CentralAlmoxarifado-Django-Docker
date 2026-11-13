@@ -919,7 +919,8 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
   Entrou" por (pedido, código) (`regras.ja_entrou_explicado`: os lançados pelo robô entre as duas
   importações mais, opcionalmente, um subconjunto dos incertos) e trava `JA_ENTROU` sem explicação,
-  inclusive com delta negativo. A aba Entradas no SCPI ganha "Pedidos travados" (destravar com
+  inclusive com delta negativo; cada incerto (somado por código) explica um aumento uma vez só
+  (`IncertoConsumido`, migration `compras/0008`), e a troca de código do item compara o antigo e o novo. A aba Entradas no SCPI ganha "Pedidos travados" (destravar com
   motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
   mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
   entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da

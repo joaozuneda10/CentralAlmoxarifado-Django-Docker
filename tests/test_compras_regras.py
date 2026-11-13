@@ -672,6 +672,15 @@ def test_ja_entrou_sem_aumento_nao_enumera_os_incertos():
     assert regras.ja_entrou_explicado(d("10"), d("10"), muitos)
 
 
+def test_subconjunto_que_explica_devolve_quais_incertos_foram_usados():
+    d = Decimal
+    assert regras.subconjunto_que_explica(d("10"), d("10"), [d("5")]) == ()
+    assert regras.subconjunto_que_explica(d("15"), d("10"), [d("3"), d("5")]) == (1,)
+    assert regras.subconjunto_que_explica(d("8"), d("0"), [d("3"), d("9"), d("5")]) == (0, 2)
+    assert regras.subconjunto_que_explica(d("7"), d("0"), [d("3"), d("5")]) is None
+    assert regras.subconjunto_que_explica(d("-1"), d("0"), [d("1")]) is None
+
+
 def test_ja_entrou_explicado_por_certos_e_um_subconjunto_dos_incertos():
     d = Decimal
     assert regras.ja_entrou_explicado(d("15"), d("10"), [d("5")])

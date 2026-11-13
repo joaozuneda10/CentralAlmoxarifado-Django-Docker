@@ -8,7 +8,7 @@ from django.core.management import call_command
 from django.utils import timezone
 
 from compras import consultas, importacao, servicos
-from compras.models import EntradaForaDoCentral, Recebimento, TravaPedido
+from compras.models import EntradaForaDoCentral, IncertoConsumido, Recebimento, TravaPedido
 from pedidos.models import ExecucaoRobo
 from scpi import relatorios
 from scpi.lancamento_entradas import executar_lancamento_entradas
@@ -210,6 +210,34 @@ def test_item_que_troca_de_material_com_o_mesmo_ja_entrou_trava_o_pedido(pedido,
     (trava,) = TravaPedido.objects.filter(motivo="JA_ENTROU")
     assert trava.pedido == pedido and "006.011.020" in trava.detalhe
     assert any("Já Entrou mudou sem o Central explicar" in a for a in imp.avisos)
+
+
+def test_o_recebimento_incerto_explica_um_aumento_so_uma_vez(pedido, usuario, scpi):
+    _importar_pedidos(scpi)
+    r = preparar(pedido, usuario, {1: "10"}, nf="901")
+    Recebimento.objects.filter(pk=r.pk).update(status="VERIFICAR")  # pode ter salvado ou não
+    linhas = scpi.pedidos[(pedido.ano, pedido.numero)]
+    linhas[1]["ja_entrou"] += Decimal("10")
+    _importar_pedidos(scpi)  # o aumento de 10 é do recebimento em verificação
+    assert not TravaPedido.objects.filter(motivo="JA_ENTROU").exists()
+    assert IncertoConsumido.objects.filter(recebimento=r, pedido=pedido).count() == 1
+    linhas[1]["ja_entrou"] += Decimal("10")  # outras 10, lançadas à mão: não há outro incerto
+    imp = _importar_pedidos(scpi)
+    (trava,) = TravaPedido.objects.filter(motivo="JA_ENTROU")
+    assert trava.pedido == pedido and "subiu 10" in trava.detalhe
+    assert any("Já Entrou mudou sem o Central explicar" in a for a in imp.avisos)
+
+
+def test_as_linhas_do_mesmo_codigo_de_um_recebimento_nao_explicam_em_partes(pedido, usuario, scpi):
+    linhas = scpi.pedidos[(pedido.ano, pedido.numero)]
+    linhas[2]["codigo"] = linhas[1]["codigo"]  # dois itens do pedido com o mesmo material
+    _importar_pedidos(scpi)
+    r = preparar(pedido, usuario, {1: "4", 2: "6"}, nf="902")  # uma requisição só, de 10
+    Recebimento.objects.filter(pk=r.pk).update(status="VERIFICAR")
+    linhas[1]["ja_entrou"] += Decimal("4")
+    _importar_pedidos(scpi)  # 4 não é soma de recebimentos: só o de 10 inteiro explicaria
+    assert TravaPedido.objects.filter(motivo="JA_ENTROU").count() == 1
+    assert not IncertoConsumido.objects.exists()
 
 
 def test_a_primeira_importacao_do_exercicio_e_a_base_e_nao_confere():

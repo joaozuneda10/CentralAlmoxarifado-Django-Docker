@@ -12,7 +12,7 @@ from django.utils import timezone
 
 from catalogo.models import Importacao
 from compras.models import ItemPedidoCompra, PedidoCompra
-from compras.regras import ja_entrou_explicado, rotulo_pedido
+from compras.regras import rotulo_pedido, subconjunto_que_explica
 from pedidos.regras import norm_u
 from scpi.execucao import Resultado, executar
 from scpi.leitura import ErroImportacao, LinhaPedidoCompra, NadaAExibir, ler_pedidos_compra
@@ -208,10 +208,18 @@ def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> Non
     Por (pedido, código), o aumento do `QTDENT` entre esta importação e a anterior é explicado pelos
     recebimentos lançados pelo robô entre as duas (os certos) e, de modo opcional, por algum
     subconjunto dos que têm hora incerta: em verificação, ligados à mão e entradas fora do Central.
+    Cada incerto explica um aumento uma vez só (`IncertoConsumido`), senão um único recebimento em
+    verificação absolveria aumentos sucessivos feitos à mão.
     Sem explicação (ou com o delta negativo, de entrada excluída ou corrigida no SCPI), o pedido é
     travado com o motivo `JA_ENTROU` e um aviso vai para o resultado. A primeira importação do
     exercício é a base e não confere nada."""
-    from compras.models import EntradaForaDoCentral, ItemRecebimento, Recebimento, TravaPedido
+    from compras.models import (
+        EntradaForaDoCentral,
+        IncertoConsumido,
+        ItemRecebimento,
+        Recebimento,
+        TravaPedido,
+    )
     from compras.servicos import travar_pedido
 
     anterior = (
@@ -269,7 +277,24 @@ def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> Non
             )
             if quantidade:
                 por_origem[("entrada", entrada.pk)] = quantidade
-        if ja_entrou_explicado(delta, certos, list(por_origem.values())):
+        # O incerto que já explicou um aumento deste código não explica outro (R19).
+        consumidos = IncertoConsumido.objects.filter(pedido_id=pedido_id, codigo=codigo)
+        ja_usados = {("recebimento", c.recebimento_id) for c in consumidos if c.recebimento_id} | {
+            ("entrada", c.entrada_id) for c in consumidos if c.entrada_id
+        }
+        origens = sorted(k for k in por_origem if k not in ja_usados)
+        usados = subconjunto_que_explica(delta, certos, [por_origem[k] for k in origens])
+        if usados is not None:
+            IncertoConsumido.objects.bulk_create(
+                IncertoConsumido(
+                    pedido_id=pedido_id,
+                    codigo=codigo,
+                    recebimento_id=origens[i][1] if origens[i][0] == "recebimento" else None,
+                    entrada_id=origens[i][1] if origens[i][0] == "entrada" else None,
+                    importacao=importacao,
+                )
+                for i in usados
+            )
             continue
         por_pedido.setdefault(pedido_id, []).append(
             f"{codigo}: o Já Entrou subiu {format(delta.normalize(), 'f')} e o Central explica "

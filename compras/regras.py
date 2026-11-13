@@ -6,7 +6,7 @@ simples. As quantidades são `Decimal`; os códigos de material se comparam por
 """
 
 import re
-from collections.abc import Iterable, Mapping
+from collections.abc import Iterable, Mapping, Sequence
 from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
@@ -737,20 +737,32 @@ def _texto_da_alteracao(valor) -> str:
 # --- "Já Entrou" que o Central não explica (PR 6, R19) -------------------------------------------
 
 
-def ja_entrou_explicado(delta: Decimal, certos: Decimal, incertos: Iterable[Decimal]) -> bool:
-    """Se o aumento do "Já Entrou" (`delta`, a soma do `QTDENT` novo menos a do anterior, por
-    pedido e código) é explicado pelos recebimentos do Central: os `certos` (lançados pelo robô
-    entre as duas importações) e, de modo opcional, **algum subconjunto** dos `incertos` (em
-    verificação nesse intervalo, ligados à mão ou fora do Central, de hora desconhecida). Um delta
-    negativo (entrada excluída ou corrigida no SCPI) nunca é explicado."""
+def subconjunto_que_explica(
+    delta: Decimal, certos: Decimal, incertos: Sequence[Decimal]
+) -> tuple[int, ...] | None:
+    """Os índices de `incertos` que, somados aos `certos`, explicam o aumento do "Já Entrou"
+    (`delta`, a soma do `QTDENT` novo menos a do anterior, por pedido e código); `()` quando os
+    certos bastam e `None` sem explicação. Cada incerto (um recebimento ou uma entrada de fora, já
+    somado por código) entra inteiro ou não entra. Havendo mais de um subconjunto, vale o
+    primeiro na ordem dada. Um delta negativo (entrada excluída ou corrigida no SCPI) nunca é
+    explicado."""
     if delta < 0:
-        return False
+        return None
     restante = delta - certos
     if restante < 0:
-        return False
+        return None
     if restante == 0:
-        return True  # o conjunto vazio já explica: sem enumerar as somas dos incertos
-    somas = {Decimal(0)}
-    for quantidade in incertos:
-        somas |= {parcial + quantidade for parcial in somas}
-    return restante in somas
+        return ()  # o conjunto vazio já explica: sem enumerar as somas dos incertos
+    somas: dict[Decimal, tuple[int, ...]] = {Decimal(0): ()}
+    for indice, quantidade in enumerate(incertos):
+        for parcial, usados in list(somas.items()):
+            somas.setdefault(parcial + quantidade, (*usados, indice))
+    return somas.get(restante)
+
+
+def ja_entrou_explicado(delta: Decimal, certos: Decimal, incertos: Iterable[Decimal]) -> bool:
+    """Se o aumento do "Já Entrou" é explicado pelos recebimentos do Central: os `certos`
+    (lançados pelo robô entre as duas importações) e, de modo opcional, **algum subconjunto** dos
+    `incertos` (em verificação, ligados à mão ou fora do Central, de hora desconhecida). Ver
+    `subconjunto_que_explica`."""
+    return subconjunto_que_explica(delta, certos, list(incertos)) is not None

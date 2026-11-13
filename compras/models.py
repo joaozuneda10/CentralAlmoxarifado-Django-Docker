@@ -537,3 +537,41 @@ class EntradaForaDoCentral(models.Model):
 
     def __str__(self):
         return f"{self.numero:06d}/{self.ano % 100:02d} ({self.pedido})"
+
+
+class IncertoConsumido(models.Model):
+    """Um recebimento ou entrada de fora que já explicou um aumento do "Já Entrou" de um código
+    (spec 014, R19): o incerto entra no subconjunto que explica um aumento uma vez só, senão um
+    único recebimento em verificação absolveria aumentos sucessivos de entradas feitas à mão."""
+
+    pedido = models.ForeignKey(PedidoCompra, on_delete=models.PROTECT, related_name="+")
+    codigo = models.CharField(max_length=40, help_text="Código comparado por `norm_u`.")
+    recebimento = models.ForeignKey(
+        Recebimento, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    entrada = models.ForeignKey(
+        EntradaForaDoCentral, null=True, blank=True, on_delete=models.PROTECT, related_name="+"
+    )
+    importacao = models.ForeignKey(
+        "catalogo.Importacao",
+        on_delete=models.PROTECT,
+        related_name="+",
+        verbose_name="importação que o usou",
+    )
+
+    class Meta:
+        verbose_name = "incerto consumido"
+        verbose_name_plural = "incertos consumidos"
+        constraints = [
+            models.CheckConstraint(
+                condition=models.Q(recebimento__isnull=False, entrada__isnull=True)
+                | models.Q(recebimento__isnull=True, entrada__isnull=False),
+                name="incerto_consumido_uma_origem",
+            ),
+            models.UniqueConstraint(
+                fields=["pedido", "codigo", "recebimento"], name="incerto_consumido_recebimento"
+            ),
+            models.UniqueConstraint(
+                fields=["pedido", "codigo", "entrada"], name="incerto_consumido_entrada"
+            ),
+        ]
