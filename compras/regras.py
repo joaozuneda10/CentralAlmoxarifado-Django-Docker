@@ -199,3 +199,28 @@ def validar_recebimento(
                 )
             )
     return erros
+
+
+# --- A marca do recebimento nas Observações da entrada (PR 3) --------------------------------
+
+RE_RECEBIMENTO_OBSERVADO = re.compile(r"central\s+almoxarifado\s+(RC-[0-9]{1,9})\b", re.IGNORECASE)
+
+
+def recebimento_observado(observacoes: str) -> str:
+    """O recebimento escrito pelo robô nas Observações ("Central Almoxarifado RC-0042"), em
+    maiúsculas; vazio quando não há. Prova presença; a falta dela não prova nada. A marca das
+    saídas ("P-…", "AV-…") não casa: `conciliacao.regras.lote_observado` não lê "RC-"."""
+    casou = RE_RECEBIMENTO_OBSERVADO.search(observacoes or "")
+    return casou.group(1).upper() if casou else ""
+
+
+def texto_observacoes(rotulo: str, observacao: str = "") -> str:
+    """O que o robô escreve nas Observações da entrada: o recebimento na primeira linha e, num
+    parágrafo novo, a observação dele, numa linha só.
+
+    As mesmas duas proteções da leitura do relatório (um CSV sem aspas) das saídas: o "Obs.: " no
+    começo do parágrafo, porque uma linha que começa por uma data é lida como um registro novo, e
+    o ";" trocado por ",", porque é o separador de campos."""
+    marca = f"Central Almoxarifado {rotulo}"
+    obs = " ".join((observacao or "").replace(";", ",").split())
+    return f"{marca}\nObs.: {obs}" if obs else marca

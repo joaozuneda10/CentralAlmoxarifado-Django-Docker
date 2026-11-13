@@ -289,11 +289,11 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 ### PR 3: registro oficial das entradas
 
-- [ ] T042 [US2] Criar a branch `claude/entradas-3-extracao` a partir de `claude/entradas-2-recebimento`
-- [ ] T043 [P] [US2] Criar `tests/relacao_entradas.py`: um gerador de CSV sintético do relatório de entradas no formato real ([contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#070401-relação-de-requisições-requisições-de-entrada)).
+- [X] T042 [US2] Criar a branch `claude/entradas-3-extracao` a partir de `develop` (o PR 2 já foi mergeado)
+- [X] T043 [P] [US2] Criar `tests/relacao_entradas.py`: um gerador de CSV sintético do relatório de entradas no formato real ([contracts/relatorios-scpi.md](contracts/relatorios-scpi.md#070401-relação-de-requisições-requisições-de-entrada)).
   - Formato: as 65 colunas na ordem real, `;`, sem aspas, `\r\n`, com BOM e com `GRUPO` = `DATAE`.
   - Função: `csv_entradas(requisicoes: list[dict]) -> bytes`, com a opção de registro quebrado em `OBS_CABECALHO`.
-- [ ] T044 [P] [US2] Escrever `tests/test_scpi_leitura_entradas.py`. Casos:
+- [X] T044 [P] [US2] Escrever `tests/test_scpi_leitura_entradas.py`. Casos:
   - a leitura com e sem `NUMPED`, `DOCUM` vazio e `SAID=S`;
   - a NF sem zeros;
   - a marca `RC-…` lida;
@@ -303,8 +303,8 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - `REQUI` inválido;
   - `QUAN1` ilegível;
   - coluna obrigatória faltando.
-- [ ] T045 [US2] Implementar em `scpi/leitura.py` as dataclasses `EntradaLida` e `ItemEntradaLido` e `ler_entradas(conteudo: bytes) -> Leitura`, pura, tudo ou nada; implementar `recebimento_observado(texto) -> str` e `texto_observacoes(rotulo, observacao)` (`;` → `,`, `Obs.: ` numa linha só) em `compras/regras.py`, com o padrão `central\s+almoxarifado\s+(RC-[0-9]{1,9})\b` (IGNORECASE). A T044 passa, e o teste confere que `conciliacao.regras.lote_observado` não lê `RC-`
-- [ ] T046 [P] [US2] Escrever `tests/test_compras_extracao.py`. Casos:
+- [X] T045 [US2] Implementar em `scpi/leitura.py` as dataclasses `EntradaLida` e `ItemEntradaLido` e `ler_entradas(conteudo: bytes) -> Leitura`, pura, tudo ou nada; implementar `recebimento_observado(texto) -> str` e `texto_observacoes(rotulo, observacao)` (`;` → `,`, `Obs.: ` numa linha só) em `compras/regras.py`, com o padrão `central\s+almoxarifado\s+(RC-[0-9]{1,9})\b` (IGNORECASE). A T044 passa, e o teste confere que `conciliacao.regras.lote_observado` não lê `RC-`
+- [X] T046 [P] [US2] Escrever `tests/test_compras_extracao.py`. Casos:
   - a extração com sucesso grava as requisições e o `maior_requisicao`;
   - a falha não grava requisições e deixa o `maior_requisicao` nulo;
   - "Nada a exibir" é sucesso sem requisições;
@@ -313,7 +313,7 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
   - a impressão igual a uma origem sem bytes guarda os seus;
   - a trava do tipo ocupada;
   - `ANTES`/`DEPOIS` sem execução é recusado pela `CheckConstraint`.
-- [ ] T047 [US2] Criar `ExtracaoEntradas`, `RequisicaoEntradaOficial` e `ItemEntradaOficial` em `compras/models.py`, conforme [data-model.md](data-model.md#extracaoentradas-requisicaoentradaoficial-itementradaoficial-pr-3), mais a FK nula `TravaPedido.extracao`; gerar `compras/migrations/0003_extracao_entradas.py`.
+- [X] T047 [US2] Criar `ExtracaoEntradas`, `RequisicaoEntradaOficial` e `ItemEntradaOficial` em `compras/models.py`, conforme [data-model.md](data-model.md#extracaoentradas-requisicaoentradaoficial-itementradaoficial-pr-3), mais a FK nula `TravaPedido.extracao`; gerar `compras/migrations/0004_extracao_entradas.py` (a 0003 é a do recebimento).
   - **`ExtracaoEntradas`**:
     - `importacao` (OneToOne, `PROTECT`), `motivo` (choices `ANTES`, `DEPOIS`, `DIARIA`, `MANUAL`, `ARQUIVO`), `execucao` (FK nula, `PROTECT`);
     - `impressao` (char 64), `arquivo` (`BinaryField` nulo), `mesmo_arquivo_que` (FK self nula), `arquivo_apagado_em` e `maior_requisicao` (char 9 nulo);
@@ -323,23 +323,23 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
     - os campos da tabela do data-model;
     - único (`extracao`, `ano`, `numero`);
     - índices em (`fornecedor_codigo`, `nf`), (`pedido_ano`, `pedido_numero`) e `recebimento_observado`.
-  - **`ItemEntradaOficial`**: `quantidade` decimal(14,4).
-- [ ] T048 [US2] Implementar `compras/extracao.py`, com `extrair(motivo, periodo, obter_csv, *, execucao=None) -> ExtracaoEntradas` sobre `scpi.execucao.executar(Importacao.Tipo.ENTRADAS, ..., ao_criar=...)`.
+  - **`ItemEntradaOficial`**: `quantidade` decimal(18,6), como a do pedido.
+- [X] T048 [US2] Implementar `compras/extracao.py`, com `extrair(motivo, periodo, obter_csv, *, execucao=None) -> ExtracaoEntradas` sobre `scpi.execucao.executar(Importacao.Tipo.ENTRADAS, ..., ao_criar=...)`.
   - O bruto vai em gzip com `conciliacao.extracao.impressao`, com o `mesmo_arquivo_que`.
   - O período é conferido contra as `DATAE`.
   - `NadaAExibir` vira uma extração sem requisições.
   - A T046 passa.
-- [ ] T049 [US2] Implementar `baixar_entradas(de, ate) -> bytes` em `scpi/relatorios.py`, numa função nova (`_relacao_de_requisicoes` não muda).
+- [X] T049 [US2] Implementar `baixar_entradas(de, ate) -> bytes` em `scpi/relatorios.py`, numa função nova (`_relacao_de_requisicoes` não muda).
   - Navegação: Relatórios › Requisições › Relação de Requisições, rádio "Requisições de Entrada", só o período.
   - "Nada a exibir" levanta `NadaAExibir`.
   - O perfil é `entradas_relatorio`.
   - Sem teste de navegação.
-- [ ] T050 [US2] Criar o comando `conciliar_entradas` em `compras/management/commands/conciliar_entradas.py` (`--arquivo`, `--desde`/`--ate`, `--diaria`, `--sem-limpeza`), que nesta fase só extrai.
+- [X] T050 [US2] Criar o comando `conciliar_entradas` em `compras/management/commands/conciliar_entradas.py` (`--arquivo`, `--desde`/`--ate`, `--diaria`, `--sem-limpeza`), que nesta fase só extrai.
   - Período e motivo conforme [contracts/comandos.md](contracts/comandos.md#conciliar_entradas-pr-3-extrai-pr-5-e-pr-6-conciliam-pr-7-limpa).
   - Recusa com lançamento, extração ou importação de pedidos em andamento.
   - Testes em `tests/test_compras_extracao.py`.
-- [ ] T051 [P] [US2] Registrar `ExtracaoEntradas` (sem o bruto na lista) e `RequisicaoEntradaOficial` com os itens, só para leitura, em `compras/admin.py`; o mesmo teste da T019 para as extrações e as requisições, em `tests/test_compras_admin.py`
-- [ ] T052 [US2] Atualizar o `CLAUDE.md` (o registro oficial das entradas, `baixar_entradas`, `ler_entradas`, o comando e a marca `RC-`) e passar os portões do PR 3; pedir ao usuário a primeira parte do [quickstart, passo 4](quickstart.md#4-registro-oficial-e-navegação-do-robô-no-scpi-real-prs-3-e-4-manual); commit
+- [X] T051 [P] [US2] Registrar `ExtracaoEntradas` (sem o bruto na lista) e `RequisicaoEntradaOficial` com os itens, só para leitura, em `compras/admin.py`; o mesmo teste da T019 para as extrações e as requisições, em `tests/test_compras_admin.py`
+- [ ] T052 [US2] (CLAUDE.md e portões automáticos prontos em 12/11/2026; **falta só a primeira parte do passo 4 do quickstart, do usuário**) Atualizar o `CLAUDE.md` (o registro oficial das entradas, `baixar_entradas`, `ler_entradas`, o comando e a marca `RC-`) e passar os portões do PR 3; pedir ao usuário a primeira parte do [quickstart, passo 4](quickstart.md#4-registro-oficial-e-navegação-do-robô-no-scpi-real-prs-3-e-4-manual); commit
 
 ### PR 4: o robô de entradas
 

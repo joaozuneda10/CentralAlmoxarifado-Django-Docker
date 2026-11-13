@@ -73,8 +73,8 @@ uma extração sem requisições. A função das saídas (`_relacao_de_requisico
 | `NUMPED` | `pedido_ano`, `pedido_numero` | vazio é permitido (entrada sem pedido) |
 | `SAID` | `com_saida` | `S` → verdadeiro |
 | `TPREQUI` | `tipo` | |
-| `OBS_CABECALHO` | `observacoes` | a marca `RC-…` é lida daqui |
-| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, maior que 0 |
+| `OBS_CABECALHO` e `OBS` | `observacoes` | a marca `RC-…` é lida daqui: o campo do cabeçalho é bloqueado na entrada por pedido, e o robô escreve a marca na observação de cada item (`OBS`); a leitura junta as duas |
+| `CADPRO`, `QUAN1`, `UNID1` | itens | `QUAN1` decimal pt-BR, zero ou mais (o SCPI traz entradas com 0); negativo é erro |
 | `RESPONSA` | `responsavel` | opcional |
 
 Regras:

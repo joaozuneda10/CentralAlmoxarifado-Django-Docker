@@ -224,7 +224,7 @@ Espelham `ExtracaoOficial`, `RequisicaoOficial` e `ItemOficial` da spec 010
 | `recebimento_observado` | a marca `RC-…` lida das observações, com índice |
 | `responsavel` | `RESPONSA` |
 
-**`ItemEntradaOficial`**: `ordem`, `codigo` (`CADPRO`), `quantidade` (`QUAN1`, decimal(14,4)) e
+**`ItemEntradaOficial`**: `ordem`, `codigo` (`CADPRO`), `quantidade` (`QUAN1`, decimal(18,6), como a do pedido: o SCPI manda 5 casas) e
 `unidade`.
 
 **Validação**:
