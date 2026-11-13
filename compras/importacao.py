@@ -174,10 +174,17 @@ def gravar(
         else:
             valores["ja_entrou_anterior"] = antes.ja_entrou
             if antes.ausente_desde_id is None:  # presente nesta importação e na anterior
-                chave_delta = (pedido.pk, norm_u(linha.codigo))
-                deltas[chave_delta] = deltas.get(chave_delta, Decimal(0)) + (
-                    linha.ja_entrou - antes.ja_entrou
-                )
+                codigo_antes, codigo_agora = norm_u(antes.codigo), norm_u(linha.codigo)
+                # O "Já Entrou" se compara por (pedido, código). Se o SCPI trocou o material do
+                # item, o que saiu do código antigo e o que entrou no novo são variações de
+                # códigos diferentes: a queda no antigo é delta negativo e trava.
+                if codigo_antes == codigo_agora:
+                    variacoes = [(codigo_agora, linha.ja_entrou - antes.ja_entrou)]
+                else:
+                    variacoes = [(codigo_antes, -antes.ja_entrou), (codigo_agora, linha.ja_entrou)]
+                for codigo, variacao in variacoes:
+                    chave_delta = (pedido.pk, codigo)
+                    deltas[chave_delta] = deltas.get(chave_delta, Decimal(0)) + variacao
             for campo, valor in valores.items():
                 setattr(antes, campo, valor)
             atualizar_itens.append(antes)
@@ -223,7 +230,9 @@ def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> Non
     por_pedido: dict[int, list[str]] = {}
     for (pedido_id, codigo), delta in deltas.items():
         certos = Decimal(0)
-        incertos: list[Decimal] = []
+        # Cada recebimento (e cada entrada de fora) é uma requisição só: entra ou não entra
+        # inteiro no subconjunto, então as linhas do mesmo código somam antes de enumerar.
+        por_origem: dict[tuple[str, int], Decimal] = {}
         for linha in ItemRecebimento.objects.filter(
             recebimento__pedido_id=pedido_id
         ).select_related("recebimento", "item"):
@@ -245,16 +254,22 @@ def _explicar_ja_entrou(importacao, exercicio, deltas, avisos: list[str]) -> Non
                     or (r.lancado_em and r.lancado_em >= inicio_antes)
                 )
             ):
-                incertos.append(linha.quantidade)
+                chave = ("recebimento", r.pk)
+                por_origem[chave] = por_origem.get(chave, Decimal(0)) + linha.quantidade
         for entrada in EntradaForaDoCentral.objects.filter(
             pedido_id=pedido_id, visivel_desde__gte=inicio_antes
         ):
-            incertos += [
-                Decimal(str(i["quantidade"]))
-                for i in entrada.itens
-                if norm_u(i["codigo"]) == codigo
-            ]
-        if ja_entrou_explicado(delta, certos, incertos):
+            quantidade = sum(
+                (
+                    Decimal(str(i["quantidade"]))
+                    for i in entrada.itens
+                    if norm_u(i["codigo"]) == codigo
+                ),
+                Decimal(0),
+            )
+            if quantidade:
+                por_origem[("entrada", entrada.pk)] = quantidade
+        if ja_entrou_explicado(delta, certos, list(por_origem.values())):
             continue
         por_pedido.setdefault(pedido_id, []).append(
             f"{codigo}: o Já Entrou subiu {format(delta.normalize(), 'f')} e o Central explica "

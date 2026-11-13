@@ -632,11 +632,11 @@ def veredito_entrada(
     """O veredito de um recebimento lançado numa extração bem-sucedida que cobre a sua data (R17).
 
     Três vínculos: o número gravado, a marca `RC-…` nas observações e a NF com o fornecedor. Marca
-    ou NF em duas requisições, ou o número numa requisição com a marca de outro recebimento, é
-    Duplicado; dois vínculos achados em requisições diferentes, Conflito; nenhum vínculo, Não
-    encontrado só quando o relatório já traz número maior que o do recebimento (ou uma conferência
-    anterior já achou a requisição), senão Aguardando; os achados na mesma requisição, a
-    comparação: Comprovado ou Divergente."""
+    ou NF em duas requisições, ou o número ou a NF numa requisição com a marca de outro
+    recebimento, é Duplicado; dois vínculos achados em requisições diferentes, Conflito; nenhum
+    vínculo, Não encontrado só quando o relatório já traz número maior que o do recebimento (ou
+    uma conferência anterior já achou a requisição), senão Aguardando; os achados na mesma
+    requisição, a comparação: Comprovado ou Divergente."""
     rotulo = rotulo.upper()
     requisicoes = list(requisicoes)
     pela_marca = [r for r in requisicoes if r.recebimento_observado == rotulo]
@@ -647,20 +647,26 @@ def veredito_entrada(
         segunda_lista = pela_marca if len(pela_marca) > 1 else pela_nf
         segunda = segunda_lista[1] if len(segunda_lista) > 1 else None
         return ResultadoEntrada("DUPLICADO", primeira, segunda)
-    if (
-        pelo_numero
-        and pelo_numero.recebimento_observado
-        and pelo_numero.recebimento_observado != rotulo
-    ):
+    # A requisição que o número ou a NF apontam e que leva a marca de outro recebimento não
+    # comprova este: é a identidade de outra entrada do Central.
+    alheia = next(
+        (
+            r
+            for r in (pelo_numero, *pela_nf)
+            if r is not None and r.recebimento_observado and r.recebimento_observado != rotulo
+        ),
+        None,
+    )
+    if alheia is not None:
         return ResultadoEntrada(
             "DUPLICADO",
-            pelo_numero,
+            alheia,
             pela_marca[0] if pela_marca else None,
             notas=(
                 {
                     "campo": "observações",
-                    "texto": f"a requisição {pelo_numero.requisicao} tem nas observações o "
-                    f"recebimento {pelo_numero.recebimento_observado}",
+                    "texto": f"a requisição {alheia.requisicao} tem nas observações o "
+                    f"recebimento {alheia.recebimento_observado}",
                 },
             ),
         )
@@ -742,6 +748,8 @@ def ja_entrou_explicado(delta: Decimal, certos: Decimal, incertos: Iterable[Deci
     restante = delta - certos
     if restante < 0:
         return False
+    if restante == 0:
+        return True  # o conjunto vazio já explica: sem enumerar as somas dos incertos
     somas = {Decimal(0)}
     for quantidade in incertos:
         somas |= {parcial + quantidade for parcial in somas}

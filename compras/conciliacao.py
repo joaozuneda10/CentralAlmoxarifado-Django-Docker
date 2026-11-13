@@ -257,6 +257,19 @@ def _primeira_conclusiva(recebimento):
     )
 
 
+def _ja_achou_a_requisicao(recebimento) -> bool:
+    """Se alguma conferência anterior (conclusiva ou não) já ligou o recebimento a uma requisição:
+    a primeira conclusiva pode ter sido um Não encontrado, e a requisição achada depois não deixa
+    de existir se sumir numa terceira extração."""
+    from compras.models import ConferenciaRecebimento
+
+    return ConferenciaRecebimento.objects.filter(
+        recebimento=recebimento,
+        tipo__in=(ConferenciaRecebimento.Tipo.LANCAMENTO, ConferenciaRecebimento.Tipo.REVISAO),
+        requisicao__isnull=False,
+    ).exists()
+
+
 def conciliar_lancados(
     extracao: ExtracaoEntradas, falhas: list[str] | None = None
 ) -> dict[str, int]:
@@ -324,7 +337,7 @@ def conciliar_lancados(
                 nf=recebimento.nf,
                 maior=extracao.maior_requisicao,
                 numero_em_outro_recebimento=em_outro,
-                ja_vista=bool(primeira and primeira.requisicao_id),
+                ja_vista=_ja_achou_a_requisicao(recebimento),
             )
             tipo = (
                 ConferenciaRecebimento.Tipo.REVISAO
@@ -437,14 +450,25 @@ def _entrada_de_fora(extracao, requisicao) -> str:
             Recebimento.Status.EM_LANCAMENTO,
         ):
             return ""  # entrada do próprio Central: o veredito dela é de outra etapa
-        travar_pedido(
-            pedido.pk,
-            TravaPedido.Motivo.MARCA_SEM_LANCAMENTO,
+        detalhe = (
             f"A requisição {requisicao.requisicao} tem a marca {marca}, mas o recebimento "
-            + ("não está lançado." if dono else "não existe."),
-            extracao=extracao,
-            recebimento=dono,
+            + ("não está lançado." if dono else "não existe.")
         )
+        # Uma trava aberta igual já diz isso: outra passagem pela mesma requisição (a mesma
+        # extração conciliada de novo, ou uma posterior que ainda a lista) não a repete.
+        if not TravaPedido.objects.filter(
+            pedido=pedido,
+            motivo=TravaPedido.Motivo.MARCA_SEM_LANCAMENTO,
+            detalhe=detalhe,
+            destravada_em__isnull=True,
+        ).exists():
+            travar_pedido(
+                pedido.pk,
+                TravaPedido.Motivo.MARCA_SEM_LANCAMENTO,
+                detalhe,
+                extracao=extracao,
+                recebimento=dono,
+            )
         return "MARCA_SEM_LANCAMENTO"
     numero = requisicao.requisicao
     with transaction.atomic():

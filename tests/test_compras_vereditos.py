@@ -169,6 +169,45 @@ def test_conflito_quando_o_numero_e_a_nf_apontam_para_requisicoes_diferentes(ped
     assert _conferencias(r)[-1].veredito in {"CONFLITO", "DUPLICADO"}
 
 
+def test_a_requisicao_achada_numa_conferencia_anterior_nao_some_calada(pedido, usuario, scpi):
+    r = _lancar(pedido, usuario, scpi)
+    primeira = _conferencias(r)[0]
+    # a primeira conclusiva não achou nada; uma segunda achou a requisição (COMPROVADO)
+    ConferenciaRecebimento.objects.filter(pk=primeira.pk).update(
+        veredito="NAO_ENCONTRADO", requisicao=None
+    )
+    ConferenciaRecebimento.objects.create(
+        recebimento=r,
+        extracao=primeira.extracao,
+        tipo="REVISAO",
+        veredito="COMPROVADO",
+        requisicao=primeira.requisicao,
+        tentativa=primeira.tentativa,
+    )
+    scpi.salvas.clear()  # agora a requisição sumiu e não há número maior no relatório
+    scpi.entrada_manual((pedido.ano, pedido.numero), {2: "1"}, data=timezone.localdate(), nf="777")
+    scpi.salvas[0].requisicao = "003400/26"
+    call_command("conciliar_entradas")
+    ultima = _conferencias(r)[-1]
+    assert ultima.veredito == "NAO_ENCONTRADO"  # e não AGUARDANDO, que esconderia o sumiço
+
+
+def test_a_lista_de_vereditos_filtra_e_pagina_o_veredito_atual(pedido, usuario, scpi):
+    from compras.consultas import vereditos
+
+    r = _lancar(pedido, usuario, scpi)
+    comprovados = vereditos("comprovados")
+    (linha,) = list(comprovados)
+    assert linha["recebimento"] == r and linha["veredito"] == "COMPROVADO"
+    assert linha["conferencia"] == _conferencias(r)[-1]
+    assert list(vereditos("divergencias")) == []
+    assert list(vereditos("aguardando")) == []
+    ConferenciaRecebimento.objects.all().delete()
+    (sem,) = list(vereditos("aguardando"))
+    assert sem["conferencia"] is None and sem["veredito"] == "AGUARDANDO"
+    assert [x["recebimento"] for x in vereditos("todos")] == [r]
+
+
 # --- --arquivo, incompleta -------------------------------------------------------------------
 
 

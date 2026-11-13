@@ -75,12 +75,7 @@ def test_nf_desconhecida_vira_entrada_fora_do_central_reserva_e_trava(pedido, sc
     assert (entrada.pedido, entrada.numero, entrada.ano) == (pedido, 3493, 2026)
     assert entrada.itens == [{"codigo": "006.011.020", "quantidade": "8"}]
     (trava,) = TravaPedido.objects.filter(motivo="FORA_DO_CENTRAL")
-    assert (
-        trava.pedido == pedido
-        and trava.aberta
-        and "3493" in trava.detalhe
-        or "003493" in trava.detalhe
-    )
+    assert trava.pedido == pedido and trava.aberta and "003493" in trava.detalhe
     assert _livre(pedido, 1) == livre_antes - 8  # reserva até o SCPI refletir
     assert consultas.estado_do_pedido(pedido) == "travado"
 
@@ -146,6 +141,17 @@ def test_a_marca_de_um_recebimento_nao_lancado_trava_o_pedido(pedido, usuario, s
     assert r.status == "PREPARADO"  # nada foi ligado
 
 
+def test_a_marca_sem_lancamento_nao_repete_a_trava_aberta_em_outra_conciliacao(
+    pedido, usuario, scpi, com_marco
+):
+    r = preparar(pedido, usuario, {1: "10"}, nf="900")
+    scpi.entrada_manual((pedido.ano, pedido.numero), {1: "10"}, data=timezone.localdate(), nf="900")
+    scpi.salvas[-1].observacoes = f"Central Almoxarifado {r.rotulo}"
+    call_command("conciliar_entradas")
+    call_command("conciliar_entradas")  # outra extração lista a mesma requisição com a mesma marca
+    assert TravaPedido.objects.filter(motivo="MARCA_SEM_LANCAMENTO").count() == 1
+
+
 def test_a_marca_do_recebimento_lancado_pelo_robo_nao_e_entrada_de_fora(
     pedido, usuario, scpi, com_marco
 ):
@@ -193,6 +199,17 @@ def test_ja_entrou_que_cai_trava_tambem(pedido, scpi):
     scpi.pedidos[(pedido.ano, pedido.numero)][1]["ja_entrou"] -= Decimal("5")  # excluída no SCPI
     _importar_pedidos(scpi)
     assert TravaPedido.objects.filter(motivo="JA_ENTROU").count() == 1
+
+
+def test_item_que_troca_de_material_com_o_mesmo_ja_entrou_trava_o_pedido(pedido, scpi):
+    _importar_pedidos(scpi)
+    # o SCPI corrige o material do item 1 e o "Já Entrou" continua o mesmo: o que saiu do
+    # código antigo e o que entrou no novo não se anulam, são códigos diferentes
+    scpi.pedidos[(pedido.ano, pedido.numero)][1]["codigo"] = "006.011.099"
+    imp = _importar_pedidos(scpi)
+    (trava,) = TravaPedido.objects.filter(motivo="JA_ENTROU")
+    assert trava.pedido == pedido and "006.011.020" in trava.detalhe
+    assert any("Já Entrou mudou sem o Central explicar" in a for a in imp.avisos)
 
 
 def test_a_primeira_importacao_do_exercicio_e_a_base_e_nao_confere():

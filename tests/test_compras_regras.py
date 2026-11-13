@@ -627,6 +627,14 @@ def test_duplicado_pela_marca_pela_nf_sem_marca_e_pelo_numero_com_marca_de_outro
     assert _ver([_of()], numero_em_outro_recebimento=True).veredito == "DUPLICADO"
 
 
+def test_a_nf_que_leva_a_requisicao_com_a_marca_de_outro_recebimento_nao_comprova():
+    # o número gravado não aparece; a NF acha uma requisição que é do RC-0099
+    da_nf = _of("003777/26", marca="RC-0099")
+    r = _ver([da_nf])
+    assert r.veredito == "DUPLICADO" and r.requisicao is da_nf
+    assert "RC-0099" in r.notas[0]["texto"]
+
+
 def test_conflito_quando_dois_vinculos_apontam_para_requisicoes_diferentes():
     r = _ver(
         [_of("003492/26", marca="", nf="900"), _of("003493/26", marca="RC-0042", nf="900")], nf=""
@@ -655,6 +663,13 @@ def test_as_alteracoes_comparam_os_valores():
 def test_ja_entrou_explicado_so_pelos_certos():
     assert regras.ja_entrou_explicado(Decimal("10"), Decimal("10"), [])
     assert regras.ja_entrou_explicado(Decimal("0"), Decimal("0"), [])
+
+
+def test_ja_entrou_sem_aumento_nao_enumera_os_incertos():
+    d = Decimal
+    muitos = [d("1")] * 5000  # enumerar as somas desses incertos seria desperdício
+    assert regras.ja_entrou_explicado(d("0"), d("0"), muitos)
+    assert regras.ja_entrou_explicado(d("10"), d("10"), muitos)
 
 
 def test_ja_entrou_explicado_por_certos_e_um_subconjunto_dos_incertos():

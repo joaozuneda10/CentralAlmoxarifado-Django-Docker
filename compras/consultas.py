@@ -5,12 +5,14 @@ from dataclasses import dataclass
 from datetime import date
 from decimal import Decimal
 
-from django.db.models import Count, Q
+from django.db.models import CharField, Count, OuterRef, Q, Subquery, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 
 from catalogo.models import Importacao, Material
 from compras import regras
 from compras.models import (
+    ConferenciaRecebimento,
     ItemPedidoCompra,
     ItemRecebimento,
     PedidoCompra,
@@ -466,29 +468,46 @@ PROBLEMAS = ("DIVERGENTE", "NAO_ENCONTRADO", "DUPLICADO", "CONFLITO")
 
 
 def vereditos(filtro: str = "divergencias", pagina: int | str = 1):
-    """Os recebimentos lançados com o veredito atual, filtrados e paginados (50 por página)."""
+    """Os recebimentos lançados com o veredito atual, filtrados e paginados (50 por página).
+
+    O veredito atual (o da última conferência conclusiva, como `veredito_atual`) vem numa
+    subconsulta, o filtro é SQL e só as conferências da página pedida são lidas."""
     from django.core.paginator import Paginator
 
+    atual = _conclusivas(OuterRef("pk")).order_by("-criada_em", "-pk")
     lancados = (
         Recebimento.objects.filter(status=Recebimento.Status.LANCADO)
         .select_related("pedido")
+        .annotate(
+            atual_pk=Subquery(atual.values("pk")[:1]),
+            atual_veredito=Coalesce(
+                Subquery(atual.values("veredito")[:1]),
+                Value("AGUARDANDO"),
+                output_field=CharField(),
+            ),
+        )
         .order_by("-lancado_em", "-pk")
     )
-    linhas = []
-    for recebimento in lancados:
-        atual = veredito_atual(recebimento)
-        veredito = atual.veredito if atual else "AGUARDANDO"
-        if (
-            filtro == "divergencias"
-            and veredito not in PROBLEMAS
-            or filtro == "aguardando"
-            and veredito != "AGUARDANDO"
-            or filtro == "comprovados"
-            and veredito != "COMPROVADO"
-        ):
-            continue
-        linhas.append({"recebimento": recebimento, "conferencia": atual, "veredito": veredito})
-    return Paginator(linhas, POR_PAGINA_VEREDITOS).get_page(pagina)
+    if filtro == "divergencias":
+        lancados = lancados.filter(atual_veredito__in=PROBLEMAS)
+    elif filtro == "aguardando":
+        lancados = lancados.filter(atual_veredito="AGUARDANDO")
+    elif filtro == "comprovados":
+        lancados = lancados.filter(atual_veredito="COMPROVADO")
+    pagina_obtida = Paginator(lancados, POR_PAGINA_VEREDITOS).get_page(pagina)
+    recebimentos = list(pagina_obtida.object_list)
+    conferencias = ConferenciaRecebimento.objects.in_bulk(
+        [r.atual_pk for r in recebimentos if r.atual_pk]
+    )
+    pagina_obtida.object_list = [
+        {
+            "recebimento": r,
+            "conferencia": conferencias.get(r.atual_pk),
+            "veredito": r.atual_veredito,
+        }
+        for r in recebimentos
+    ]
+    return pagina_obtida
 
 
 def ultima_extracao_entradas():
