@@ -360,3 +360,39 @@ def test_cancelar_depois_de_liberado_nao_libera_a_nf(pedido, usuario, scpi):
     assert resposta.ok and "continua reservada" in resposta.mensagem
     r.refresh_from_db()
     assert (r.status, r.chave_nf) == ("CANCELADO", chave) and chave
+
+
+def test_candidata_de_conferencia_anterior_continua_na_tela_para_o_e_esta(
+    pedido, usuario, scpi, monkeypatch
+):
+    """A candidata apareceu numa conferência e sumiu da seguinte: ela continua bloqueando a
+    liberação, então continua na lista, para o operador poder ligá-la."""
+    from django.core.management import call_command
+
+    from scpi import relatorios
+
+    monkeypatch.setattr(relatorios, "baixar_entradas", scpi.relatorio_entradas)
+    r = _em_verificacao(pedido, usuario, scpi, salvou=True)
+    scpi.salvas.clear()  # a requisição some do relatório seguinte
+    call_command("conciliar_entradas")
+    assert ConferenciaRecebimento.objects.filter(recebimento=r).count() == 2
+    (linha,) = consultas.verificacoes_entradas()
+    assert [c.requisicao.requisicao for c in linha.candidatas] == ["003492/26"]
+    assert any("candidata" in falta for falta in linha.faltas)
+
+
+def test_editar_depois_de_liberado_nao_troca_a_nf(pedido, usuario, scpi):
+    """Liberado para relançar, o recebimento pode ser editado, mas a NF que já passou pelo Salvar
+    continua reservada: trocá-la soltaria a original para outro recebimento."""
+    r = _em_verificacao(pedido, usuario, scpi, salvou=False)
+    _importar_pedidos(scpi)
+    assert servicos.resolver_recebimento(r.pk, usuario, acao="liberar", conferi=True).ok
+    r.refresh_from_db()
+    campos = {"versao": r.versao, "data_recebimento": r.data_recebimento}
+    item = pedido.itens.get(item=1).pk
+    recusa = servicos.editar_recebimento(r.pk, usuario, nf="502", itens={item: "10"}, **campos)
+    assert not recusa.ok and "não pode ser trocada" in recusa.erros[0].mensagem
+    aceita = servicos.editar_recebimento(r.pk, usuario, nf="501", itens={item: "8"}, **campos)
+    assert aceita.ok, aceita.erros
+    r.refresh_from_db()
+    assert r.chave_nf.endswith(":501")

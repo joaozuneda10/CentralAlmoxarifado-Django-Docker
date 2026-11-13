@@ -346,7 +346,12 @@ class RecebimentoParaResolver:
 
 def verificacoes_entradas() -> list[RecebimentoParaResolver]:
     """Os recebimentos em verificação (ou em lançamento sem robô) e com erro, na ordem do número,
-    para a região "Em verificação e com erro" da aba Entradas no SCPI."""
+    para a região "Em verificação e com erro" da aba Entradas no SCPI.
+
+    As candidatas são as de todas as conferências da tentativa atual, uma vez cada requisição,
+    pela foto mais recente: a que apareceu numa conferência e sumiu da seguinte continua
+    bloqueando a liberação (`liberacao`), e tem de estar na tela para o "É esta"."""
+    from compras.conciliacao import ultima_tentativa
     from compras.models import CandidataEntrada, ConferenciaRecebimento
 
     abertos = (
@@ -367,18 +372,20 @@ def verificacoes_entradas() -> list[RecebimentoParaResolver]:
         faltas = []
         if em_verificacao:
             faltas = liberacao(recebimento)
-            ultima = (
-                ConferenciaRecebimento.objects.filter(
-                    recebimento=recebimento, tipo=ConferenciaRecebimento.Tipo.VERIFICAR
-                )
-                .order_by("-criada_em", "-pk")
-                .first()
+            conferencias = ConferenciaRecebimento.objects.filter(
+                recebimento=recebimento, tipo=ConferenciaRecebimento.Tipo.VERIFICAR
             )
-            if ultima is not None:
-                candidatas = list(
-                    CandidataEntrada.objects.filter(conferencia=ultima)
-                    .select_related("requisicao")
-                    .order_by("ordem")
-                )
+            tentativa = ultima_tentativa(recebimento)
+            if tentativa is not None:
+                conferencias = conferencias.filter(tentativa=tentativa)
+            vistas = set()
+            for candidata in (
+                CandidataEntrada.objects.filter(conferencia__in=conferencias)
+                .select_related("requisicao")
+                .order_by("-conferencia__criada_em", "-conferencia__pk", "ordem")
+            ):
+                if candidata.requisicao.requisicao not in vistas:
+                    vistas.add(candidata.requisicao.requisicao)
+                    candidatas.append(candidata)
         resultado.append(RecebimentoParaResolver(recebimento, em_verificacao, candidatas, faltas))
     return resultado

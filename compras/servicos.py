@@ -297,6 +297,16 @@ def editar_recebimento(
             return Resposta(False, erros=erros, recebimento=recebimento, motivo="erros")
 
         numero_nf = regras.nf_normalizada(nf)
+        if numero_nf != recebimento.nf and _ja_foi_ao_salvar(recebimento):
+            # A NF já passou pelo Salvar do robô: trocá-la aqui soltaria a reserva da original,
+            # que outro recebimento poderia usar.
+            texto = (
+                f"A NF {recebimento.nf} não pode ser trocada: o robô já tentou lançar este "
+                "recebimento. Para outra NF, cancele este e prepare um novo."
+            )
+            return Resposta(
+                False, erros=[regras.Erro("nf", texto)], recebimento=recebimento, motivo="erros"
+            )
         try:
             with transaction.atomic():
                 recebimento.nf = numero_nf
