@@ -230,7 +230,9 @@ class SCPIEntradasSimulado:
                             item,
                             d["codigo"],
                             quantidade=format(d["quantidade"].normalize(), "f"),
+                            anulado=format(d["anulado"].normalize(), "f"),
                             ja_entrou=format(d["ja_entrou"].normalize(), "f"),
+                            pedida=format(d["pedida"].normalize(), "f"),
                         )
                     )
         return csv_pedidos(itens)

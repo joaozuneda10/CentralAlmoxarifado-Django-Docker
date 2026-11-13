@@ -187,8 +187,14 @@ def contexto_entradas() -> dict:
     Qualquer robô rodando segura a trava do lançamento: a dica diz qual."""
     agora = timezone.now()
     entradas = ExecucaoRobo.Robo.ENTRADAS
-    execucao = ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
-    em_andamento = ExecucaoRobo.em_andamento(agora, robo=entradas).exists()
+    # A que está rodando vem antes da mais recente: um comando disparado durante o lançamento
+    # cria outra execução, que a trava encerra como falha, e ela não pode esconder o andamento.
+    rodando = ExecucaoRobo.em_andamento(agora, robo=entradas).select_related("iniciada_por")
+    em_andamento = rodando.exists()
+    execucao = (
+        rodando.order_by("inicio").first()
+        or ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
+    )
     qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
     fila = fila_entradas()
     interrompida = bool(execucao and execucao.interrompida)

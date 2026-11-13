@@ -2,10 +2,11 @@
 Aba Entradas no SCPI (spec 014): a fila de recebimentos que o robô lança, os botões Simular e Lançar
 no SCPI e o andamento. Mesmo desenho da aba Lançamento no SCPI, com o `fila-robo.js` dirigido pelos
 atributos `data-fila-*` do formulário. A região (`section#entradas-no-scpi`) se recarrega a cada 3 s
-só enquanto o robô de entradas roda; os recebimentos bloqueados aparecem sem caixa de marcar, com o
+enquanto algum robô roda (o de entradas, para o andamento; o de saídas, para os botões voltarem
+quando ele termina); os recebimentos bloqueados aparecem sem caixa de marcar, com o
 motivo. Qualquer robô rodando segura a trava do lançamento e desabilita os botões.
 {% endcomment %}
-<section id="entradas-no-scpi" class="pilha-larga"{% if entradas_em_andamento %} hx-get="{% url 'automacoes:pagina' %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
+<section id="entradas-no-scpi" class="pilha-larga"{% if entradas_em_andamento or saidas_lancando %} hx-get="{% url 'automacoes:pagina' %}" hx-trigger="every 3s" hx-swap="outerHTML"{% endif %}>
   {% if entradas_no_topo %}{% include "pedidos/_andamento.html" with acomp=acomp_entradas andamento=andamento_entradas execucao=execucao_entradas log_recente=log_entradas lancamento_em_andamento=entradas_em_andamento entradas=True %}{% endif %}
   <div class="cartao pilha">
     <form method="post" action="{% url 'automacoes:lancar_entradas' %}" id="fila-entradas-form" class="fila-form" data-fila-robo data-fila-campo="recebimentos" data-fila-um="recebimento selecionado" data-fila-varios="recebimentos selecionados" data-fila-nenhum="Nenhum recebimento selecionado" data-fila-conf-um="O recebimento {} será lançado de verdade no SCPI. Não dá para desfazer por aqui." data-fila-conf-varios="Os recebimentos {} serão lançados de verdade no SCPI. Não dá para desfazer por aqui." data-fila-dialogo="dialogo-lancar-entradas">

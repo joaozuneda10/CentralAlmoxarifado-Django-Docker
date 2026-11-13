@@ -38,7 +38,7 @@ continua no cartão de uma frase (`andamento`).
     <div class="pilha-curta">
       <p><strong>{{ d.titulo }}</strong></p>
       {% if d.texto %}<p>{{ d.texto }}</p>{% endif %}
-      {% if d.travas %}<div class="acoes"><a class="botao botao-secundario" href="#travas">Ver as travas{% include "interface/_icone.html" with nome="seta-direita" %}</a></div>{% endif %}
+      {% if d.travas and not entradas %}<div class="acoes"><a class="botao botao-secundario" href="#travas">Ver as travas{% include "interface/_icone.html" with nome="seta-direita" %}</a></div>{% endif %}
     </div>
   </div>
   {% endif %}{% endwith %}

@@ -216,3 +216,37 @@ def test_a_acao_exige_login_e_operar_automacoes(client, pedido, disparos):
     assert client.post(LANCAR, dados).status_code == 403
     assert client.get(LANCAR).status_code == 403  # recusa antes do método
     assert disparos == [] and not ExecucaoRobo.objects.exists()
+
+
+def test_com_o_robo_de_saidas_rodando_a_regiao_se_atualiza_ate_os_botoes_voltarem(client, logado):
+    saidas = ExecucaoRobo.objects.create(robo="SAIDAS")
+    assert 'hx-trigger="every 3s"' in _regiao(client).text
+    saidas.situacao = "SUCESSO"
+    saidas.fim = saidas.inicio
+    saidas.save()
+    assert 'hx-trigger="every 3s"' not in _regiao(client).text
+
+
+def test_a_execucao_em_andamento_vem_antes_da_tentativa_recusada(client, logado):
+    """Um comando disparado durante o lançamento cria outra execução, que termina em falha: o
+    cartão continua mostrando a que está rodando."""
+    rodando = ExecucaoRobo.objects.create(robo="ENTRADAS")
+    ExecucaoRobo.objects.create(
+        robo="ENTRADAS", situacao="FALHA", fim=rodando.inicio, erro="Há um lançamento em andamento."
+    )
+    contexto = client.get(ENTRADAS).context
+    assert contexto["execucao_entradas"] == rodando and contexto["entradas_em_andamento"]
+
+
+def test_o_cartao_das_entradas_nao_aponta_para_as_travas_das_saidas(client, logado):
+    ExecucaoRobo.objects.create(
+        robo="ENTRADAS",
+        situacao="ATENCAO",
+        fim=timezone.now(),
+        resumo={
+            "fase": "depois",
+            "verificar": 1,
+            "lotes": [{"lote": "RC-0001", "resultado": "verificar"}],
+        },
+    )
+    assert 'href="#travas"' not in client.get(ENTRADAS).text

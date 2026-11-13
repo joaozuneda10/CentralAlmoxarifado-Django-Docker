@@ -319,6 +319,27 @@ def test_falha_antes_do_salvar_nao_desfaz_o_que_mudou_durante_o_preenchimento(
     assert not scpi.salvas
 
 
+def test_banco_que_recusa_o_erro_de_antes_do_salvar_conta_como_falha(
+    pedido, usuario, scpi, monkeypatch
+):
+    """A falha do preenchimento que o banco não deixa gravar não é um recebimento que mudou: a
+    execução termina com atenção, e não como se nada tivesse acontecido."""
+    r = preparar(pedido, usuario, {1: "10"})
+    scpi.falha_antes.add("preencher")
+    original = QuerySet.update
+
+    def quebrar(self, **kwargs):
+        if kwargs.get("status") == "ERRO":
+            raise DatabaseError("MySQL server has gone away")
+        return original(self, **kwargs)
+
+    monkeypatch.setattr(QuerySet, "update", quebrar)
+    execucao = _rodar([r.rotulo], scpi)
+    assert execucao.situacao == "ATENCAO"
+    assert (execucao.resumo["falhas"], execucao.resumo["ignoradas"]) == (1, 0)
+    assert execucao.resumo["lotes"][0]["resultado"] == "erro"
+
+
 # --- simulação ---------------------------------------------------------------------------------
 
 

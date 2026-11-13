@@ -143,8 +143,10 @@ def _gravar(
     critico: bool,
     se_preparado: bool = False,
     **campos,
-) -> bool:
-    """Grava o resultado no recebimento, com valores absolutos pelo `id`, e diz se gravou. Se o
+) -> bool | None:
+    """Grava o resultado no recebimento, com valores absolutos pelo `id`, e diz se gravou: `True`,
+    `False` (com `se_preparado`, o recebimento mudou e nada foi gravado) ou `None` (o banco
+    recusou; quem chama conta a falha, que não é uma mudança do recebimento). Se o
     banco recusar, o que se queria gravar vai para o journal. Com `critico` (resultado de um
     Salvar), a execução para: continuar arriscaria lançar sem registrar.
 
@@ -166,7 +168,7 @@ def _gravar(
                 f"{JOURNAL}: confira no SCPI e resolva o recebimento à mão."
             ) from exc
         logger.error("✘ %s: não foi possível gravar %s: %s", rec, status, exc)
-        return False
+        return None
 
 
 def _travar(
@@ -384,7 +386,7 @@ def _falha_antes_do_salvar(rec, exc, scpi, execucao, resumo, ordem, concluir, te
         critico=False,
         se_preparado=True,
     )
-    if gravou:
+    if gravou is not False:  # gravado, ou o banco recusou: nos dois casos a falha é real
         resumo.falhas += 1
         if not execucao.simulacao:
             _tentativa_sem_salvar(execucao, ordem, rec, TentativaEntrada.Resultado.ERRO, tela)
@@ -415,14 +417,15 @@ def _ja_no_scpi(rec, numero: str, execucao, resumo, ordem: int) -> None:
         critico=False,
         se_preparado=True,
     )
-    resultado = TentativaEntrada.Resultado.ERRO if gravou else TentativaEntrada.Resultado.IGNORADA
+    mudou = gravou is False  # `None` é o banco que recusou: a falha é real, não uma mudança
+    resultado = TentativaEntrada.Resultado.IGNORADA if mudou else TentativaEntrada.Resultado.ERRO
     _tentativa_sem_salvar(execucao, ordem, rec, resultado)
-    if gravou:
-        resumo.falhas += 1
-    else:
+    if mudou:
         resumo.ignoradas += 1
+    else:
+        resumo.falhas += 1
     resumo.lotes[ordem - 1].update(
-        resultado="erro" if gravou else "ignorada",
+        resultado="ignorada" if mudou else "erro",
         mensagem=mensagem[:300],
         fim=timezone.now().isoformat(),
     )
