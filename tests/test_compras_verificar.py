@@ -170,6 +170,33 @@ def test_sem_candidata_e_com_o_ja_entrou_esperado_libera_o_mesmo_recebimento(ped
     assert len(scpi.salvas) == 1
 
 
+def test_liberado_que_volta_a_verificar_pode_explicar_um_aumento_de_novo_mas_so_uma_vez(
+    pedido, usuario, scpi
+):
+    from compras.models import TravaPedido
+
+    r = _em_verificacao(pedido, usuario, scpi, salvou=False)
+    _importar_pedidos(scpi)
+    IncertoConsumido.objects.create(
+        pedido=pedido,
+        codigo="006.011.020",
+        recebimento=r,
+        importacao=Importacao.objects.filter(tipo="PEDIDOS_COMPRA").latest("inicio"),
+    )  # consumo da primeira tentativa
+    assert servicos.resolver_recebimento(r.pk, usuario, acao="liberar", conferi=True).ok
+    scpi.falha_salvar.clear()
+    scpi.salva_e_falha.add(r.rotulo)  # desta vez o SCPI salva, mas a resposta se perde
+    _rodar([r.rotulo], scpi)
+    r.refresh_from_db()
+    assert r.status == "VERIFICAR"
+    _importar_pedidos(scpi)  # o aumento de 10 é do recebimento a verificar, outra vez
+    assert IncertoConsumido.objects.filter(recebimento=r).count() == 1
+    assert not TravaPedido.objects.filter(motivo="JA_ENTROU").exists()
+    scpi.pedidos[(pedido.ano, pedido.numero)][1]["ja_entrou"] += Decimal("10")  # outro à mão
+    _importar_pedidos(scpi)  # o consumo não se reutiliza
+    assert TravaPedido.objects.filter(motivo="JA_ENTROU").count() == 1
+
+
 def test_liberar_exige_a_confirmacao_de_que_conferiu_no_scpi(pedido, usuario, scpi):
     r = _em_verificacao(pedido, usuario, scpi, salvou=False)
     _importar_pedidos(scpi)
