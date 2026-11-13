@@ -399,6 +399,136 @@ def test_a_foto_guarda_o_que_o_robo_digita_e_o_que_a_tela_mostrou():
     assert regras.foto(rec)["tela"] == []
 
 
+# --- Recebimento em verificação: intervalo, candidatas e as três provas (PR 5) -----------------
+
+
+def _req(numero, marca="", fornecedor="19502", nf="501", pedido=(2026, 514), itens=()):
+    return regras.RequisicaoEntradaResumo(
+        numero, marca, fornecedor, nf, pedido[0], pedido[1], tuple(itens)
+    )
+
+
+def _candidatas(requisicoes, de=None, ate=None, **campos):
+    dados = {
+        "rotulo": "RC-0042",
+        "fornecedor": "19502",
+        "nf": "501",
+        "pedido": (2026, 514),
+        "de": de,
+        "ate": ate,
+    } | campos
+    return regras.candidatas(requisicoes, **dados)
+
+
+def test_o_intervalo_usa_as_tentativas_de_entrada():
+    from conciliacao.regras import TentativaResumo, intervalo
+
+    tentativas = [
+        TentativaResumo(1, "RC-0040", "003500/26"),
+        TentativaResumo(2, "RC-0042", ""),
+        TentativaResumo(3, "RC-0043", "003504/26"),
+    ]
+    assert intervalo(tentativas, "003490/26", "RC-0042") == ("003500/26", "003504/26")
+    assert intervalo(tentativas, "003490/26", "RC-0040") == ("003490/26", "003504/26")
+
+
+def test_e_esta_pela_marca_e_pela_nf_com_o_fornecedor_mesmo_fora_do_intervalo():
+    pela_marca = _req("009999/26", marca="RC-0042", nf="", pedido=(2026, 1))
+    pela_nf = _req("009998/26", nf="501", pedido=(2026, 1))
+    outra_nf = _req("003501/26", nf="777")
+    achadas = _candidatas([outra_nf, pela_nf, pela_marca], "003500/26", "003504/26")
+    assert [(r.requisicao, e) for r, e in achadas] == [
+        ("009998/26", True),
+        ("009999/26", True),
+        ("003501/26", False),
+    ]
+
+
+def test_a_nf_so_vale_com_o_mesmo_fornecedor_e_nao_vazia():
+    outro_fornecedor = _req("003501/26", fornecedor="777", nf="501", pedido=(2026, 1))
+    sem_nf = _req("003502/26", nf="", pedido=(2026, 1))
+    assert _candidatas([outro_fornecedor, sem_nf], "003500/26", "003504/26") == []
+    assert _candidatas([_req("003503/26", nf="", pedido=(2026, 1))], nf="") == []
+
+
+def test_outro_pedido_no_intervalo_nao_entra_e_o_mesmo_pedido_entra():
+    outro = _req("003501/26", nf="900", pedido=(2026, 999))
+    mesmo = _req("003502/26", nf="901", pedido=(2026, 514))
+    achadas = _candidatas([outro, mesmo], "003500/26", "003504/26")
+    assert [(r.requisicao, e) for r, e in achadas] == [("003502/26", False)]
+
+
+def test_a_marca_de_outro_recebimento_nao_entra():
+    de_outro = _req("003501/26", marca="RC-0099", nf="501")
+    assert _candidatas([de_outro], "003500/26", "003504/26") == []
+
+
+def test_fora_do_intervalo_e_do_mesmo_pedido_sem_marca_nem_nf_nao_entra():
+    assert _candidatas([_req("003600/26", nf="900")], "003500/26", "003504/26") == []
+
+
+def test_as_candidatas_se_ordenam_pela_semelhanca_com_a_foto():
+    foto = {"itens": [{"item": 1, "codigo": "006.011.020", "quantidade": "10"}]}
+    parecida = _req("003503/26", nf="900", itens=[("006.011.020", Decimal("10"))])
+    mesmos_codigos = _req("003501/26", nf="901", itens=[("006.011.020", Decimal("3"))])
+    diferente = _req("003502/26", nf="902", itens=[("999.000.000", Decimal("1"))])
+    achadas = _candidatas(
+        [mesmos_codigos, diferente, parecida], "003500/26", "003504/26", foto=foto
+    )
+    assert [r.requisicao for r, _ in achadas] == ["003503/26", "003501/26", "003502/26"]
+
+
+def _prova(**campos):
+    dados = {
+        "momento": datetime(2026, 11, 11, 10, 42),
+        "extracao_posterior": True,
+        "candidatas": [],
+        "importacao_posterior": True,
+        "itens": [regras.ItemDaProva(13, Decimal("30"), True, Decimal("30"))],
+    } | campos
+    return regras.tres_provas(**dados)
+
+
+def test_tudo_certo_nao_tem_falta():
+    assert _prova() == []
+
+
+def test_sem_extracao_posterior():
+    assert _prova(extracao_posterior=False) == [
+        "Ainda não houve extração de entradas depois da tentativa de 11/11/2026 10:42."
+    ]
+
+
+def test_com_candidata_numa_conferencia_antiga_continua_bloqueando():
+    assert _prova(candidatas=["003901/26"]) == ["Há requisição candidata no intervalo: 003901/26."]
+    assert _prova(candidatas=["003902/26", "003901/26", "003901/26"]) == [
+        "Há requisições candidatas no intervalo: 003901/26, 003902/26."
+    ]
+
+
+def test_ja_entrou_diferente_da_foto_ou_item_ausente_ou_importacao_anterior():
+    assert _prova(itens=[regras.ItemDaProva(13, Decimal("30"), True, Decimal("50"))]) == [
+        "O 'Já Entrou' do item 13 mudou de 30 para 50 depois da tentativa: "
+        "a requisição pode existir."
+    ]
+    assert _prova(itens=[regras.ItemDaProva(13, Decimal("30"), False, None)]) == [
+        "O item 13 não veio na importação de pedidos depois da tentativa: "
+        "a requisição pode existir."
+    ]
+    assert _prova(importacao_posterior=False) == [
+        "O 'Já Entrou' do item 13 não foi conferido depois da tentativa: atualize os pedidos."
+    ]
+
+
+def test_a_extracao_de_arquivo_nao_e_extracao_posterior_e_a_lacuna_nao_entra_na_conta():
+    # tres_provas só recebe o booleano da extração: o arquivo nunca o torna verdadeiro
+    # (compras.conciliacao.conciliar_verificar o ignora) e a numeração nem é um parâmetro.
+    import inspect
+
+    assert "lacuna" not in inspect.signature(regras.tres_provas).parameters
+    assert _prova(extracao_posterior=False, importacao_posterior=False)[0].startswith("Ainda não")
+
+
 def test_texto_observacao_item_e_uma_linha_so_com_a_marca_inteira():
     assert regras.texto_observacao_item("RC-0042") == "Central Almoxarifado RC-0042"
     assert (

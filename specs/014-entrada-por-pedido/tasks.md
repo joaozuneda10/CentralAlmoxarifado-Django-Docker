@@ -440,38 +440,38 @@ Os cenários 1 e 2 da US5 (a carga dos pedidos) são o próprio Foundational.
 
 **Independent Test**: com o SCPI simulado que salva e perde a resposta, a liberação é recusada. Com o que falha sem salvar, ela é permitida depois de uma extração e de uma importação posteriores (quickstart, passo 5).
 
-- [ ] T069 [US3] Criar a branch `claude/entradas-5-verificar` a partir de `claude/entradas-4-robo`
-- [ ] T070 [P] [US3] Acrescentar a `tests/test_compras_regras.py`:
+- [X] T069 [US3] Criar a branch `claude/entradas-5-verificar` a partir de `claude/entradas-4-robo`
+- [X] T070 [P] [US3] Acrescentar a `tests/test_compras_regras.py`:
   - **intervalo**: pela `conciliacao.regras.intervalo` com as tentativas de entrada;
   - **`candidatas`**: "é esta" pela marca e pela NF com o fornecedor fora do intervalo; outro pedido no intervalo não entra; a marca de outro recebimento não entra; a ordem pela semelhança;
   - **`tres_provas`**: sem extração posterior; com candidata numa conferência antiga; o "Já Entrou" diferente da foto; o item ausente na importação posterior; a importação anterior à tentativa; a extração `ARQUIVO`; tudo certo; a lacuna na numeração não conta.
-- [ ] T071 [P] [US3] Escrever `tests/test_compras_verificar.py`, os cenários 1 a 5 da US3 com o simulado e as extrações e importações reais, mais:
+- [X] T071 [P] [US3] Escrever `tests/test_compras_verificar.py`, os cenários 1 a 5 da US3 com o simulado e as extrações e importações reais, mais:
   - o "É esta" liga como `LANCADO` (`via=ROBO`, o número da candidata, `visivel_desde` igual ao início da extração);
   - liberar devolve o **mesmo** recebimento a `PREPARADO` com `versao + 1` e a NF ainda reservada;
   - cancelar sem as provas é recusado, e com elas, permitido, sem liberar a NF;
   - a recusa com execução em andamento;
   - a requisição já ligada a outro recebimento não serve para "É esta".
-- [ ] T072 [US3] Criar `ConferenciaRecebimento` e `CandidataEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#conferenciarecebimento-e-candidataentrada-pr-5-e-pr-6), com o modelo inteiro, já com os vereditos do PR 6.
+- [X] T072 [US3] Criar `ConferenciaRecebimento` e `CandidataEntrada` em `compras/models.py`, conforme [data-model.md](data-model.md#conferenciarecebimento-e-candidataentrada-pr-5-e-pr-6), com o modelo inteiro, já com os vereditos do PR 6.
   - Tipos: `LANCAMENTO`, `REVISAO` e `VERIFICAR`.
   - Vereditos: `AGUARDANDO`, `COMPROVADO`, `DIVERGENTE`, `NAO_ENCONTRADO`, `DUPLICADO`, `CONFLITO`, `INTERVALO_VAZIO`, `COM_CANDIDATAS` e `SEM_TENTATIVA`.
   - `vinculos` (JSON), `diferencas`, `notas`, `alterado_depois`, `intervalo_de`, `intervalo_ate` e `tentativa`.
   - Único (`recebimento`, `extracao`, `tipo`).
 
-  Gerar `compras/migrations/0005_conferencia.py`.
-- [ ] T073 [US3] Implementar em `compras/regras.py` `candidatas(...)` ([R15](research.md#r15-candidatas-de-um-recebimento-em-verificação)) e `tres_provas(...) -> list[str]`, que devolve as faltas com as mensagens de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#automações--entradas-no-scpi-permissão-contasoperar_automacoes-gestão) ([R16](research.md#r16-liberação-para-relançar-as-três-provas)); a T070 passa
-- [ ] T074 [US3] Implementar `compras/conciliacao.py` com `TRAVA_CONCILIACAO_ENTRADAS`, `piso(execucao)` e `conciliar_verificar(extracao)`.
+  Gerar `compras/migrations/0006_conferencia.py` (a 0005 é a da tentativa).
+- [X] T073 [US3] Implementar em `compras/regras.py` `candidatas(...)` ([R15](research.md#r15-candidatas-de-um-recebimento-em-verificação)) e `tres_provas(...) -> list[str]`, que devolve as faltas com as mensagens de [contracts/tela-e-acoes.md](contracts/tela-e-acoes.md#automações--entradas-no-scpi-permissão-contasoperar_automacoes-gestão) ([R16](research.md#r16-liberação-para-relançar-as-três-provas)); a T070 passa
+- [X] T074 [US3] Implementar `compras/conciliacao.py` com `TRAVA_CONCILIACAO_ENTRADAS`, `piso(execucao)` e `conciliar_verificar(extracao)`.
   - Para cada recebimento `VERIFICAR` ou `EM_LANCAMENTO` coberto, grava a `ConferenciaRecebimento` `VERIFICAR`, mas só se a extração começou depois da tentativa mais recente; sem tentativa, `SEM_TENTATIVA`.
   - Grava também o intervalo e as `CandidataEntrada`.
   - `ARQUIVO` nunca confere.
   - Chamar em `compras.robo.extrair_depois` e no `conciliar_entradas`.
-- [ ] T075 [US3] Implementar `compras.consultas.liberacao(recebimento) -> list[str]` sobre `tres_provas`, e `compras.servicos.resolver_recebimento(recebimento_id, usuario, *, acao, requisicao_id=None, conferi=False, motivo="", confirmado=False)`.
+- [X] T075 [US3] Implementar `compras.consultas.liberacao(recebimento) -> list[str]` sobre `tres_provas`, e `compras.servicos.resolver_recebimento(recebimento_id, usuario, *, acao, requisicao_id=None, conferi=False, motivo="", confirmado=False)`.
   - As ações são `e_esta`, `liberar` e `cancelar`.
   - Corre sob a `TRAVA_LANCAMENTO` (recusa com execução em andamento) e com `select_for_update` no pedido.
   - A T071 passa.
-- [ ] T076 [US3] Acrescentar à aba "Entradas no SCPI" a região "Em verificação e com erro" (`compras/templates/compras/_verificacao.html` incluído em `_entradas.html`): por recebimento, a mensagem, as candidatas com "É esta", "Liberar para relançar" (com "Conferi no SCPI") e "Cancelar" em dois passos.
+- [X] T076 [US3] Acrescentar à aba "Entradas no SCPI" a região "Em verificação e com erro" (`compras/templates/compras/_verificacao.html` incluído em `_entradas.html`): por recebimento, a mensagem, as candidatas com "É esta", "Liberar para relançar" (com "Conferi no SCPI") e "Cancelar" em dois passos.
   - Criar a rota `automacoes:resolver_entrada` (POST) em `automacoes/urls.py` e `automacoes/views.py`, que chama `resolver_recebimento` e volta à aba com a mensagem; entra em `REGRAS_POR_ROTA` com `operar_automacoes`.
   - Testes em `tests/test_automacoes_entradas.py`.
-- [ ] T077 [US3] Atualizar o `CLAUDE.md` (as candidatas por pedido, as três provas e a foto com a tela); portões do PR 5; commit
+- [X] T077 [US3] Atualizar o `CLAUDE.md` (as candidatas por pedido, as três provas e a foto com a tela); portões do PR 5; commit
 
 **Checkpoint**: nenhum recebimento em verificação é liberado sem prova (SC-006), e o "salvou e perdeu a resposta" se resolve pelo "É esta".
 

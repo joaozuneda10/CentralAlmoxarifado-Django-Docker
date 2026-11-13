@@ -23,9 +23,10 @@ from catalogo.curva import INICIO_DADOS_CONFIAVEIS
 from catalogo.forms import ROBOS, ROBOS_POR_CHAVE
 from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
-from compras.consultas import fila_entradas
+from compras.consultas import fila_entradas, verificacoes_entradas
 from compras.forms import LancamentoEntradasForm
 from compras.robo import lancamento_real_liberado
+from compras.servicos import resolver_recebimento
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
@@ -222,6 +223,7 @@ def contexto_entradas() -> dict:
         "saidas_lancando": qualquer_robo and not em_andamento,
         "log_entradas": "\n".join(execucao.log.splitlines()[-LINHAS_DO_LOG:]) if execucao else "",
         "fila_entradas": fila,
+        "verificacoes_entradas": verificacoes_entradas(),
         "pode_executar_entradas": bool(fila.aptos) and not qualquer_robo,
         "lancamento_real_entradas": lancamento_real_liberado(),
     }
@@ -485,6 +487,28 @@ def lancar_entradas(request):
         )
         texto += f" {', '.join(recebimentos)}."
         messages.success(request, texto)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def resolver_entrada(request, pk):
+    """Resolve um recebimento em verificação (spec 014, US3): "É esta", liberar ou cancelar."""
+    destino = url_da_aba("entradas")
+    try:
+        requisicao_id = int(request.POST.get("requisicao_id") or 0) or None
+    except ValueError:
+        requisicao_id = None
+    resposta = resolver_recebimento(
+        pk,
+        request.user,
+        acao=request.POST.get("acao", ""),
+        requisicao_id=requisicao_id,
+        conferi=bool(request.POST.get("conferi")),
+        motivo=request.POST.get("motivo", ""),
+        confirmado=request.POST.get("confirmado") == "1",
+    )
+    (messages.success if resposta.ok else messages.error)(request, resposta.mensagem)
     return redirect(destino)
 
 

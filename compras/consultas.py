@@ -264,3 +264,128 @@ def fila_entradas() -> FilaEntradas:
             for r in recebimentos
         ]
     )
+
+
+def liberacao(recebimento: Recebimento) -> list[str]:
+    """As faltas das três provas para liberar (ou cancelar) um recebimento em verificação (R16);
+    vazia quando pode. Só lê: `regras.tres_provas` decide, com o que o banco tem:
+
+    - a extração posterior é uma conferência de verificação da tentativa mais recente, feita por
+      uma extração bem-sucedida que não é de arquivo (`conciliar_verificar` só grava essas);
+    - as candidatas são as de todas as conferências da tentativa;
+    - o "Já Entrou" da tela antes do Salvar está na foto da tentativa; a importação posterior é a
+      última importação de pedidos bem-sucedida do exercício, começada depois dela e lida do SCPI
+      na hora: um CSV já baixado (`de_arquivo`) pode ser de antes da tentativa e traria de volta
+      o "Já Entrou" antigo, então, enquanto ele for a última, a prova não existe."""
+    from compras.conciliacao import ultima_tentativa
+    from compras.models import CandidataEntrada, ConferenciaRecebimento
+
+    tentativa = ultima_tentativa(recebimento)
+    if tentativa is None:
+        return ["Não há tentativa registrada deste recebimento: confira a entrada no SCPI."]
+    conferencias = ConferenciaRecebimento.objects.filter(
+        recebimento=recebimento, tipo=ConferenciaRecebimento.Tipo.VERIFICAR, tentativa=tentativa
+    )
+    numeros = CandidataEntrada.objects.filter(conferencia__in=conferencias).values_list(
+        "requisicao__requisicao", flat=True
+    )
+    importacao = ultima_importacao_pedidos(recebimento.pedido.exercicio)
+    posterior = (
+        importacao is not None
+        and importacao.inicio > tentativa.momento
+        and not importacao.de_arquivo
+    )
+    antes_da_tela = {i["item"]: i["ja_entrou"] for i in (tentativa.foto or {}).get("tela", [])}
+    atuais = {
+        i.item: i
+        for i in ItemPedidoCompra.objects.filter(
+            pedido=recebimento.pedido, item__in=antes_da_tela or [0]
+        )
+    }
+    itens = []
+    for linha in (tentativa.foto or {}).get("itens", []):
+        numero = linha["item"]
+        if numero not in antes_da_tela:
+            # Sem a tela registrada antes do Salvar não há o que comparar: lado seguro.
+            return [
+                f"A tela do SCPI não foi registrada antes do Salvar (item {numero}): "
+                "não dá para provar o 'Já Entrou'."
+            ]
+        atual = atuais.get(numero)
+        itens.append(
+            regras.ItemDaProva(
+                item=numero,
+                antes=Decimal(antes_da_tela[numero]),
+                presente=atual is not None and atual.ausente_desde_id is None,
+                depois=atual.ja_entrou if atual is not None else None,
+            )
+        )
+    return regras.tres_provas(
+        momento=timezone.localtime(tentativa.momento),
+        extracao_posterior=conferencias.exists(),
+        candidatas=list(numeros),
+        importacao_posterior=posterior,
+        itens=itens,
+    )
+
+
+@dataclass(frozen=True)
+class RecebimentoParaResolver:
+    """Um recebimento que o robô deixou em verificação ou com erro, com o que a aba mostra: as
+    candidatas (com "É esta") e, só nos em verificação, as faltas das três provas."""
+
+    recebimento: Recebimento
+    em_verificacao: bool
+    candidatas: list  # `CandidataEntrada` de todas as conferências da tentativa, uma por número
+    faltas: list[str]
+
+    @property
+    def pode_liberar(self) -> bool:
+        return self.em_verificacao and not self.faltas
+
+
+def verificacoes_entradas() -> list[RecebimentoParaResolver]:
+    """Os recebimentos em verificação (ou em lançamento sem robô) e com erro, na ordem do número,
+    para a região "Em verificação e com erro" da aba Entradas no SCPI.
+
+    As candidatas são as de todas as conferências da tentativa atual, uma vez cada requisição,
+    pela foto mais recente: a que apareceu numa conferência e sumiu da seguinte continua
+    bloqueando a liberação (`liberacao`), e tem de estar na tela para o "É esta"."""
+    from compras.conciliacao import ultima_tentativa
+    from compras.models import CandidataEntrada, ConferenciaRecebimento
+
+    abertos = (
+        Recebimento.objects.filter(
+            status__in=(
+                Recebimento.Status.VERIFICAR,
+                Recebimento.Status.EM_LANCAMENTO,
+                Recebimento.Status.ERRO,
+            )
+        )
+        .select_related("pedido")
+        .order_by("pk")
+    )
+    resultado = []
+    for recebimento in abertos:
+        em_verificacao = recebimento.status != Recebimento.Status.ERRO
+        candidatas = []
+        faltas = []
+        if em_verificacao:
+            faltas = liberacao(recebimento)
+            conferencias = ConferenciaRecebimento.objects.filter(
+                recebimento=recebimento, tipo=ConferenciaRecebimento.Tipo.VERIFICAR
+            )
+            tentativa = ultima_tentativa(recebimento)
+            if tentativa is not None:
+                conferencias = conferencias.filter(tentativa=tentativa)
+            vistas = set()
+            for candidata in (
+                CandidataEntrada.objects.filter(conferencia__in=conferencias)
+                .select_related("requisicao")
+                .order_by("-conferencia__criada_em", "-conferencia__pk", "ordem")
+            ):
+                if candidata.requisicao.requisicao not in vistas:
+                    vistas.add(candidata.requisicao.requisicao)
+                    candidatas.append(candidata)
+        resultado.append(RecebimentoParaResolver(recebimento, em_verificacao, candidatas, faltas))
+    return resultado

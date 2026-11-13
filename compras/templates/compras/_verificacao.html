@@ -1,0 +1,83 @@
+{% comment %}
+Região "Em verificação e com erro" da aba Entradas no SCPI (spec 014, US3): por recebimento, a
+mensagem, as candidatas com "É esta", "Liberar para relançar" (só com as três provas e com "Conferi
+no SCPI") e "Cancelar" em dois passos, também sem JavaScript. Sem as três provas, o texto diz qual
+falta. Com um robô rodando, a resolução fica indisponível (o servidor recusa também).
+{% endcomment %}
+{% if verificacoes_entradas %}
+<div class="cartao pilha" id="travas-entradas">
+  <h2 class="cartao-titulo">Em verificação e com erro</h2>
+  {% for v in verificacoes_entradas %}
+  {% with r=v.recebimento %}
+  <article class="cartao cartao-sutil trava">
+    <div class="trava-cabecalho">
+      <h3><a class="mono" href="{% url 'compras:recebimento' r.pk %}">{{ r.rotulo }}</a> · <a class="mono" href="{% url 'compras:pedido' r.pedido_id %}">{{ r.pedido.rotulo }}</a></h3>
+      <dl class="dados">
+        <div><dt>NF</dt><dd class="mono">{{ r.nf }}</dd></div>
+        <div><dt>Data</dt><dd>{{ r.data_recebimento|date:"d/m/Y" }}</dd></div>
+        <div><dt>Situação</dt><dd><span class="selo {% if r.status == 'ERRO' %}selo-erro{% else %}selo-aviso{% endif %}">{{ r.get_status_display }}</span></dd></div>
+      </dl>
+    </div>
+    <p>{{ r.mensagem|default:"—" }}</p>
+    {% if v.em_verificacao %}
+    {% if v.candidatas %}
+    <div class="tabela-rolagem">
+      <table class="tabela">
+        <thead><tr><th scope="col">Requisição no SCPI</th><th scope="col">NF</th><th scope="col">Data da entrada</th><th scope="col"></th></tr></thead>
+        <tbody>
+          {% for c in v.candidatas %}
+          <tr>
+            <td><span class="mono">{{ c.requisicao.requisicao }}</span> {% if c.e_esta %}<span class="selo selo-ok">Provavelmente esta</span>{% endif %}</td>
+            <td class="mono">{{ c.requisicao.nf|default:"—" }}</td>
+            <td class="tabela-data">{{ c.requisicao.data_entrada|date:"d/m/Y" }}</td>
+            <td>
+              <form method="post" action="{% url 'automacoes:resolver_entrada' r.pk %}">
+                {% csrf_token %}
+                <input type="hidden" name="acao" value="e_esta">
+                <input type="hidden" name="requisicao_id" value="{{ c.requisicao_id }}">
+                <button type="submit" class="botao botao-secundario"{% if entradas_em_andamento or saidas_lancando %} disabled{% endif %}>É esta</button>
+              </form>
+            </td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% else %}
+    <p class="texto-secundario">Nenhuma requisição candidata no SCPI até agora.</p>
+    {% endif %}
+    {% if v.faltas %}
+    <div class="aviso aviso-atencao">{% include "interface/_icone.html" with nome="alerta" %}<div class="pilha-curta"><p><strong>Para liberar ou cancelar ainda falta:</strong></p><ul>{% for falta in v.faltas %}<li>{{ falta }}</li>{% endfor %}</ul></div></div>
+    {% endif %}
+    {% if entradas_em_andamento or saidas_lancando %}
+    <p class="texto-secundario texto-pequeno">A resolução fica disponível quando o lançamento terminar.</p>
+    {% else %}
+    <div class="acoes-trava">
+      <form method="post" action="{% url 'automacoes:resolver_entrada' r.pk %}" class="pilha-curta">
+        {% csrf_token %}
+        <input type="hidden" name="acao" value="liberar">
+        <label class="campo-check"><input type="checkbox" name="conferi" value="1"><span>Conferi no SCPI: a entrada não foi gravada</span></label>
+        <button type="submit" class="botao botao-secundario"{% if not v.pode_liberar %} disabled{% endif %}>Liberar para relançar</button>
+      </form>
+      <details class="cancelar-entrada">
+        <summary>Cancelar o recebimento</summary>
+        <form method="post" action="{% url 'automacoes:resolver_entrada' r.pk %}" class="pilha-curta">
+          {% csrf_token %}
+          <input type="hidden" name="acao" value="cancelar">
+          <input type="hidden" name="confirmado" value="1">
+          <label class="campo-rotulo" for="motivo-{{ r.pk }}">Motivo do cancelamento</label>
+          <input class="campo-entrada" id="motivo-{{ r.pk }}" type="text" name="motivo" maxlength="300" required>
+          <p class="campo-dica">A NF continua reservada: houve tentativa do robô. Só cancela com as três provas.</p>
+          <button type="submit" class="botao botao-perigo"{% if not v.pode_liberar %} disabled{% endif %}>Cancelar este recebimento</button>
+        </form>
+      </details>
+    </div>
+    {% endif %}
+    {% else %}
+    <p class="texto-secundario texto-pequeno">O robô parou antes do Salvar: nada foi gravado no SCPI. Corrija em <a href="{% url 'compras:editar_recebimento' r.pk %}">Editar</a> ou cancele no recebimento.</p>
+    {% endif %}
+  </article>
+  {% endwith %}
+  {% endfor %}
+</div>
+{% endif %}

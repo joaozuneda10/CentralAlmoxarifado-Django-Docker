@@ -117,7 +117,7 @@ def test_categorias_do_contrato():
         "pedidos:decidir",
     }
     assert regra_da_rota("admin:index") == ADMIN
-    assert sum(isinstance(r, Regra) for r in REGRAS_POR_ROTA.values()) == 32
+    assert sum(isinstance(r, Regra) for r in REGRAS_POR_ROTA.values()) == 33
 
 
 @pytest.mark.parametrize(

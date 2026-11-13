@@ -11,6 +11,7 @@ from dataclasses import dataclass
 from datetime import date, datetime
 from decimal import Decimal
 
+from conciliacao.regras import chave, no_intervalo
 from pedidos.regras import interpretar_quantidade, norm_u, qtd_br, texto_erro_quantidade
 
 RE_PEDIDO = re.compile(r"^(\d{5})/(\d{2})$")  # número visível do pedido no SCPI: 00514/26
@@ -384,3 +385,136 @@ def foto(rec: RecebimentoParaLancar, tela: TelaItens | None = None) -> dict:
             if i.item in lidas
         ],
     }
+
+
+# --- Recebimento em verificação: candidatas e as três provas (PR 5) -----------------------------
+
+
+@dataclass(frozen=True)
+class RequisicaoEntradaResumo:
+    """Uma requisição de entrada oficial, só com o que as candidatas usam."""
+
+    requisicao: str  # 003492/26
+    recebimento_observado: str  # RC-0042, ou vazio
+    fornecedor_codigo: str = ""
+    nf: str = ""
+    pedido_ano: int | None = None
+    pedido_numero: int | None = None
+    itens: tuple[tuple[str, Decimal], ...] = ()
+
+
+def _semelhanca(requisicao: RequisicaoEntradaResumo, foto: dict | None, nf: str) -> int:
+    """Quanto a requisição se parece com o que o robô ia digitar: só ordena as candidatas, nunca
+    decide nada. Itens iguais pesam mais; depois os mesmos códigos e a NF."""
+    if not foto:
+        return 0
+    esperado = sorted(
+        (norm_u(i.get("codigo")), Decimal(str(i.get("quantidade", "0")))) for i in foto["itens"]
+    )
+    oficial = sorted((norm_u(codigo), quantidade) for codigo, quantidade in requisicao.itens)
+    pontos = 0
+    if esperado and esperado == oficial:
+        pontos += 3
+    elif {c for c, _ in esperado} == {c for c, _ in oficial}:
+        pontos += 1
+    if nf and requisicao.nf == nf:
+        pontos += 1
+    return pontos
+
+
+def candidatas(
+    requisicoes: Iterable[RequisicaoEntradaResumo],
+    *,
+    rotulo: str,
+    fornecedor: str,
+    nf: str,
+    pedido: tuple[int, int],
+    de: str | None,
+    ate: str | None,
+    foto: dict | None = None,
+) -> list[tuple[RequisicaoEntradaResumo, bool]]:
+    """As requisições de entrada que podem ser a do recebimento `rotulo` (R15), com o "é esta".
+
+    É esta a que tem a marca deste recebimento, ou a NF e o fornecedor dele, em qualquer número (um
+    número lido errado). Entra também a que está no intervalo da tentativa, é do **mesmo pedido** e
+    não tem a marca de outro recebimento: sem o filtro do pedido, toda entrada manual do dia no
+    intervalo aberto bloquearia a liberação para sempre. A marca de outro recebimento nunca entra.
+    A ordem é a das marcadas, depois a semelhança com a foto, depois o número."""
+    rotulo = rotulo.upper()
+    escolhidas = []
+    for requisicao in requisicoes:
+        marca = requisicao.recebimento_observado
+        if marca and marca != rotulo:
+            continue
+        igual_nf = bool(nf) and requisicao.nf == nf and requisicao.fornecedor_codigo == fornecedor
+        if marca == rotulo or igual_nf:
+            escolhidas.append((requisicao, True))
+        elif (requisicao.pedido_ano, requisicao.pedido_numero) == pedido and no_intervalo(
+            requisicao.requisicao, de, ate
+        ):
+            escolhidas.append((requisicao, False))
+    return sorted(
+        escolhidas,
+        key=lambda par: (
+            not par[1],
+            -_semelhanca(par[0], foto, nf),
+            chave(par[0].requisicao),
+        ),
+    )
+
+
+@dataclass(frozen=True)
+class ItemDaProva:
+    """Um item do recebimento na terceira prova: o "Já Entrou" que a tela mostrou antes do Salvar
+    e o que a importação posterior traz."""
+
+    item: int
+    antes: Decimal  # o "Já Entrou" da foto da tentativa
+    presente: bool  # o item veio na importação posterior
+    depois: Decimal | None  # o "Já Entrou" dela
+
+
+def tres_provas(
+    *,
+    momento: datetime,
+    extracao_posterior: bool,
+    candidatas: Iterable[str],
+    importacao_posterior: bool,
+    itens: Iterable[ItemDaProva],
+) -> list[str]:
+    """As faltas das três provas da liberação para relançar (R16, FR-025); vazia quando as três
+    estão cumpridas. Cada falta é uma mensagem em português, a de `contracts/tela-e-acoes.md`.
+
+    1. uma extração de entradas bem-sucedida, que não seja de arquivo, depois da tentativa;
+    2. nenhuma candidata em nenhuma conferência dela (uma vista uma vez continua bloqueando);
+    3. uma importação de pedidos depois da tentativa em que cada item do recebimento tem o "Já
+       Entrou" igual ao da tela antes do Salvar. Pura: não consulta nada."""
+    faltas = []
+    quando = f"{momento:%d/%m/%Y %H:%M}"
+    if not extracao_posterior:
+        faltas.append(f"Ainda não houve extração de entradas depois da tentativa de {quando}.")
+    numeros = sorted(set(candidatas), key=chave)
+    if numeros:
+        plural = len(numeros) > 1
+        faltas.append(
+            f"Há requisição candidata no intervalo: {', '.join(numeros)}."
+            if not plural
+            else f"Há requisições candidatas no intervalo: {', '.join(numeros)}."
+        )
+    for item in sorted(itens, key=lambda i: i.item):
+        if not importacao_posterior:
+            faltas.append(
+                f"O 'Já Entrou' do item {item.item} não foi conferido depois da tentativa: "
+                "atualize os pedidos."
+            )
+        elif not item.presente:
+            faltas.append(
+                f"O item {item.item} não veio na importação de pedidos depois da tentativa: "
+                "a requisição pode existir."
+            )
+        elif item.depois != item.antes:
+            faltas.append(
+                f"O 'Já Entrou' do item {item.item} mudou de {_qtd(item.antes)} para "
+                f"{_qtd(item.depois)} depois da tentativa: a requisição pode existir."
+            )
+    return faltas

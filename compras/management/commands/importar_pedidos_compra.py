@@ -49,6 +49,7 @@ class Command(BaseCommand):
                     obter_csv(arquivo, relatorios.baixar_pedidos_compra),
                     forcar=forcar,
                     exercicio=exercicio,
+                    de_arquivo=bool(arquivo),
                 )
             except execucao.ImportacaoEmAndamento:
                 raise CommandError(
