@@ -27,8 +27,10 @@ uv run python manage.py makemigrations --check --dry-run
 ```
 
 Esperado: tudo limpo e nenhuma migration nova. Só podem mudar as asserções de nome de classe
-renomeada (com o motivo no PR), as de valor de token (`test_fundacao.py`) e as do lugar do exemplo nos
-campos públicos (entrega 3).
+renomeada (com o motivo no PR), as de valor de token (`test_fundacao.py`), as do lugar do exemplo
+nos campos públicos (entrega 3) e, na entrega 2, as do markup do painel que deixa de existir
+(`tests/test_painel.py`, `tests/test_epis_painel.py`), reescritas com os mesmos números e destinos
+(SC-001).
 
 ## Capturas (toda entrega)
 
@@ -47,7 +49,7 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 | Q-1.1 | `uv run pytest tests/test_contraste_tokens.py` | todos os pares de `contracts/tokens.md` acima do mínimo |
 | Q-1.2 | abrir o painel, o detalhe, um formulário público e Automações | visual novo; nenhum botão, campo ou selo quebrado; o mesmo comportamento |
 | Q-1.3 | selos no painel, no detalhe, em Compras, na conciliação e em Automações | ícone do tom + palavra em todos; o neutro sem ícone; o "N no pedido" sem ícone duplicado |
-| Q-1.4 | imprimir um recibo para PDF e comparar com o de antes | idêntico (SC-007) |
+| Q-1.4 | imprimir um recibo para PDF, com e sem material acrescentado, e comparar com o de antes | idêntico, sem ícone nos selos (SC-007) |
 | Q-1.5 | `grep -rn "clean" interface/ docs/DESIGN.md CLAUDE.md .specify/memory/constitution.md` | nenhuma referência ao Clean como estilo vigente; constituição em 2.2.0 |
 | Q-1.6 | a skill `design-tonal` carregada numa sessão nova | descreve os tokens e o vocabulário do `DESIGN.md` |
 
@@ -59,10 +61,12 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 | Q-2.2 | os quatro cartões com os dados de exemplo | os números iguais aos de antes; "há N dias" correto; "+1 aguardando autorização"; "1 para conferir" com o link para as travas, fora do número principal |
 | Q-2.2b | 1 requisição travada e 1 recebimento de compra em verificação | o cartão do robô com "1 para conferir"; o menu com 2 em Automações |
 | Q-2.2c | entrar com um usuário que só recebe compras | começa em Compras; o menu sem Painel nem Automações e sem contador |
-| Q-2.3 | clicar em cada cartão e em cada chip | o mesmo resultado e o mesmo parâmetro na URL dos filtros de hoje; com o JavaScript desligado, também |
+| Q-2.3 | clicar em cada cartão e escolher cada chip | o mesmo resultado e o mesmo parâmetro na URL dos filtros de hoje; com o JavaScript desligado, também (depois do "Filtrar") |
+| Q-2.3b | escolher "Atendido parcialmente", depois mudar a Origem, digitar no material e apertar Enter na busca | a situação continua aplicada em todos os envios; o chip de situação, o rótulo "Origem: …" e o `aria-current` dos cartões mostram o filtro da lista |
+| Q-2.3c | digitar na busca do topo | a lista filtra enquanto se digita, como hoje; o "Lançar no SCPI" do cartão continua lançando (o formulário dele não está dentro do de filtros) |
 | Q-2.4 | o ⋮ num pedido aguardando, num atendido com lote pendente, num lançado e numa saída avulsa | os itens de `data-model.md`; Esc fecha; o Tab percorre os itens |
-| Q-2.5 | o ⋮ com um usuário sem a permissão de atendimento | sem "Imprimir recibo" e sem "Editar atendimento" |
-| Q-2.6 | "Imprimir recibo" pelo ⋮, no Chrome e no Edge | o detalhe abre, a impressão começa, a confirmação aparece depois, e recarregar não imprime de novo; se o navegador recusar a impressão automática, o detalhe abre com o botão de imprimir |
+| Q-2.5 | o ⋮ na última linha da página, a 1280px e a 375px | abre para cima, inteiro, sem rolagem dentro da tabela; fica acima do link que cobre a linha |
+| Q-2.6 | "Imprimir recibo" pelo ⋮, no Chrome e no Edge | o detalhe abre, a impressão começa e a confirmação aparece depois; confirmar "Saiu na impressora" volta ao detalhe **sem** imprimir de novo; recarregar não imprime; com o recibo já impresso, o ⋮ abre o detalhe sem imprimir sozinho; se o navegador recusar a impressão automática, o detalhe abre com o botão de imprimir |
 | Q-2.7 | contar as linhas visíveis a 1366×768 | igual ou maior que a base (SC-004) |
 | Q-2.8 | o botão flutuante no celular | não cobre o último pedido nem a paginação; some na impressão |
 
@@ -70,11 +74,12 @@ chefe (SC-008), lado a lado com os protótipos de `prototipos/`.
 
 | # | Conferência | Esperado |
 |---|---|---|
-| Q-3.1 | campos vazios, com foco, preenchidos e com erro | o rótulo dentro, na borda e na borda vermelha; o exemplo embaixo do campo; o erro no lugar do exemplo |
+| Q-3.1 | campos vazios, com foco, preenchidos e com erro | o rótulo dentro, na borda e na borda vermelha; o exemplo embaixo do campo; o erro no lugar do exemplo, e o leitor de tela lê só o erro |
+| Q-3.1b | login com a matrícula e a senha guardadas no Chrome | o preenchimento automático põe o rótulo na borda, sem sobrepor o texto |
 | Q-3.2 | o nome e o destino lembrados no aparelho | campos preenchidos, com o rótulo na borda |
 | Q-3.3 | a lista de destinos no campo do destino | abre, filtra e escolhe sem cobrir o rótulo |
 | Q-3.4 | um pedido de 3 materiais no celular | os mesmos toques ou menos e um tempo igual ou menor (SC-005); o pedido gravado igual |
-| Q-3.5 | a folha das viaturas, a consulta, o login de solicitante e Meus pedidos | o mesmo desenho; o mesmo comportamento |
+| Q-3.5 | a folha das viaturas, a consulta, o login (equipe e solicitante), a troca de senha, o bloqueio por tentativas, Meus pedidos e um pedido meu | o mesmo desenho; o mesmo comportamento; a equipe entra pelo mesmo login e vai ao seu ponto de partida |
 
 ## Entrega 4: demais telas internas
 

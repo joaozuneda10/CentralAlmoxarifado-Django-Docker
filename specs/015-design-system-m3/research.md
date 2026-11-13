@@ -49,8 +49,8 @@ Ajustes de contraste que o cálculo exigiu:
 | Token | Protótipo | Fica | Motivo |
 |---|---|---|---|
 | `--texto-suave` | `#767984` (4,34:1 no branco) | `#666975` (5,47:1 no branco, 4,79:1 na `--superficie-media`) | AA para texto pequeno em toda superfície |
-| `--contorno` (controles: campo, chip sem seleção, botão de contorno) | `#C4C7D0` (1,69:1) | `#7A7D88` (4,10:1 no branco, 3,80:1 na `--superficie-baixa`) | WCAG 1.4.11: a borda é o único limite do chip e do campo, e precisa de 3:1 |
-| Texto sobre `--destaque-container` | `#2563EB` (4,14:1) | `--sobre-destaque-container` `#0F2A6B` (10,75:1) | O azul do botão não serve como texto no contêiner azul-claro |
+| `--contorno` (controles: campo, chip sem seleção, botão de contorno) | `#C4C7D0` (1,69:1) | `#7A7D88` (4,10:1 no branco, 3,80:1 na `--superficie`) | WCAG 1.4.11: a borda é o único limite do chip e do campo, e precisa de 3:1 |
+| Texto sobre `--destaque-superficie` | `#2563EB` (4,14:1) | `--destaque-superficie-texto` `#0F2A6B` (10,75:1) | O azul do botão não serve como texto no contêiner azul-claro |
 
 O `--contorno-suave` (`#E2E4EA`) fica só em divisórias e no contorno decorativo de cartão, onde a borda
 não é o único indicador. Hoje o `--texto-suave` (`#A8A49F`, 2,48:1) já não passa no AA: a troca corrige
@@ -93,26 +93,54 @@ quebra quando o HTMX troca o trecho); rótulo fixo acima (a opção B da Q2, nã
 - as observações (`obs`) não têm `<label>`: o rótulo é o título do passo (`aria-labelledby`). Elas
   ficam com a caixa nova, sem rótulo flutuante.
 
-## R5. Chips com lista e menu ⋮ são `<details>` nativos
+## R5. Chips de situação são rádios; chips com lista e menu ⋮ são `<details>` nativos
 
-**Decision**: o chip com lista (Origem, SCPI, Recibo, Autorização, Período) é um
-`<details class="chip-menu" data-menu>`. O `<summary>` é o chip, e o painel mostra o mesmo campo do
-`FiltrosPainel` de hoje, montado pelo `dropdown.js`. O menu ⋮ da linha é um
-`<details class="menu-acoes" data-menu>` com links. Um script novo e pequeno, `interface/js/menus.js`,
-só fecha o `details[data-menu]` aberto com Esc e com clique fora, e fecha os outros quando um abre.
+**Decision**:
+
+- **Chips de situação**: rádios nativos estilizados como chip (`<input type="radio" name="situacao"
+  class="chip-entrada">` dentro de `<label class="chip">`, num `<fieldset class="chips">` com a
+  `legend` "Situação"). O estado é o `:checked`, desenhado pelo seletor de irmão
+  (`.chip-entrada:checked + .chip-texto`), sem `:has()`. O `FiltrosPainel.situacao` passa a usar o
+  `RadioSelect`.
+- **Chips com lista** (Origem, SCPI, Recibo, Autorização, Período): `<details class="chip-menu"
+  data-menu>`. O `<summary>` é o chip, e o painel mostra o mesmo campo do `FiltrosPainel` de hoje,
+  montado pelo `dropdown.js`.
+- **Menu ⋮**: `<details class="menu-acoes" data-menu>` com links.
+- **`interface/js/menus.js`** (novo e pequeno): fecha o `details[data-menu]` aberto com Esc e com
+  clique fora, e fecha os outros quando um abre.
+- **O "Filtrar"** é o primeiro botão de envio do formulário e não tem `name`.
+- **Estado depois da troca do HTMX**: o `filtros.js` atualiza os rótulos dos chips com lista
+  ("Origem: Limpeza") e o `aria-current` dos indicadores a partir dos valores do formulário, a cada
+  `change`. No painel, ele deixa de recolher o painel de filtros. No histórico de Automações, nada
+  muda.
 
 **Rationale**:
 
-- O `<details>` abre e fecha sem JavaScript e pelo teclado, e o `summary` é focável. Isso cumpre a
-  FR-009 (área interna sem JavaScript) e a FR-018a sem duplicar links.
-- O formulário de filtros continua um GET com os mesmos nomes de campo, e o HTMX continua com o mesmo
-  `hx-trigger`.
-- O chip de situação é um `<button type="submit" name="situacao" value="…">` com `aria-pressed`, que
-  funciona sem script.
+- **Botão de envio não guarda valor**: só manda o `name`/`value` no envio que ele dispara. Ao mudar
+  outro filtro, a situação some. E o Enter num campo de texto envia pelo primeiro botão de envio do
+  formulário, o que mandaria o valor do primeiro chip. O revisor confirmou que o HTMX 4 inclui o
+  `submitter`, então o problema não é o HTMX: é o botão. O rádio guarda o valor em todo envio, e o
+  `change` dele já está no gatilho.
+- **O formulário é a fonte do que foi enviado**: a lista que volta foi filtrada pelos valores dele.
+  Sincronizar a tela a partir do formulário dispensa trocar a barra de filtros pelo servidor (o
+  `hx-swap-oob` existe no HTMX 4), que fecharia o painel aberto e tiraria o foco de quem digita.
+- **Funciona sem JavaScript**: o `<details>` abre e fecha nativamente e pelo teclado, e o `summary` é
+  focável. Isso cumpre a FR-009 e a FR-018a sem duplicar links. Cada envio sem JavaScript recarrega a
+  página, e o servidor desenha o estado pela URL.
 
-**Alternatives considered**: o `filtros.js` de hoje (painel recolhível com chips de filtro ativo).
-Ele continua no histórico de Automações, mas no painel daria lugar aos chips sempre visíveis.
-Popover API: o suporte é recente demais para os iPhones antigos dos funcionários.
+**Alternatives considered**:
+
+- Botões de envio com um `input hidden name="situacao"` sincronizado por script: mais peças para o
+  mesmo resultado, e sem script o valor se perde.
+- Devolver a barra de filtros por `hx-swap-oob`: tiraria o foco e fecharia o chip aberto.
+- Popover API: o suporte é recente demais para os iPhones antigos dos funcionários.
+
+**A busca `q` fica fora do formulário** (FR-014): o formulário de filtros não pode envolver os
+indicadores, porque o cartão do robô tem o próprio `<form method="post">` do "Lançar no SCPI", e o
+navegador descarta o formulário aninhado (o botão passaria a enviar o GET dos filtros, sem lançar
+nada). A busca liga-se ao formulário pelo atributo `form="filtros-painel"`. Como o `input` de um
+campo fora do formulário não sobe até ele, o gatilho ganha `input delay:400ms from:#id_q`. O
+revisor confirmou o `from:` no HTMX 4 vendorizado.
 
 ## R6. O menu continua a `app-lateral`, agora estreito
 
@@ -139,36 +167,68 @@ punha uma barra no celular que escondia destinos (corrigido na spec).
 **Alternatives considered**: barra de navegação embaixo no celular (6 ou 7 destinos não cabem sem um
 "Mais"); manter a barra larga (perde a largura útil que motivou a troca).
 
-## R7. Contadores do menu: preguiçosos e uma vez por requisição
+## R7. Contadores do menu: preguiçosos, uma vez por requisição, em `interface`
 
 **Decision**: o context processor `interface.navegacao.menu` põe no item Painel o número de pedidos
 aguardando atendimento, e no item Automações o das travas a conferir, só para quem pode abrir cada
-item. As travas a conferir são as requisições de saída travadas (`contar_lotes_travados`) mais os
-recebimentos de compra em verificação, em lançamento ou com erro
-(`compras.consultas.contar_recebimentos_travados`, nova: um `count` pelos mesmos estados que a
-`verificacoes_entradas` lista, sem montar as candidatas). As duas se resolvem em Automações (abas
-Lançamento no SCPI e Entradas no SCPI), e um contador só das saídas esconderia o recebimento travado.
-O cartão do robô no painel continua só das saídas. Os números vêm de `pedidos.consultas.contadores_do_menu(request)`, que guarda o resultado na
-própria requisição; a view do painel usa a mesma função e não conta duas vezes. Os valores são
-preguiçosos: a contagem só roda se o template desenhar o menu, e os trechos do HTMX não desenham.
+item. Os números vêm de `interface.navegacao.contadores(request)`, que guarda **as parcelas** na
+própria requisição:
 
-**Rationale**: as contagens já existem ou são um `count` simples (`filtrar_situacao(...,"aguardando")`,
-`contar_lotes_travados` e a nova contagem dos recebimentos) e são baratas no volume atual. Por serem preguiçosas, a página sem menu (a
-pública) e os trechos do HTMX não pagam nada.
+| Parcela | Fonte | Quem usa |
+|---|---|---|
+| pedidos aguardando | `filtrar_situacao(Pedido.objects.all(), "aguardando").count()` | contador do Painel e cartão de atendimento |
+| requisições travadas (como hoje) | `contar_lotes_travados()` | nota do cartão do robô |
+| requisições a conferir | lotes distintos com linha em `VERIFICAR` ou `ERRO`, mais os com `EM_LANCAMENTO` quando não há execução de saídas em andamento (`contar_lotes_travados(com_em_lancamento=…)`, parâmetro novo; o lote com linhas nos dois estados conta uma vez) | contador de Automações |
+| recebimentos travados | `compras.consultas.contar_recebimentos_travados()` (nova): `Recebimento` em `VERIFICAR` ou `ERRO`, mais `EM_LANCAMENTO` quando não há execução de entradas em andamento | contador de Automações |
 
-**Alternatives considered**: contadores só no painel (o menu mostraria número numa página e não na
-outra); cache com tempo de vida (número velho num menu que manda agir).
+- **Contador de Automações** = requisições travadas (`VERIFICAR` e `ERRO`, mais `EM_LANCAMENTO` quando
+  o robô de saídas não está rodando) + recebimentos travados (mesma regra, com o robô de entradas).
+  Durante uma execução, o "em lançamento" é o robô trabalhando, não uma trava, e o contador
+  acenderia em toda página enquanto ele roda.
+- **O cartão do robô no painel não muda**: conta as travadas como hoje (`contar_lotes_travados`, que
+  inclui o `EM_LANCAMENTO` sempre). Durante uma execução, o cartão pode mostrar "1 para conferir"
+  enquanto o menu mostra 0 em Automações. É a diferença de propósito entre os dois: o cartão é o
+  painel do robô, o contador é o aviso de pendência.
+- **Custo**: até quatro contagens por página inteira (a de pedidos aguardando, as duas das saídas e a dos recebimentos), e a conferência da execução em andamento (a
+  `ExecucaoRobo.em_andamento`, que usa `IS_USED_LOCK`) só roda quando há algo em `EM_LANCAMENTO`. A
+  view do painel lê as mesmas parcelas da memória e não conta duas vezes. Os valores são
+  preguiçosos: nada roda se o template não desenhar o menu, e os trechos do HTMX não desenham.
+- **Lugar**: em `interface/navegacao.py`, que já é a camada de apresentação e já importa
+  `contas.acesso`. Lá, as importações de `pedidos.consultas` e `compras.consultas` ficam dentro da
+  função. Hoje `compras` depende de `pedidos`, e uma função em `pedidos.consultas` que importasse
+  `compras` inverteria a direção.
+
+**Rationale**: as contagens já existem ou são um `count` simples, baratas no volume atual. O usuário
+decidiu (2026-11-13) que o contador conta só o que exige ação.
+
+**Alternatives considered**:
+
+- Contadores só no painel: o menu mostraria número numa página e não na outra.
+- Cache com tempo de vida: número velho num menu que manda agir.
+- Contar o `EM_LANCAMENTO` sempre, como o cartão: contador aceso em toda página durante cada
+  execução.
 
 ## R8. "Imprimir recibo" pela lista: `?imprimir=1` no detalhe
 
-**Decision**: o item do ⋮ leva a `pedidos:detalhe` com `?imprimir=1`. No carregamento, o `pedidos.js`
-aciona o botão `[data-imprimir]` que já existe (o mesmo clique da pessoa) e tira o parâmetro da URL
-com `history.replaceState`, para o recarregar não imprimir de novo. Depois da impressão, o
-`afterprint` de hoje abre a confirmação "O recibo saiu na impressora?". Sem JavaScript, o detalhe só
-abre: o botão de imprimir fica escondido sem JavaScript, como hoje, e nada é impresso nem marcado.
+**Decision**:
+
+- O item do ⋮ leva a `pedidos:detalhe` com `?imprimir=1`.
+- **Quando imprime**: o servidor marca o botão `[data-imprimir]` com `data-imprimir-ao-abrir` só
+  quando o pedido tem atendimento e o recibo ainda não foi impresso (`recibo_impresso_em` nulo).
+- **No navegador**: o `pedidos.js` aciona esse botão uma vez, no evento `load` (com as fontes
+  carregadas), e tira o parâmetro da barra com `history.replaceState(history.state, "",
+  url_sem_imprimir)`, sem apagar o estado de histórico do HTMX.
+- **A volta da confirmação**: o campo `voltar` do diálogo "O recibo saiu na impressora?" passa a
+  levar a URL sem o `imprimir`. Hoje ele é o `request.get_full_path`, e o `marcar_impressos`
+  redireciona para ele.
+- **Depois da impressão**: o `afterprint` de hoje abre a confirmação.
+- **Sem JavaScript**: o detalhe só abre. O botão de imprimir fica escondido sem JavaScript, como hoje,
+  e nada é impresso nem marcado.
 
 **Rationale**: reusa o fluxo de impressão e de confirmação de hoje, sem rota nova nem gravação nova.
-A marcação de impresso continua exigindo a confirmação da pessoa (FR-018a).
+A marcação de impresso continua exigindo a confirmação da pessoa (FR-018a). Sem o `voltar` limpo, a
+confirmação voltaria a `?imprimir=1` e imprimiria de novo, agora sem o diálogo: o revisor achou esse
+laço.
 
 **Risco**: o navegador pode recusar o `window.print()` sem um gesto da pessoa. No Chrome e no Edge do
 almoxarifado, ele é aceito no carregamento; se algum recusar, o detalhe abre com o botão em foco e
@@ -222,8 +282,17 @@ selo.
 | `selo-info` | `info` |
 | `selo-neutro` | nenhum |
 
-O selo que já traz o próprio ícone no markup (`.selo:has(svg)`, como o "N no pedido" e os selos das
-abas) não ganha o segundo. Os templates não mudam.
+Detalhes da regra:
+
+- **Selo com ícone próprio**: o selo que já traz o ícone no markup (`.selo:has(svg)`, como o "N no
+  pedido") não ganha o segundo. Os templates não mudam.
+- **Selo das abas** (`aba-selo`): hoje ele esconde o próprio `svg` na tela larga e mostra só o texto.
+  Com a regra, ficaria sem ícone nenhum. Passa a mostrar o `svg` em toda largura, com o texto ao lado
+  na tela larga.
+- **Selo informativo usado como rótulo** ("Adicionado pelo almoxarifado", `selo-info`): ganha o
+  ícone `info`. É coerente com o tom, e no papel o ícone some (abaixo).
+- **Impressão**: `@media print { .selo::before { display: none } }`. O recibo sai como hoje (FR-010).
+- **Compatibilidade**: `mask-image` e `-webkit-mask-image`, os dois.
 
 **Rationale**:
 
@@ -273,28 +342,49 @@ iguais em toda entrega. O Playwright já é dependência do projeto (robôs do S
 **Alternatives considered**: regressão visual automática com comparação de pixels (frágil com
 fontes e antialiasing, e exigiria o navegador na suíte); capturas à mão (sem padrão, ninguém repete).
 
-## R15. Contraste verificado por teste
+## R15. Contraste verificado por teste, sobre as combinações declaradas
 
-**Decision**: `tests/test_contraste_tokens.py` lê o bloco `:root` de `fundacao.css` e confere, para
-cada par da tabela de `contracts/tokens.md`, o contraste mínimo (4,5:1 no texto, 3:1 em contorno de
-controle, ícone de estado e foco), com a fórmula da WCAG 2.1. Roda sem banco.
+**Decision**: o `docs/DESIGN.md` declara as combinações de texto e fundo permitidas (a tabela
+"Combinações" de `contracts/tokens.md`). O teste `tests/test_contraste_tokens.py` lê o bloco `:root` de
+`fundacao.css` e confere cada combinação declarada: 4,5:1 no texto e 3:1 em contorno de controle,
+ícone de estado e foco, com a fórmula da WCAG 2.1. Roda sem banco.
 
-**Rationale**: transforma a SC-003 em teste permanente: quem mudar um token depois não reprova o
-contraste sem perceber.
+Combinações que o cálculo reprovou e por isso ficam **proibidas**, declaradas no `DESIGN.md`:
+
+| Combinação | Contraste |
+|---|---|
+| `--destaque` sobre `--destaque-superficie` | 4,14:1 |
+| `--destaque` sobre `--secundario-superficie` | 4,17:1 |
+| `--texto-suave` sobre `--secundario-superficie` | 4,41:1 |
+| `--texto-suave` sobre `--superficie-maxima` | 4,29:1 |
+
+Sobre os contêineres, o texto usa o `-texto` do próprio contêiner, e o texto suave não é usado.
+
+**Rationale**: "todos os pares" não tem como ser conferido, porque nem todo par é usado. A lista
+declarada é a regra que quem desenha segue, e o teste garante que ela continua passando quando um
+token mudar.
 
 ## R16. Documentação, skill e constituição na entrega 1
 
 **Decision**:
 
-- **Constituição 2.2.0**: o Princípio VI passa a dizer "A interface segue o design system do projeto
-  (`docs/DESIGN.md`)". As demais linhas do princípio não mudam. No relatório de impacto do topo do
-  arquivo, o motivo é a spec 015.
-- **`docs/DESIGN.md`**: reescrito com os tokens, o vocabulário (o que fica, o que muda, o que entra),
-  os componentes novos, as regras que continuam e o passo a passo de "Tela nova".
+- **Constituição 2.2.0** (decisão do usuário): o Princípio VI passa a dizer "A interface segue o
+  design system do projeto (`docs/DESIGN.md`)". As demais linhas do princípio não mudam. Pela regra de
+  versão (MAJOR para princípio "redefinido de forma incompatível", MINOR para "acrescentado ou
+  ampliado"), é uma redefinição **compatível**: nenhuma garantia cai, e a referência fica mais geral.
+  O relatório de impacto do topo do arquivo registra esse motivo e a spec 015.
+- **`docs/DESIGN.md`**: reescrito com os tokens, as combinações de contraste permitidas e proibidas
+  (R15), o vocabulário (o que fica, o que muda, o que entra), os componentes novos, as regras que
+  continuam e o passo a passo de "Tela nova". Cada componente novo traz a entrega em que passa a
+  existir (por exemplo, "indicador: entrega 2"), para o documento não descrever o que ainda não está
+  no código.
 - **Skill**: a `.claude/skills/design-tonal/` (o nome "Tonal" vem das superfícies tonais do M3)
   substitui a `.claude/skills/clean-design/`, que sai e fica no histórico do Git.
 - **`CLAUDE.md`**: a regra das três skills passa a nomear a `design-tonal`, e a seção da interface
   troca `clean.css` por `fundacao.css` e Clean por Tonal.
+- **`CLAUDE.md` nas outras entregas**: a 2 descreve o menu estreito, os contadores, os chips de rádio
+  e o `?imprimir=1`; a 3 troca "o placeholder do destino" (`Fluxo.exemplo_destino`, parágrafo da spec
+  007) por "o texto de apoio do destino".
 
 **Rationale**: a governança manda a emenda e os documentos afetados no mesmo PR, e a entrega 1 é a
 que muda o estilo. Uma skill desatualizada geraria telas Clean nas entregas seguintes e na spec 014.

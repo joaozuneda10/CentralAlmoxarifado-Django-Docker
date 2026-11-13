@@ -32,7 +32,26 @@ foram calculados com a fórmula da WCAG 2.1 e são conferidos por `tests/test_co
 | `--info-superficie` / `--info-texto` | `var(--destaque-superficie)` / `var(--destaque-superficie-texto)` | idem / `--destaque-hover` | status informação |
 | `--neutro-superficie` / `--neutro-texto` | `#ECEDF2` / `#4A4D57` | `--superficie` / `--texto-secundario` | status neutro |
 
-A impressão continua a exceção: texto preto e bordas cinza (`@media print`, sem mudança).
+A impressão continua a exceção: texto preto e bordas cinza. No `@media print`, a folha do recibo
+(`.folha-recibo`) **redefine os tokens que usa com os valores de hoje** (`--texto` `#000000`,
+`--borda` e contornos cinza, `--raio-cartao` 12px e a tabela de hoje) e esconde o ícone dos selos,
+para o recibo impresso sair idêntico (FR-010, SC-007).
+
+## Combinações permitidas e proibidas
+
+O `docs/DESIGN.md` declara estas listas, e `tests/test_contraste_tokens.py` confere as permitidas
+(R15). Combinação fora da lista permitida não é usada.
+
+Permitidas: as da tabela "Pares conferidos pelo teste", abaixo.
+
+Proibidas (reprovam no cálculo):
+
+| Combinação | Contraste | Use em vez disso |
+|---|---|---|
+| `--destaque` sobre `--destaque-superficie` | 4,14 | `--destaque-superficie-texto` |
+| `--destaque` sobre `--secundario-superficie` | 4,17 | `--secundario-superficie-texto` |
+| `--texto-suave` sobre `--secundario-superficie` | 4,41 | `--secundario-superficie-texto` |
+| `--texto-suave` sobre `--superficie-maxima` | 4,29 | `--texto-secundario` |
 
 ## Pares conferidos pelo teste
 
@@ -63,7 +82,8 @@ O teste falha se um par cair abaixo do mínimo, ou se um token da tabela sumir d
 | Token | Valor | Antes | Uso |
 |---|---|---|---|
 | `--raio-campo` (novo) | `4px` | — | caixa do campo no padrão M3 |
-| `--raio-controle` | `8px` | `8px` | chip, selo (6px no selo de tabela), item de menu |
+| `--raio-controle` | `8px` | `8px` | chip, item de menu |
+| `--raio-selo` (novo) | `6px` | — | selo |
 | `--raio-cartao` | `16px` | `12px` | cartão, indicador, painel flutuante, tabela |
 | `--raio-bloco` (novo) | `28px` | — | passo do formulário, "Seu pedido", gaveta (só os cantos de cima) |
 | `--raio-pilula` | `100px` | `100px` | botões, busca em pílula, controle de quantidade |

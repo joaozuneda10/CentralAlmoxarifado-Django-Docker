@@ -43,8 +43,10 @@ iPhone dos funcionários. O `:has()` é usado só onde há reserva: sem ele, o r
 
 **Project Type**: aplicação web Django, monólito com apps.
 
-**Performance Goals**: o painel responde como hoje. Os contadores do menu custam no máximo duas
-contagens por página inteira renderizada, uma vez por requisição (R7), e nenhuma nos trechos do HTMX.
+**Performance Goals**: o painel responde como hoje. Os contadores do menu custam até quatro
+contagens por página inteira renderizada, uma vez por requisição e lidas também pelo painel, mais a
+conferência da execução em andamento só quando há algo "em lançamento" (R7); nenhuma nos trechos do
+HTMX.
 O CSS total não cresce mais que 30% (hoje são cerca de 860 linhas comuns mais o CSS das apps).
 
 **Constraints**: nenhuma mudança de comportamento além de FR-018 e FR-020; vocabulário de classes
@@ -106,20 +108,25 @@ interface/
 │   ├── componentes.css            # componentes reestilizados + indicador, chip, menu-acoes, fab (1 e 2)
 │   └── layouts.css                # casca: menu estreito (app-lateral) e público (2 e 3)
 ├── static/interface/js/
-│   └── menus.js                   # novo: Esc e clique fora para details[data-menu] (2)
+│   ├── menus.js                   # novo: Esc e clique fora para details[data-menu] (2)
+│   └── filtros.js                 # painel: rótulos dos chips com lista e aria-current dos indicadores
+│                                  # pelo formulário; sem recolher no painel (2)
 ├── templates/interface/
 │   ├── base.html                  # carrega fundacao.css e menus.js (1 e 2)
 │   ├── base_almoxarifado.html     # casca com o menu estreito (2)
 │   ├── _menu.html                 # ícone + rótulo + contador; conta no pé (2)
 │   └── _icone.html                # ícones novos: kebab, calendario, documento, caminhao (1 e 2)
-├── navegacao.py                   # contadores do menu, preguiçosos; Compras com o ícone caminhao (2)
+├── navegacao.py                   # contadores(request): parcelas na requisição, preguiçosas; Compras
+│                                  # com o ícone caminhao (2)
 └── templatetags/                  # (sem mudança)
 
 pedidos/
 ├── regras.py                      # texto_envio_mais_antigo (pura) (2)
 ├── consultas.py                   # envio_mais_antigo_aguardando, contar_aguardando_autorizacao,
-│                                  # contadores_do_menu (memo por requisição) (2)
-├── views/almoxarifado.py          # painel: novos números e permissões do ⋮; detalhe: ?imprimir=1 (2)
+│                                  # contar_lotes_travados(com_em_lancamento=…) (2); FiltrosPainel.situacao
+│                                  # com RadioSelect (2)
+├── views/almoxarifado.py          # painel: novos números pela memória dos contadores; detalhe:
+│                                  # ?imprimir=1 e o voltar sem o parâmetro (2)
 ├── templates/pedidos/
 │   ├── painel.html                # indicadores, chips, fab (2)
 │   ├── _painel_lista.html         # colunas Situação e SCPI, recibo pendente, ⋮ (2)
@@ -128,23 +135,31 @@ pedidos/
 │   │   _folha.html                # formulários públicos (3)
 │   └── detalhe.html, avulsa.html, … # demais telas (4)
 ├── static/pedidos/css/pedidos.css # (1 a 4)
-└── static/pedidos/js/pedidos.js   # ?imprimir=1 aciona o [data-imprimir] e limpa a URL (2)
+└── static/pedidos/js/pedidos.js   # ?imprimir=1 aciona o [data-imprimir] no load e limpa a URL (2)
 
 compras/                            # contar_recebimentos_travados em consultas.py (2); telas da área
                                     # Compras e da aba Entradas (4), com regra para as 5 classes sem CSS
 
-catalogo/, automacoes/, conciliacao/, contas/   # templates e CSS das telas (3: login de solicitante
-                                                # e Meus pedidos; 4: as demais)
+contas/forms.py                     # placeholder=" " nos widgets de FormularioEntrada e
+                                    # FormularioTrocaSenha (3)
+
+catalogo/, automacoes/, conciliacao/, contas/   # templates e CSS das telas (3: login, troca de senha,
+                                                # bloqueio, Meus pedidos; 4: as demais)
 
 scripts/capturar_telas.py          # novo, fora da suíte: capturas a 320/375/768/1280/1440 (1)
 
 tests/
 ├── test_fundacao.py               # antes test_clean.py, com os tokens novos (1)
-├── test_contraste_tokens.py       # novo: pares de token ≥ AA, lidos do CSS (1)
+├── test_contraste_tokens.py       # novo: combinações declaradas no DESIGN.md ≥ AA, lidas do CSS (1)
 ├── test_painel_indicadores.py     # novo: mais antigo, autorizações, travadas, contadores (2)
-├── test_painel_menu_acoes.py      # novo: condições do ⋮ e permissões (2)
-├── test_imprimir_pela_lista.py    # novo: ?imprimir=1 no detalhe (2)
-└── test_campos_flutuantes.py      # novo: markup do rótulo flutuante e do texto de apoio (3)
+├── test_painel_menu_acoes.py      # novo: condições do ⋮ por estado (2)
+├── test_painel_filtros.py         # novo: chips de rádio, estado pela URL, busca com form=, lançar fora
+│                                  # do formulário de filtros (2)
+├── test_imprimir_pela_lista.py    # novo: ?imprimir=1, recibo já impresso e voltar limpo (2)
+├── test_painel.py, test_epis_painel.py  # reescritos para o markup novo, com os mesmos números e
+│                                  # destinos (2, SC-001)
+└── test_campos_flutuantes.py      # novo: rótulo flutuante, texto de apoio, erro no aria-describedby,
+                                   # login e troca de senha (3)
 
 docs/DESIGN.md                     # reescrito (1)
 .claude/skills/design-tonal/       # nova skill de estilo; sai a .claude/skills/clean-design/ (1)
@@ -164,8 +179,8 @@ Cada entrega é um PR para `develop`, com deploy separado e revisão visual do c
 |---|---------|--------|-----------------|
 | 1 | Fundação | Tokens (`fundacao.css`), componentes comuns, ícones e o ícone do selo pelo tom (no CSS); constituição 2.2.0, `DESIGN.md`, skill `design-tonal` e `CLAUDE.md`; teste de contraste; script de capturas | Só `base.html` e `_icone.html` |
 | 2 | Casca e painel | Menu estreito com contadores (Automações com as travas das saídas e das entradas) e rolagem vertical, Compras com o ícone `caminhao`, painel (indicadores, chips, tabela, ⋮, fab), `?imprimir=1` no detalhe, `menus.js` | Casca e painel |
-| 3 | Formulários públicos | Início, formulário (campos flutuantes, passos, busca, quantidade, Seu pedido, gaveta), sucesso, consulta, login de solicitante, Meus pedidos, folha | Telas públicas |
-| 4 | Demais telas internas | Detalhe, atendimento, edição, saída avulsa, Automações (com as abas Entradas no SCPI e Pedidos de compra), Compras (lista, pedido, receber, recebimento), Curva ABC, Formulários, Autorizações, login, acesso negado | Telas internas |
+| 3 | Formulários públicos | Início, formulário (campos flutuantes, passos, busca, quantidade, Seu pedido, gaveta), sucesso, consulta, login (uma tela só, para a equipe e o solicitante), troca de senha, bloqueio por tentativas, Meus pedidos e um pedido meu, folha; `CLAUDE.md` (o `exemplo_destino` vira texto de apoio) | Telas públicas e `contas/forms.py` |
+| 4 | Demais telas internas | Detalhe, atendimento, edição, saída avulsa, Automações (com as abas Entradas no SCPI e Pedidos de compra), Compras (lista, pedido, receber, recebimento), Curva ABC, Formulários, Autorizações, acesso negado | Telas internas |
 
 **Spec 014 (entregue em 2026-11-13)**: as telas dela entram na entrega 4. Da 014, só três coisas
 mudam as entregas anteriores: os selos dela ganham ícone pelo CSS na entrega 1, sem tocar no template;

@@ -8,9 +8,9 @@ testes que a usam. O `docs/DESIGN.md` da entrega 1 é a versão normativa desta 
 
 | Componente | Classes (sem mudança de nome) | Desenho novo |
 |---|---|---|
-| Botões | `botao` + `botao-primario`, `botao-secundario` (`botao-destaque`, `botao-perigo`, `botao-ok`), `botao-texto`, `botao-icone`, `botao-bloco`, `botao-suave` | pílula (`--raio-pilula`); primário = cheio; secundário = contorno (`--contorno`); suave = tonal (`--secundario-superficie`); texto = sem fundo, hover em `--destaque-superficie`; ícone = círculo de 40px |
+| Botões | `botao` + `botao-primario`, `botao-secundario` (`botao-destaque`, `botao-perigo`, `botao-ok`), `botao-texto`, `botao-icone`, `botao-bloco`, `botao-suave` | pílula (`--raio-pilula`); primário = cheio; secundário = contorno (`--contorno`); suave = tonal (`--secundario-superficie`); texto = sem fundo, hover em `--destaque-superficie`; ícone = área de toque de 44px na área interna e 48px na pública (`--altura-controle`), com o círculo do desenho de 40px dentro |
 | Campos | `campo`, `campo-rotulo`, `campo-entrada`, `campo-dica`, `campo-erro`, `campo-com-erro`, `campo-busca`, … | caixa com `--contorno`; foco com borda de 2px em `--destaque`; erro com `--erro-forte` na borda, no rótulo e no texto com ícone. Na área interna o rótulo continua fixo acima |
-| Selos | `selo` + `selo-ok`, `selo-aviso`, `selo-erro`, `selo-info`, `selo-neutro` | contêiner de status, raio de 6px, **ícone pelo tom no `::before`** (R12): `check`, triângulo de alerta, `alerta` e `info`; o neutro sem ícone; o selo com `svg` próprio não ganha outro |
+| Selos | `selo` + `selo-ok`, `selo-aviso`, `selo-erro`, `selo-info`, `selo-neutro`; `aba-selo` | contêiner de status, `--raio-selo`, **ícone pelo tom no `::before`** (R12): `check`, triângulo de alerta, `alerta` e `info`; o neutro sem ícone; o selo com `svg` próprio não ganha outro; o `aba-selo` passa a mostrar o próprio `svg` em toda largura; na impressão, sem ícone |
 | Avisos | `aviso` + variações | contêiner de status com raio de 16px e ícone |
 | Cartões | `cartao`, `cartao-titulo`, `cartao-sutil`, `cartao-opcao` | `cartao`: fundo branco com `--borda` e raio de 16px; `cartao-sutil`: `--superficie-media` sem borda; `cartao-opcao`: ícone num quadrado de 48px em `--destaque-superficie` |
 | Tabela | `tabela-rolagem`, `tabela`, … | cabeçalho em `--texto-secundario` 500; divisórias em `--borda`; hover em `--superficie` |
@@ -24,9 +24,9 @@ testes que a usam. O `docs/DESIGN.md` da entrega 1 é a versão normativa desta 
 | Componente | Classes | Onde | Markup (resumo) |
 |---|---|---|---|
 | Indicadores | `indicadores` (grade), `indicador`, `indicador-critico`, `indicador-rotulo`, `indicador-numero`, `indicador-nota`, `indicador-nota-alerta`, `indicador-acao` | painel (2) | `<section class="indicadores" aria-label="Resumo">` com um `div.indicador` por cartão; o link do filtro cobre o cartão (`indicador-link`, `aria-current="true"` quando o filtro está ativo), e as ações ficam acima dele (`position: relative`) |
-| Chips | `chips` (linha), `chip` | painel (2) | `<button type="submit" class="chip" name="situacao" value="parcial" aria-pressed="false">` com `check` escondido até ser selecionado |
+| Chips de rádio | `chips` (o `fieldset`), `chip` (o `label`), `chip-entrada` (o rádio, escondido do desenho e focável), `chip-texto` | painel (2) | `<fieldset class="chips"><legend class="visually-hidden">Situação</legend><label class="chip"><input type="radio" class="chip-entrada" name="situacao" value="parcial"><span class="chip-texto">check + Atendido parcialmente</span></label>…</fieldset>`; o `check` só aparece em `.chip-entrada:checked + .chip-texto`; altura do desenho de 32px, área de toque de 44px |
 | Chip com lista | `chip-menu`, `chip-menu-painel` | painel (2) | `<details class="chip-menu" data-menu><summary class="chip">Origem …</summary><div class="chip-menu-painel painel-flutuante">{{ filtros.origem }}</div></details>` |
-| Menu de ações | `menu-acoes`, `menu-acoes-lista` | lista do painel (2) | `<details class="menu-acoes" data-menu><summary class="botao botao-icone" aria-label="Ações do pedido P-000123">kebab</summary><ul class="menu-acoes-lista">…links…</ul></details>` |
+| Menu de ações | `menu-acoes`, `menu-acoes-acima` (nas duas últimas linhas), `menu-acoes-lista` | lista do painel (2) | `<details class="menu-acoes" data-menu><summary class="botao botao-icone" aria-label="Ações do pedido P-000123">kebab</summary><ul class="menu-acoes-lista">…links…</ul></details>` |
 | Botão flutuante | `fab` | painel (2) | `<a class="fab nao-imprimir" href="{% url 'pedidos:avulsa' %}">mais + "Saída avulsa"</a>`; no celular sobe acima da área segura; a página ganha recheio embaixo para nada ficar coberto |
 | Contador do menu | `app-menu-contador` | casca (2) | `<span class="app-menu-contador"><span aria-hidden="true">2</span><span class="visually-hidden">, 2 para atender</span></span>` depois do ícone, dentro do `app-menu-item` |
 | Conta compacta | `app-conta-avatar` | casca (2) | iniciais num círculo, com o nome e a matrícula em `title` e em texto para o leitor de tela; "Sair" com `aria-label` |
@@ -49,12 +49,13 @@ não passam pelo `_icone.html`: são máscaras no CSS (R12).
 
 O script de capturas percorre esta lista a 320, 375, 768, 1280 e 1440px:
 
-- públicas: início, formulário de limpeza (vazio e com 2 materiais, com a gaveta aberta no celular),
-  formulário das viaturas com a folha aberta, sucesso, consulta pública, login de solicitante, Meus
-  pedidos;
-- internas: painel (sem filtro, com filtro e com o ⋮ aberto), detalhe aguardando atendimento,
+- públicas: início, formulário de limpeza (vazio, com 2 materiais e com a gaveta aberta no celular),
+  formulário das viaturas com a folha aberta, sucesso, consulta pública, login (equipe e solicitante,
+  a mesma tela, também com o preenchimento automático), troca de senha, bloqueio por tentativas
+  (`contas/bloqueado.html`), Meus pedidos e um pedido meu (`meu_pedido.html`), acesso negado público;
+- internas: painel (sem filtro, com filtro, com o ⋮ aberto numa linha do meio e na última), detalhe aguardando atendimento,
   detalhe atendido, edição, saída avulsa, Automações (Visão geral, Lançamento no SCPI, Entradas no
   SCPI e Pedidos de compra), Compras (lista de pedidos, pedido, receber e recebimento), Curva ABC,
-  Formulários, Autorizações (Segurança do Trabalho), login, acesso negado;
+  Formulários, Autorizações (Segurança do Trabalho), acesso negado;
 - o menu estreito a 1366×650 (a altura útil da janela num monitor de 1366×768);
-- impressão: o recibo em PDF (SC-007).
+- impressão: o recibo em PDF (SC-007), com e sem material acrescentado pelo almoxarifado.
