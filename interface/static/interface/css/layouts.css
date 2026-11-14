@@ -223,7 +223,7 @@
 
 /* Com a barra do topo presa (acima de 1286px), o que um link ou atalho rola até o alto fica abaixo dela. */
 @media (min-width: 1287px) {
-  .app-principal [id] { scroll-margin-top: 88px; }
+  .app-principal[id], .app-principal [id] { scroll-margin-top: 88px; }
 }
 /* Separador antes de Cadastros (o admin), como no protótipo: só no menu estreito. */
 .app-menu-separador { display: none; }
