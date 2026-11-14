@@ -35,7 +35,7 @@ def test_so_os_centros_habilitados_sem_placa(client):
     assert f'<option value="{EQUIPE}">' in opcoes
     assert "ETA II" not in opcoes and "—" not in opcoes and "BBB2B22" not in opcoes
     assert (
-        'placeholder="Centro de custo da equipe"'
+        '<p id="destino-dica" class="campo-dica">Centro de custo da equipe</p>'
         in client.get(reverse("pedidos:formulario", args=["viaturas"])).text
     )
 

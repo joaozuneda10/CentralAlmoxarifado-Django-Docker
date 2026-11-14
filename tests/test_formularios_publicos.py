@@ -211,10 +211,10 @@ def test_destino_fica_junto_do_nome_com_a_orientacao(client):
         assert 'name="solicitante"' in passo1 and 'name="destino"' in passo1
         assert 'list="destinos"' in passo1
         assert "O que pôr aqui?" not in passo1 and "<details" not in passo1
-        # A orientação é a dica dentro do próprio campo (placeholder), sem parágrafo embaixo.
+        # Rótulo flutuante (spec 015): a orientação é o texto de apoio embaixo do campo.
         campo = re.search(r'<input id="destino"[^>]*>', passo1).group(0)
-        assert f'placeholder="{dica}"' in campo
-        assert "destino-dica" not in passo1
+        assert 'placeholder=" "' in campo and 'aria-describedby="destino-dica"' in campo
+        assert f'<p id="destino-dica" class="campo-dica">{dica}</p>' in passo1
         assert 'name="destino"' not in r.text[r.text.index('<h2 id="obs-titulo">') :]
         for opcao in ("ETA I", "ETA II", "PICKUP 01 — ABC1D23"):
             assert f'<option value="{opcao}">' in r.text
@@ -325,9 +325,9 @@ def test_exemplo_da_busca_combina_com_o_formulario(client):
 def test_formulario_em_tres_passos(client):
     r = client.get(reverse("pedidos:formulario", args=["limpeza"]))
     for numero, titulo in (
-        ("01", "Seus dados"),
-        ("02", "Materiais"),
-        ("03", 'Observações <span class="texto-secundario">(opcional)</span>'),
+        ("1", "Seus dados"),
+        ("2", "Materiais"),
+        ("3", 'Observações <span class="texto-secundario">(opcional)</span>'),
     ):
         assert f'<span class="passo-numero" aria-hidden="true">{numero}</span>' in r.text
         assert re.search(rf"<h2[^>]*>{re.escape(titulo)}</h2>", r.text)
@@ -344,7 +344,7 @@ def test_formulario_em_tres_passos(client):
 def test_sucesso_no_estilo_clean(client, django_capture_on_commit_callbacks):
     with django_capture_on_commit_callbacks(execute=True):
         r = postar(client, "limpeza", token(), itens=LIMPEZA_ITENS)
-    assert 'class="cartao sucesso-pedido"' in r.text
+    assert '<section class="sucesso-pedido"' in r.text
     assert '<p class="sucesso-numero mono">P-000001</p>' in r.text
 
 
@@ -392,7 +392,7 @@ def test_pedido_em_secao_propria_ao_lado_dos_passos_no_desktop(client):
     # E a gaveta (celular/tablet) usa o botão do fim do formulário.
     assert html.index("</aside>") < html.index('class="acoes acoes-final"')
     layouts = open(finders.find("interface/css/layouts.css"), encoding="utf-8").read()
-    assert ".pagina-larga .publico-conteudo" in layouts and "1080px" in layouts
+    assert ".pagina-larga .publico-conteudo { max-width: 1160px; }" in layouts
     pedidos = open(finders.find("pedidos/css/pedidos.css"), encoding="utf-8").read()
     regra = pedidos[pedidos.index("@container (min-width: 960px)") :]
     assert "minmax(0, 1fr) 340px" in regra and "position: sticky" in regra
@@ -568,7 +568,7 @@ def test_sucesso_lista_o_destino_e_os_materiais(client, django_capture_on_commit
         assert lista.count("<li>") == 2
         assert "<span>DETERGENTE NEUTRO</span> <strong>2" in lista
         assert "<span>CAFÉ 500 G</span> <strong>1,5" in lista
-        assert "Destino: <strong>ETA II</strong>" in html
+        assert "<dt>Destino</dt><dd>ETA II</dd>" in html
 
 
 def test_botao_do_fim_so_aparece_sem_javascript(client):
