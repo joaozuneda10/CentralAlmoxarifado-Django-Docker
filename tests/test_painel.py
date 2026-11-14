@@ -221,12 +221,14 @@ def test_consultas_limitadas(client, logado, django_assert_max_num_queries):
     assert r.status_code == 200
 
 
-def test_painel_no_estilo_clean(client, logado):
+def test_painel_no_estilo_do_design_system(client, logado):
     criar_pedido()
     r = client.get(reverse("pedidos:painel"))
-    assert 'class="filtros-recolhiveis"' in r.text and 'class="campo-busca"' in r.text
+    assert '<form id="filtros-painel"' in r.text and 'class="campo-busca' in r.text
     assert 'class="selo selo-info"' in r.text
-    tabela = r'<div class="tabela-rolagem">\s*<table class="tabela tabela-pedidos tabela-painel">'
+    tabela = (
+        r'<div class="tabela-rolagem[^"]*">\s*<table class="tabela tabela-pedidos tabela-painel">'
+    )
     assert re.search(tabela, r.text)
     assert 'class="campo-entrada"' in r.text  # widgets do FiltrosPainel
 
@@ -252,13 +254,18 @@ def test_origem_da_lista_e_curta_com_o_nome_inteiro_no_title(client, logado):
 def test_saude_do_catalogo_fica_no_fim_do_painel(client, logado):
     texto = client.get(reverse("pedidos:painel")).text
     assert texto.index('id="lista-pedidos"') < texto.index("Saúde do catálogo")
-    assert texto.index("Atalhos") < texto.index("Saúde do catálogo")
+    assert texto.index('class="indicadores"') < texto.index("Saúde do catálogo")
 
 
 def _atalhos(client):
+    """A seção dos indicadores (spec 015, entrega 2: os atalhos viraram cartões)."""
     texto = client.get(reverse("pedidos:painel")).text
-    corpo = texto[texto.index('<section class="cartao atalhos">') :]
+    corpo = texto[texto.index('<section class="indicadores"') :]
     return texto, corpo[: corpo.index("</section>")]
+
+
+def _numeros_dos_cartoes(atalhos):
+    return re.findall(r'<p class="indicador-numero">\s*([0-9]+)\s*</p>', atalhos)
 
 
 def _botao_desabilitado(atalhos, rotulo):
@@ -272,19 +279,24 @@ def test_atalhos_sao_cartoes_com_contador_e_o_cabecalho_fica_sem_botoes(client, 
     criar_pedido(atendido=True)
     criar_pedido(atendido=True, linhas=[("PENDENTE", "")])
     texto, atalhos = _atalhos(client)
-    assert re.findall(r'<p class="atalho-numero">([0-9]+)</p>', atalhos) == ["1", "2", "1"]
-    assert atalhos.count("atalho-pendente") == 3
+    # Os mesmos números de antes, na mesma ordem (o 4º cartão, novo, é a saúde do catálogo).
+    assert _numeros_dos_cartoes(atalhos)[:3] == ["1", "2", "1"]
     # Os atalhos que filtram a lista abrem a página rolada até ela (`#pedidos`).
     assert f"{reverse('pedidos:painel')}?situacao=aguardando#pedidos" in atalhos
     assert f"{reverse('pedidos:painel')}?recibo=pendente#pedidos" in atalhos
     assert 'id="pedidos"' in client.get(reverse("pedidos:painel")).text
-    # Os dois chegam com a lista à vista (rolagem animada) e o painel de filtros recolhido.
+    # Os dois chegam com a lista à vista (rolagem animada); os filtros ficam sempre à vista.
     assert (
-        atalhos.count('data-rolar-ate="pedidos" data-destacar="lista-pedidos" data-fechar-filtros')
-        == 2
+        f'href="{reverse("pedidos:painel")}?situacao=aguardando#pedidos" data-rolar-ate="pedidos"'
+        in atalhos
     )
-    for rota in ("automacoes:lancar", "pedidos:avulsa"):
-        assert reverse(rota) in atalhos
+    assert (
+        f'href="{reverse("pedidos:painel")}?recibo=pendente#pedidos" data-rolar-ate="pedidos"'
+        in atalhos
+    )
+    assert reverse("automacoes:lancar") in atalhos
+    # A saída avulsa saiu dos cartões e virou o botão flutuante.
+    assert reverse("pedidos:avulsa") in texto[texto.index('class="fab') :]
     cabecalho = texto[texto.index("<header") : texto.index("</header>")]
     assert "Saída avulsa" not in cabecalho and "Imprimir recibos" not in cabecalho
     # com requisição aguardando o robô, lançar fica habilitado; simular e atualizar o catálogo
@@ -295,8 +307,7 @@ def test_atalhos_sao_cartoes_com_contador_e_o_cabecalho_fica_sem_botoes(client, 
 
 def test_atalhos_em_dia_ficam_apagados_e_sem_destino(client, logado):
     _, atalhos = _atalhos(client)
-    assert "atalho-pendente" not in atalhos
-    assert re.findall(r'<p class="atalho-numero">([0-9]+)</p>', atalhos) == ["0", "0", "0"]
+    assert _numeros_dos_cartoes(atalhos)[:3] == ["0", "0", "0"]
     assert "Nenhum pedido aguardando." in atalhos and "Nenhum recibo pendente." in atalhos
     assert atalhos.count('aria-disabled="true"') == 2
     assert "?recibo=pendente" not in atalhos

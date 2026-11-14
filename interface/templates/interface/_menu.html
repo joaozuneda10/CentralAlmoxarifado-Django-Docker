@@ -1,8 +1,11 @@
 {% comment %}
-Barra lateral do almoxarifado. Até 1286px vira cabeçalho com o botão de menu
-(`interface/js/shell.js`), que mostra `menu` fechado e `fechar` aberto; sem JavaScript, a
+Barra lateral do almoxarifado. Acima de 1286px é o menu estreito (spec 015, research R6): ícone
+sobre o rótulo, o item atual com o ícone na pílula tonal e o contador depois do ícone; a lista rola
+na vertical quando não cabe, com a marca e a conta presas. Até 1286px vira cabeçalho com o botão de
+menu (`interface/js/shell.js`), que mostra `menu` fechado e `fechar` aberto; sem JavaScript, a
 navegação fica aberta. Sair é só POST com CSRF, num único formulário.
 {% endcomment %}
+{% load interface_extras %}
 <aside class="app-lateral">
   <div class="app-lateral-topo">
     <a class="marca" href="{% if menu_inicio %}{{ menu_inicio }}{% else %}{% url 'pedidos:painel' %}{% endif %}">{% include "interface/_icone.html" with nome="caixa" %}<span>Central Almoxarifado</span></a>
@@ -10,16 +13,21 @@ navegação fica aberta. Sair é só POST com CSRF, num único formulário.
   </div>
   <div class="app-lateral-painel" id="menu-lateral">
     <nav class="app-menu" aria-label="Seções">
-      {% for item in menu %}<a class="app-menu-item" href="{{ item.url }}"{% if item.atual %} aria-current="page"{% endif %}>{% include "interface/_icone.html" with nome=item.icone %}<span>{{ item.rotulo }}</span></a>
+      {% for item in menu %}{% with n=item.contador %}<a class="app-menu-item" href="{{ item.url }}"{% if item.atual %} aria-current="page"{% endif %}>{% include "interface/_icone.html" with nome=item.icone %}{% if n %}<span class="app-menu-contador"><span aria-hidden="true">{{ n }}</span><span class="visually-hidden">, {{ n }} {% if item.contador_tipo == "travas" %}trava{{ n|pluralize }} para conferir{% else %}para atender{% endif %}</span></span>{% endif %}<span>{{ item.rotulo }}</span></a>{% endwith %}
       {% endfor %}
     </nav>
+    {% with nome=user.get_full_name|default:user.username %}
     <div class="app-conta">
-      <p class="app-conta-nome">{{ user.get_full_name|default:user.username }}</p>
-      <p class="mono texto-suave texto-pequeno">{{ user.username }}</p>
+      <p class="app-conta-avatar" title="{{ nome }} · {{ user.username }}" aria-hidden="true">{% with letras=nome|iniciais %}{% if letras %}{{ letras }}{% else %}{% include "interface/_icone.html" with nome="usuario" %}{% endif %}{% endwith %}</p>
+      <div class="app-conta-dados">
+        <p class="app-conta-nome">{{ nome }}</p>
+        <p class="mono texto-suave texto-pequeno">{{ user.username }}</p>
+      </div>
       <form method="post" action="{% url 'logout' %}">
         {% csrf_token %}
-        <button type="submit" class="botao botao-texto">{% include "interface/_icone.html" with nome="sair" %}Sair</button>
+        <button type="submit" class="botao botao-texto app-conta-sair" aria-label="Sair ({{ nome }}, matrícula {{ user.username }})">{% include "interface/_icone.html" with nome="sair" %}<span>Sair</span></button>
       </form>
     </div>
+    {% endwith %}
   </div>
 </aside>

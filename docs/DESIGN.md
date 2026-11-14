@@ -37,7 +37,7 @@ Os valores e o contraste de cada par estão em `specs/015-design-system-m3/contr
 |---|---|---|
 | `--fundo` | `#FFFFFF` | fundo da página, campos, tabela, cartão |
 | `--superficie` | `#F5F6FA` | superfície baixa: fundo da área interna, passos, linha em hover, linha aberta |
-| `--superficie-media` | `#EEF0F5` | cartão sutil, aba não selecionada, indicadores (entrega 2), "Seu pedido" (entrega 3) |
+| `--superficie-media` | `#EEF0F5` | cartão sutil, aba não selecionada, indicadores, "Seu pedido" (entrega 3) |
 | `--superficie-alta` | `#E8EAF0` | hover de controle tonal, busca em pílula |
 | `--superficie-maxima` | `#E1E4EB` | pressionado, hover do botão suave e do chip |
 | `--texto` | `#1A1C21` | texto principal |
@@ -106,7 +106,7 @@ Sobre um contêiner, o texto usa o `-texto` do próprio contêiner, nunca o text
 | `--raio-pilula` | 100px | botões, botão suave, quantidade, paginação, item do menu |
 | `--sombra-cartao` | elevação 1 | hover do botão cheio |
 | `--sombra-hover` | hover de cartão clicável | cartão de opção |
-| `--sombra-elevada` | elevação 3 | painel flutuante, diálogo, gaveta, dica, botão flutuante (entrega 2) |
+| `--sombra-elevada` | elevação 3 | painel flutuante, diálogo, gaveta, dica, botão flutuante |
 | `--anel-foco` | 2px de fundo + 2px de destaque | foco (`:focus-visible`) |
 | `--transicao` | `0.15s ease` | hover, foco, abrir e fechar |
 
@@ -160,11 +160,11 @@ a mesma função; renomear exige motivo no PR e o ajuste dos scripts e testes no
 | Tabela | `tabela-rolagem` (sempre em volta da `tabela`), `tabela`, `tabela-data`, `tabela-vazia` |
 | Paginação | `paginacao`, `paginacao-resumo`, `paginacao-lista`, `paginacao-link` (pílula), `paginacao-atual` (tonal, em negrito), `paginacao-desativado`, `paginacao-reticencia`, `paginacao-larga`, `paginacao-compacta` |
 | Dica flutuante | `dica-flutuante` (contêiner do controle) + `dica-flutuante-texto` (`role="tooltip"`, ligado ao controle por `aria-describedby`; aparece com o cursor, o toque ou o foco, também em botão desabilitado); `dica-flutuante-fim` no contêiner alinha a dica ao fim (borda direita) do controle |
-| Filtros | `filtros`, `filtros-campo`, `filtros-acoes`; recolhíveis (`filtros.js`, `form[data-filtros]`): `filtros-recolhiveis`, `filtros-barra`, `filtros-busca`, `filtros-alternar` (+ `filtros-contagem`, `filtros-seta`), `filtros-limpar`, `filtros-chips`, `filtros-chip` (chip tonal do filtro ativo), `filtros-painel`, `filtros-grade`, `filtros-periodo` |
-| Indicadores (entrega 2) | `indicadores`, `indicador`, `indicador-critico`, `indicador-rotulo`, `indicador-numero`, `indicador-nota`, `indicador-nota-alerta`, `indicador-acao`, `indicador-link` |
-| Chips de rádio (entrega 2) | `chips` (o `fieldset`), `chip` (o `label`), `chip-entrada` (o rádio), `chip-texto`; chip com lista: `chip-menu`, `chip-menu-painel` |
-| Menu de ações (entrega 2) | `menu-acoes`, `menu-acoes-acima`, `menu-acoes-lista` (`details[data-menu]`, com `interface/js/menus.js`) |
-| Botão flutuante (entrega 2) | `fab` |
+| Filtros | `filtros`, `filtros-campo`, `filtros-acoes`; recolhíveis (`filtros.js`, `form[data-filtros]`, histórico de Automações): `filtros-recolhiveis`, `filtros-barra`, `filtros-busca`, `filtros-alternar` (+ `filtros-contagem`, `filtros-seta`), `filtros-limpar`, `filtros-chips`, `filtros-chip` (chip tonal do filtro ativo), `filtros-painel`, `filtros-grade`, `filtros-periodo`; em chips, sempre à vista (`filtros.js`, `form[data-filtros-estado]`, painel de pedidos): `filtros-chips-barra`, `filtros-linha`, `filtros-material`, `filtros-linha-acoes`, `filtros-enviar` (o "Filtrar", primeiro botão de envio, escondido com JavaScript); a busca em pílula do cabeçalho: `busca-cabecalho` + `campo-busca campo-busca-pilula`, fora do formulário e ligada a ele pelo atributo `form` |
+| Indicadores | `indicadores` (`section`, `aria-label`), `indicador` (`--superficie-media`, raio de 16px, `data-indicador`), `indicador-critico` (barra `--erro-forte` à esquerda), `indicador-link` (cobre o cartão, primeiro filho; `aria-current="true"` com o filtro aplicado: contorno `--destaque` e "· filtro aplicado" no rótulo), `indicador-rotulo`, `indicador-numero` (34px), `indicador-notas` + `indicador-nota`, `indicador-nota-link` (texto escuro sublinhado, nunca o azul sobre o tonal), `indicador-nota-alerta` (`--aviso-*`), `indicador-acao` (acima do link; botões de 36px com área de toque de 44px). Cartão com formulário próprio (o "Lançar no SCPI") nunca fica dentro de outro formulário |
+| Chips de rádio | `chips` (o `fieldset`, com `legend` escondida), `chip` (o `label`), `chip-entrada` (o rádio, fora do desenho e focável), `chip-texto` (32px de desenho, 44px de toque; o marcado em `--secundario-superficie`, com o `check`, pelo seletor `.chip-entrada:checked + .chip-texto`); chip com lista: `chip-menu` (`details[data-menu]`), o `summary` com `chip` (+ `chip-ativo` com valor) e `chip-menu-rotulo` (`data-chip-nome`, "Origem: Limpeza"), `chip-menu-painel` (+ `painel-flutuante`) |
+| Menu de ações | `menu-acoes` (`details[data-menu]`, com `interface/js/menus.js`; acima do link que cobre a linha), `menu-acoes-botao` (o `summary`, `botao botao-icone` com `aria-label` e o ícone `kebab`), `menu-acoes-lista`, `menu-acoes-item` (44px), `menu-acoes-acima` (abre para cima: as duas últimas linhas de uma página com 5 ou mais); `tabela-rolagem-curta` na tabela com menos de 5 linhas (altura do menu aberto) |
+| Botão flutuante | `fab` (`--destaque-superficie`, raio de 16px, `--sombra-elevada`, com `nao-imprimir`); a página ganha `pagina-com-fab` para nada ficar coberto no fim |
 | Passos | `passo`, `passo-numero`, `passo-cabecalho`, `passo-corpo` (no tablet da área interna, o número fica ao lado do título e o corpo usa a largura toda) |
 | Materiais | `lista-materiais`, `material`, `material-bloqueado`, `material-dados`, `material-acao`, `quantidade` (pílula com contorno), `quantidade-campo`, `botao-adicionado` ("Adicionado" por 2 s); adicionar em dois passos (formulários públicos e saída avulsa; o painel do atendimento adiciona direto): `material-abrir` (botão transparente sobre a linha), `material-mais` ("+"), `material-no-pedido` (selo `selo selo-info` com o próprio ícone, com `selo-pulso` por 2 s ao confirmar), `material-qtd`, `material-cancelar`, estado `aberto` no `[data-adicionar]`; com um aberto, as outras linhas recuam; na saída avulsa, o de/para: `material-substitui` e `material-alerta` (aviso compacto dentro da linha; dois ou mais antigos em `material-alerta-lista`) |
 | Pedido (formulários de carrinho) | `pedido-layout` (container query), `pedido-grade` (passos + coluna do pedido lado a lado a partir de 960px de largura), `pedido-passos`, `pedido-lado`, `pedido-resumo` (cartão fixo ao rolar, com o botão de envio em `pedido-enviar`), `acoes-final` (o envio do fim do formulário, só quando o pedido está na gaveta); `pagina-larga` no `<body>` alarga o formulário público para 1080px a partir de 1024px |
@@ -180,7 +180,7 @@ a mesma função; renomear exige motivo no PR e o ajuste dos scripts e testes no
 | Dados | `dados` (`<dl>` em grade de rótulo e valor) |
 | Ações | `acoes` |
 | Layout público | `publico-topo`, `publico-topo-interno`, `publico-conteudo`, `publico-cabecalho`, `publico-sub`, `publico-rodape`, `marca`, `link-discreto` |
-| Casca do almoxarifado | `app`, `app-lateral`, `app-lateral-topo`, `app-lateral-painel`, `app-menu`, `app-menu-item` (pílula; o atual em `--secundario-superficie`, em negrito, com `aria-current="page"`), `app-menu-botao`, `app-conta`, `app-principal`, `pagina-cabecalho`, `pagina-sub`, `pagina-acoes`, `link-voltar`; menu estreito com `app-menu-contador` e `app-conta-avatar` (entrega 2) |
+| Casca do almoxarifado | `app`, `app-lateral`, `app-lateral-topo`, `app-lateral-painel`, `app-menu`, `app-menu-item` (pílula; o atual em `--secundario-superficie`, em negrito, com `aria-current="page"`), `app-menu-botao`, `app-conta`, `app-principal`, `pagina-cabecalho`, `pagina-sub`, `pagina-acoes`, `link-voltar`. Acima de 1286px, o menu estreito de 88px: ícone sobre rótulo, o atual com o ícone na pílula tonal de 56×32, a lista rolando com a marca (só o ícone) e a conta presas; `app-menu-contador` depois do ícone (número `aria-hidden`, texto escondido ", 2 para atender"); `app-conta-avatar` (iniciais, ou o ícone `usuario` sem nome; nome e matrícula no `title` e em `app-conta-dados`, escondido no menu estreito), `app-conta-sair` (só o ícone no menu estreito, com `aria-label`). Até 1286px, o cabeçalho com o botão de menu |
 | Impressão | `nao-imprimir`, `so-tela`, `folha-recibo` |
 
 ## Selos

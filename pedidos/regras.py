@@ -865,6 +865,17 @@ def data_hora(momento: datetime) -> str:
     return momento.strftime("%d/%m/%Y %H:%M")
 
 
+def texto_envio_mais_antigo(data_envio: date, hoje: date) -> str:
+    """Nota do cartão "Aguardando atendimento" (spec 015, FR-018b): há quanto tempo o pedido
+    aguardando mais antigo foi enviado, em dias de calendário entre a data do envio e hoje."""
+    dias = (hoje - data_envio).days
+    if dias <= 0:
+        return "enviado hoje"
+    if dias == 1:
+        return "enviado ontem"
+    return f"há {dias} dias"
+
+
 def lote_todo_sem_lancar(status: Iterable[str]) -> bool:
     """O lote inteiro marcado para não lançar (em Automações, o que muda as linhas e não o
     atendimento): vale como a caixa "Não lançar" marcada."""

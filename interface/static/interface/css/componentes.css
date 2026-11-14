@@ -610,3 +610,155 @@ html:not(.js) .filtros-alternar { display: none; }
 @media (max-width: 640px) {
   .botao, .campo-entrada, .paginacao-link { min-height: 44px; }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Entrega 2 da spec 015: painel do almoxarifado (contracts/componentes.md e contracts/painel.md).
+   --------------------------------------------------------------------------------------------- */
+
+/* Indicadores: cartões tonais (`--superficie-media`, só texto escuro em cima). O `indicador-link`
+   cobre o cartão; as notas com link e as ações ficam acima dele. O cartão do filtro aplicado
+   (`aria-current="true"`) ganha o contorno de destaque e a nota "filtro aplicado" no rótulo. O
+   crítico ganha a barra vermelha à esquerda e a nota de alerta (o estado não fica só na cor). */
+.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+.indicador {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  min-width: 0; min-height: 148px; padding: 16px 20px; border-radius: var(--raio-cartao);
+  background: var(--superficie-media); color: var(--texto);
+}
+.indicador-critico { box-shadow: inset 4px 0 0 var(--erro-forte); }
+.indicador-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; transition: background-color var(--transicao), box-shadow var(--transicao); }
+.indicador-link:hover { background: rgba(16, 24, 40, 0.04); }
+.indicador-link:focus-visible { border-radius: inherit; }
+.indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque); }
+.indicador-critico .indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque), inset 6px 0 0 var(--erro-forte); }
+.indicador-rotulo { margin: 0; font-size: 0.875em; font-weight: 500; color: var(--texto-secundario); }
+.indicador-link[aria-current="true"] ~ .indicador-rotulo::after { content: " · filtro aplicado"; font-weight: 400; }
+.indicador-numero {
+  margin: 0; font-family: var(--fonte-titulo); font-size: 34px; font-weight: 600; line-height: 1.1;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.indicador-notas { display: grid; justify-items: start; gap: 2px; }
+.indicador-nota { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 0.8125em; line-height: 1.4; color: var(--texto-secundario); }
+.indicador-nota .icone { width: 16px; height: 16px; flex: none; }
+/* Nota com link (aguardando autorização, para conferir): acima do link do cartão, em texto escuro
+   sublinhado (o azul não vai sobre o contêiner tonal), com área de toque folgada. */
+.indicador-nota-link { position: relative; z-index: 1; padding-block: 4px; color: var(--texto); text-decoration: underline; text-underline-offset: 2px; }
+.indicador-nota-link:hover { color: var(--texto); text-decoration-thickness: 2px; }
+.indicador-nota-alerta { padding: 2px 8px; border-radius: var(--raio-selo); background: var(--aviso-superficie); color: var(--aviso-texto); text-decoration: none; font-weight: 500; }
+.indicador-nota-link.indicador-nota-alerta { padding-block: 4px; }
+.indicador-nota-link.indicador-nota-alerta:hover { color: var(--aviso-texto); text-decoration: underline; }
+.indicador-acao { position: relative; z-index: 1; margin-top: auto; padding-top: var(--esp-1); }
+/* Os botões de 36px ganham a área de toque de 44px sem crescer no desenho. */
+.indicador-acao .botao { position: relative; min-height: 36px; padding: 0 14px; gap: 6px; font-size: 0.875em; }
+.indicador-acao .botao::after { content: ""; position: absolute; inset: -4px 0; }
+.indicador-acao .botao .icone { width: 16px; height: 16px; }
+.indicador-acao.dica-flutuante { align-self: stretch; }
+@media (max-width: 640px) {
+  .indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
+  .indicador { min-height: 0; padding: 14px 16px; }
+  .indicador-numero { font-size: 28px; }
+}
+@media (max-width: 360px) { .indicadores { grid-template-columns: minmax(0, 1fr); } }
+
+/* Chips (rádios de situação e chips com lista): desenho de 32px, raio de 8px e contorno; o marcado
+   em `--secundario-superficie`, com o `check` e o negrito. A área de toque é de 44px (o `::after`
+   do rótulo), e o vão vertical entre linhas de chips (12px) a mantém sem sobrepor. O rádio fica
+   fora do desenho, mas recebe o foco e as setas do teclado; o anel aparece no desenho. */
+.chips { display: flex; flex-wrap: wrap; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
+.chip { position: relative; display: inline-flex; cursor: pointer; }
+label.chip::after { content: ""; position: absolute; inset: -6px 0; }
+.chip-entrada { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.chip-texto, .chip-menu > summary {
+  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px;
+  border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
+  color: var(--texto-secundario); font-size: 0.875em; font-weight: 500; line-height: 1.2; white-space: nowrap;
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
+}
+.chip-texto .icone { display: none; width: 16px; height: 16px; }
+.chip:hover .chip-texto, .chip-menu > summary:hover { background: var(--superficie-maxima); color: var(--texto); }
+.chip-entrada:checked + .chip-texto, .chip-menu > summary.chip-ativo {
+  border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600;
+}
+.chip-entrada:checked + .chip-texto .icone { display: inline-block; }
+.chip-entrada:focus-visible + .chip-texto { box-shadow: var(--anel-foco); }
+
+/* Chip com lista: o `<details data-menu>` (menus.js) com o campo do filtro num painel flutuante. */
+.chip-menu { position: relative; display: inline-flex; }
+.chip-menu > summary { position: relative; list-style: none; cursor: pointer; }
+.chip-menu > summary::-webkit-details-marker { display: none; }
+.chip-menu > summary::after { content: ""; position: absolute; inset: -6px 0; }
+.chip-menu > summary .icone { width: 16px; height: 16px; transition: transform var(--transicao); }
+.chip-menu[open] > summary .icone { transform: rotate(180deg); }
+.chip-menu-rotulo { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+.chip-menu-painel {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; display: grid; gap: 6px;
+  width: max-content; min-width: 16rem; max-width: min(22rem, calc(100vw - 2 * var(--esp-2))); padding: var(--esp-2);
+}
+/* O painel aparece com o `open` do details, também com JavaScript (a casca o esconde sem `.aberto`). */
+.js .chip-menu[open] > .chip-menu-painel { display: grid; animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.chip-menu-periodo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
+@media (max-width: 640px) {
+  .chip-menu { position: static; }
+  .chip-menu-painel { left: var(--esp-2); right: var(--esp-2); width: auto; min-width: 0; max-width: none; }
+  .chip-menu-periodo { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Menu de ações de uma linha (⋮): acima do link que cobre a linha; abre para baixo e, nas duas
+   últimas linhas de uma página com 5 ou mais, para cima (`menu-acoes-acima`), para a rolagem da
+   tabela não o cortar. */
+.menu-acoes { position: relative; z-index: 2; display: inline-flex; }
+.menu-acoes > summary { list-style: none; color: var(--texto-secundario); }
+.menu-acoes > summary::-webkit-details-marker { display: none; }
+.menu-acoes > summary:hover { background: var(--superficie-alta); color: var(--texto); }
+.menu-acoes[open] > summary { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
+.menu-acoes-lista {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; margin: 0; padding: 4px 0;
+  list-style: none; background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  box-shadow: var(--sombra-elevada); animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.menu-acoes-acima .menu-acoes-lista { top: auto; bottom: calc(100% + 4px); }
+.menu-acoes-item {
+  display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 var(--esp-2);
+  color: var(--texto); font-size: 0.9375em; white-space: nowrap;
+}
+.menu-acoes-item .icone { width: 18px; height: 18px; color: var(--texto-secundario); }
+.menu-acoes-item:hover { background: var(--superficie-alta); color: var(--texto); text-decoration: none; }
+.menu-acoes-item:focus-visible { border-radius: 0; box-shadow: inset 0 0 0 2px var(--destaque); }
+@media (prefers-reduced-motion: reduce) { .menu-acoes-lista, .js .chip-menu[open] > .chip-menu-painel { animation: none; } }
+/* Lista curta (menos de 5 linhas): a rolagem tem a altura do menu aberto, para não cortá-lo. */
+.tabela-rolagem-curta { min-height: 16rem; }
+
+/* Botão flutuante (a saída avulsa do painel): contêiner tonal, raio de 16px e elevação; no celular
+   sobe acima da área segura. A página ganha recheio embaixo (`pagina-com-fab`) para ele não cobrir
+   a paginação nem o fim da saúde do catálogo. */
+.fab {
+  position: fixed; right: var(--esp-4); bottom: calc(var(--esp-4) + env(safe-area-inset-bottom)); z-index: 15;
+  display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 56px; padding: 0 20px 0 16px;
+  border-radius: var(--raio-cartao); background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+  box-shadow: var(--sombra-elevada); font-weight: 600; text-decoration: none;
+  transition: box-shadow var(--transicao), transform var(--transicao);
+}
+.fab:hover { color: var(--destaque-superficie-texto); text-decoration: none; box-shadow: var(--sombra-elevada), var(--sombra-hover); }
+.fab:active { transform: scale(0.98); }
+.fab .icone { width: 22px; height: 22px; }
+.pagina-com-fab { padding-bottom: 72px; }
+@media (max-width: 640px) { .fab { right: var(--esp-2); bottom: calc(var(--esp-2) + env(safe-area-inset-bottom)); } }
+
+/* Barra de filtros do painel (`form#filtros-painel`): os chips de situação numa linha; na outra, o
+   material, os chips com lista e as ações. Com JavaScript os filtros se aplicam sozinhos e o
+   "Filtrar" some (continua o primeiro botão de envio, para o Enter). */
+.filtros-chips-barra { display: grid; gap: 12px; padding-bottom: var(--esp-2); margin-bottom: var(--esp-1); border-bottom: 1px solid var(--borda); }
+.filtros-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); }
+.filtros-material { flex: 1 1 220px; max-width: 320px; min-width: 0; }
+.filtros-material .campo-entrada { min-height: 36px; height: 36px; }
+.filtros-linha-acoes { display: flex; align-items: center; gap: var(--esp-1); margin-left: auto; }
+.js .filtros-enviar { display: none; }
+@media (max-width: 640px) { .filtros-material { max-width: none; flex-basis: 100%; } }
+
+/* Busca do cabeçalho do painel, em pílula (a `.busca-painel` é o painel de resultados da busca de materiais). */
+.busca-cabecalho { flex: 1 1 320px; max-width: 440px; min-width: 0; }
+.pagina-acoes:has(> .busca-cabecalho) { flex: 1 1 320px; justify-content: flex-end; }
+@media (max-width: 640px) {
+  .pagina-acoes:has(> .busca-cabecalho), .busca-cabecalho { flex-basis: 100%; max-width: none; }
+}
+.campo-busca-pilula .campo-entrada { border-radius: var(--raio-pilula); }

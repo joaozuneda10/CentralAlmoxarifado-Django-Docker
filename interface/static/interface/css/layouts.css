@@ -51,7 +51,7 @@
 }
 
 /* Casca do almoxarifado */
-.app { display: grid; grid-template-columns: 248px minmax(0, 1fr); min-height: 100vh; background: var(--superficie); }
+.app { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 100vh; background: var(--superficie); }
 .app-lateral { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; background: var(--fundo); border-right: 1px solid var(--borda); }
 .app-lateral-topo { display: flex; align-items: center; justify-content: space-between; padding: 20px var(--esp-3); }
 .app-menu-botao { display: none; }
@@ -67,9 +67,28 @@
 .app-menu-item:hover { background: var(--superficie-alta); color: var(--texto); text-decoration: none; }
 /* Item atual: a pílula tonal e o peso maior (o estado não fica só na cor). */
 .app-menu-item[aria-current="page"] { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600; }
-.app-conta { display: grid; gap: var(--esp-meio); padding: var(--esp-2) 12px 0; border-top: 1px solid var(--borda); }
+/* Contador do item (pedidos para atender, travas para conferir): o número é só visual; o leitor de
+   tela ouve o texto escondido ao lado (", 2 para atender"). Branco sobre o azul (combinação permitida). */
+.app-menu-contador {
+  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
+  padding: 0 5px; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--destaque-texto);
+  font-size: 11px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
+}
+.app-menu-item > .app-menu-contador { order: 2; margin-left: auto; }
+.app-conta { display: grid; grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; gap: 12px; padding: var(--esp-2) 12px 0; border-top: 1px solid var(--borda); }
+/* Iniciais num círculo tonal; o nome e a matrícula ficam no `title` e no texto ao lado (escondido
+   no menu estreito, ainda lido pelo leitor de tela). */
+.app-conta-avatar {
+  display: grid; place-items: center; width: 40px; height: 40px; margin: 0; border-radius: 50%;
+  background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
+  font-family: var(--fonte-titulo); font-size: 14px; font-weight: 600; letter-spacing: 0.02em; cursor: default;
+}
+.app-conta-avatar .icone { width: 20px; height: 20px; }
+.app-conta-dados { display: grid; gap: 2px; min-width: 0; }
+.app-conta-dados p { margin: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .app-conta-nome { font-weight: 500; }
-.app-conta form { margin-top: var(--esp-1); }
+.app-conta form { margin: 0; }
+.app-conta-sair { gap: 6px; }
 .app-principal { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--entre-blocos); padding: var(--esp-4) var(--esp-4) var(--esp-8); }
 /* Com a barra fixa do pedido (saída avulsa no tablet e no celular), o espaço dela fica no pé do
    conteúdo, não no do <body>: somado ao min-height de 100vh da .app, ele rolava a página mesmo
@@ -85,11 +104,46 @@
 /* Com a barra lateral ao lado (acima de 1286px), a barra e a gaveta do pedido começam depois dela,
    para não cobrir a conta e o botão de sair. */
 @media (min-width: 1287px) {
-  .js[data-gaveta] .app .carrinho-barra { left: 248px; }
-  .js[data-gaveta] .app .carrinho-gaveta[open] { left: 248px; width: calc(100% - 248px); }
+  .js[data-gaveta] .app .carrinho-barra { left: 88px; }
+  .js[data-gaveta] .app .carrinho-gaveta[open] { left: 88px; width: calc(100% - 88px); }
 }
 
-/* Até 1286px a barra lateral (248px) vira o cabeçalho com o botão de menu: é a largura que o
+/* Menu estreito (spec 015, research R6), acima de 1286px: 88px de largura, cada destino com o ícone
+   sobre o rótulo; o item atual tem o ícone na pílula tonal (56×32) e o rótulo em negrito, o estado
+   não fica só na cor. A lista rola na vertical quando não cabe (janela baixa), com a marca e a conta
+   presas em cima e embaixo. */
+@media (min-width: 1287px) {
+  .app-lateral-topo { justify-content: center; padding: var(--esp-2) 0 var(--esp-1); }
+  .marca { justify-content: center; width: 56px; height: 56px; border-radius: var(--raio-cartao); }
+  .marca:hover { background: var(--superficie-alta); }
+  .marca .icone { width: 26px; height: 26px; }
+  .marca > span, .app-conta-dados, .app-conta-sair > span {
+    position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
+    clip: rect(0 0 0 0); clip-path: inset(50%);
+  }
+  .app-lateral-painel { overflow: hidden; padding: 0 0 var(--esp-2); }
+  .app-menu { flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; gap: var(--esp-1); padding-block: var(--esp-meio); scrollbar-width: thin; }
+  .app-menu-item {
+    flex-direction: column; gap: 4px; width: 80px; margin-inline: auto; padding: 0 0 2px;
+    border-radius: var(--raio-controle); font-size: 12px; font-weight: 500; line-height: 1.25; text-align: center;
+  }
+  .app-menu-item:hover { background: none; }
+  .app-menu-item > .icone {
+    box-sizing: content-box; width: 24px; height: 24px; padding: 4px 16px; border-radius: var(--raio-cartao);
+    transition: background-color var(--transicao), color var(--transicao);
+  }
+  .app-menu-item:hover > .icone { background: var(--superficie-alta); }
+  .app-menu-item[aria-current="page"] { background: none; color: var(--texto); font-weight: 600; }
+  .app-menu-item[aria-current="page"] > .icone { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
+  .app-menu-item:focus-visible { box-shadow: none; }
+  .app-menu-item:focus-visible > .icone { box-shadow: var(--anel-foco); }
+  /* O contador fica sobre o canto da pílula do ícone. */
+  .app-menu-item > .app-menu-contador { position: absolute; top: -4px; left: calc(50% + 8px); margin: 0; box-shadow: 0 0 0 2px var(--fundo); }
+  .app-conta { grid-template-columns: auto; justify-items: center; gap: var(--esp-1); padding: 12px 0 0; margin-inline: 12px; }
+  .app-conta-sair { width: var(--altura-controle); height: var(--altura-controle); min-height: 0; padding: 0; border-radius: 50%; }
+}
+
+/* Até 1286px a barra lateral (o menu estreito) vira o cabeçalho com o botão de menu: é a largura que o
    formulário precisa (960px de passos, mais margens e a barra de rolagem) para manter a coluna do
    pedido ao lado, em vez de mandá-la para a gaveta. */
 @media (max-width: 1286px) {

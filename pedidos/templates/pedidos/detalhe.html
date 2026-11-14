@@ -14,7 +14,7 @@
   <span class="dica-flutuante-texto" role="tooltip" id="dica-edicao">{{ edicao.motivo }}</span>
 </span>{% endif %}{% endif %}
 {# Imprime esta página (pedidos.js o mostra); sem JavaScript, imprime-se pelo navegador e a confirmação já fica à vista. #}
-{% if pedido.atendimento_ou_none %}<button type="button" class="botao botao-primario" data-imprimir hidden>{% include "interface/_icone.html" with nome="impressora" %}Imprimir recibo</button>{% endif %}
+{% if pedido.atendimento_ou_none %}<button type="button" class="botao botao-primario" data-imprimir{% if imprimir_ao_abrir %} data-imprimir-ao-abrir{% endif %} hidden>{% include "interface/_icone.html" with nome="impressora" %}Imprimir recibo</button>{% endif %}
 {% if pedido.origem == "AVULSA" %}<a class="botao botao-secundario" href="{% url 'pedidos:avulsa' %}">{% include "interface/_icone.html" with nome="mais" %}Registrar outra saída</a>{% endif %}
 {% endif %}{% endblock %}
 
@@ -34,7 +34,7 @@
       {% csrf_token %}
       <input type="hidden" name="atendimento" value="{{ a.id }}">
       <input type="hidden" name="versao-{{ a.id }}" value="{{ pedido.versao }}">
-      <input type="hidden" name="voltar" value="{{ request.get_full_path }}">
+      <input type="hidden" name="voltar" value="{{ voltar_sem_imprimir }}">
       <div class="dialogo-confirmacao-texto">
         <h2 id="dialogo-impressao-titulo" class="dialogo-confirmacao-titulo">O recibo saiu na impressora?</h2>
         <p>Confirme para marcá-lo como impresso. Sem a confirmação, ele continua na lista de recibos pendentes.</p>
