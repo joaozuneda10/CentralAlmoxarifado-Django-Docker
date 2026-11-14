@@ -23,8 +23,8 @@ há biblioteca (nada de Material Web, Tailwind, npm ou CDN): os componentes são
 
 ## O que define o Tonal
 
-- **Superfícies em camadas.** `--fundo` (branco) para conteúdo e campos; `--superficie` no fundo da
-  área interna; `--superficie-media`, `--superficie-alta` e `--superficie-maxima` para contêineres,
+- **Superfícies em camadas.** `--fundo` (branco) no fundo da área interna, no conteúdo e nos campos;
+  `--superficie` em passos e linhas com o cursor; `--superficie-media`, `--superficie-alta` e `--superficie-maxima` para contêineres,
   hover e pressionado. O cartão é o de contorno do M3: branco, borda `--borda`, raio de 16px e
   **sem sombra**.
 - **Contêineres de cor com o texto do próprio contêiner.** Azul tonal (`--destaque-superficie` +

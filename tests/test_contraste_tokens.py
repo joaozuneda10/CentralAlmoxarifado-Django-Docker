@@ -30,6 +30,18 @@ PERMITIDAS = [
     ("aviso-texto", "aviso-superficie", TEXTO),
     ("erro-texto", "erro-superficie", TEXTO),
     ("erro-forte", "fundo", TEXTO),
+    # Indicadores do painel (protótipo): o número e a nota crítica sobre o cartão tonal, com o
+    # cursor e com o filtro aplicado.
+    ("erro-forte", "superficie-media", TEXTO),
+    ("erro-forte", "superficie-alta", TEXTO),
+    ("erro-forte", "secundario-superficie", TEXTO),
+    # Contador do menu (branco sobre o vermelho) e iniciais da barra do topo (branco sobre o
+    # azul escuro).
+    ("fundo", "erro-forte", TEXTO),
+    ("fundo", "destaque-superficie-texto", TEXTO),
+    # "Recibo não impresso" na lista do painel, também na linha com o cursor.
+    ("aviso-texto", "fundo", TEXTO),
+    ("aviso-texto", "superficie", TEXTO),
     ("neutro-texto", "neutro-superficie", TEXTO),
     ("contorno", "fundo", CONTROLE),
     ("contorno", "superficie", CONTROLE),

@@ -275,8 +275,10 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   (`link-voltar`, acima do rótulo; no almoxarifado, "Voltar ao painel" por padrão, vazio no painel). Cada subprojeto
   acrescenta seus destinos (com ícone) a `ITENS_MENU` em `interface/navegacao.py`; o menu só
   mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Acima de 1286px a
-  barra lateral é o menu estreito de 88px (ícone sobre rótulo, a conta com o avatar das iniciais e o
-  Sair só com o ícone); até 1286px, o cabeçalho com o botão de menu de sempre. Dois itens têm
+  barra lateral é o menu estreito de 88px (a marca num quadrado tonal, ícone sobre rótulo e, no pé,
+  só o Sair com o ícone), e a área interna é branca com a barra do topo (`app-topo`: o nome, a busca
+  da página no bloco `topo_busca` e o usuário com as iniciais), como no protótipo do painel; até
+  1286px, o cabeçalho com o botão de menu de sempre, e a barra do topo só com a busca. Dois itens têm
   contador (`_CONTADORES`, só para quem abre o item e nunca com zero; o número `aria-hidden` e o texto
   escondido ", 2 para atender"): o Painel, com os pedidos aguardando atendimento, e Automações, com as
   travas a conferir, as requisições travadas mais os recebimentos travados, cada um sem o
@@ -381,7 +383,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `data-imprimir-ao-abrir` só com atendimento e recibo não impresso, o `pedidos.js` o aciona uma vez
   no `load` e tira o parâmetro da barra (`history.replaceState`), e o `voltar` da confirmação vem da
   view sem ele (`voltar_sem_imprimir`), para não imprimir de novo. Nada é marcado sem a confirmação.
-  O painel (spec 015, `contracts/painel.md`): a busca `q` em pílula no cabeçalho, fora do formulário e
+  O painel (spec 015, `contracts/painel.md`, no desenho do protótipo): a busca `q` em pílula na barra do topo, fora do formulário e
   ligada a ele por `form="filtros-painel"` (o gatilho do HTMX tem `input delay:400ms from:#id_q`);
   os quatro indicadores (Atendimento, com o envio mais antigo, `regras.texto_envio_mais_antigo`, e
   "+N aguardando autorização"; Recibos; Lançamento no SCPI, só com `operar_automacoes`, com o

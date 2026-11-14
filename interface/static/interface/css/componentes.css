@@ -615,80 +615,94 @@ html:not(.js) .filtros-alternar { display: none; }
    Entrega 2 da spec 015: painel do almoxarifado (contracts/componentes.md e contracts/painel.md).
    --------------------------------------------------------------------------------------------- */
 
-/* Indicadores: cartões tonais (`--superficie-media`, só texto escuro em cima). O `indicador-link`
-   cobre o cartão; as notas com link e as ações ficam acima dele. O cartão do filtro aplicado
-   (`aria-current="true"`) ganha o contorno de destaque e a nota "filtro aplicado" no rótulo. O
-   crítico ganha a barra vermelha à esquerda e a nota de alerta (o estado não fica só na cor). */
-.indicadores { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
+/* Indicadores (como no protótipo do painel): cartões tonais em `--superficie-media`, quatro por
+   linha. O `indicador-link` cobre o cartão; as notas com link e as ações ficam acima dele. Com o
+   cursor no cartão, `--superficie-alta`. O cartão do filtro aplicado (`aria-current="true"` no link)
+   fica no contêiner secundário com o contorno de destaque e a nota "filtro aplicado" no rótulo. O
+   crítico tem o número e a nota de alerta em `--erro-forte`, com o ícone (o estado não fica só na cor). */
+.indicadores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
 .indicador {
-  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 4px;
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
   min-width: 0; min-height: 148px; padding: 16px 20px; border-radius: var(--raio-cartao);
-  background: var(--superficie-media); color: var(--texto);
+  background: var(--superficie-media); color: var(--texto); transition: background-color var(--transicao), box-shadow var(--transicao);
 }
-.indicador-critico { box-shadow: inset 4px 0 0 var(--erro-forte); }
-.indicador-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; transition: background-color var(--transicao), box-shadow var(--transicao); }
-.indicador-link:hover { background: color-mix(in srgb, var(--texto) 4%, transparent); }
+.indicador:has(> .indicador-link:hover) { background: var(--superficie-alta); }
+.indicador:has(> .indicador-link[aria-current="true"]) {
+  background: var(--secundario-superficie); color: var(--secundario-superficie-texto); box-shadow: inset 0 0 0 2px var(--destaque);
+}
+.indicador:has(> .indicador-link[aria-current="true"]) :is(.indicador-rotulo, .indicador-nota, .indicador-dica) { color: var(--secundario-superficie-texto); }
+.indicador-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
 .indicador-link:focus-visible { border-radius: inherit; }
-.indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque); }
-.indicador-critico .indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque), inset 6px 0 0 var(--erro-forte); }
-.indicador-rotulo { margin: 0; font-size: 0.875em; font-weight: 500; color: var(--texto-secundario); }
+.indicador-rotulo { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--texto-secundario); }
 .indicador-link[aria-current="true"] ~ .indicador-rotulo::after { content: " · filtro aplicado"; font-weight: 400; }
 .indicador-numero {
-  margin: 0; font-family: var(--fonte-titulo); font-size: 34px; font-weight: 600; line-height: 1.1;
+  margin: 6px 0 0; font-family: var(--fonte-titulo); font-size: 34px; font-weight: 600; line-height: 1.15;
   letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
 }
+.indicador-critico .indicador-numero { color: var(--erro-forte); }
 .indicador-notas { display: grid; justify-items: start; gap: 2px; }
-.indicador-nota { display: inline-flex; align-items: center; gap: 6px; margin: 0; font-size: 0.8125em; line-height: 1.4; color: var(--texto-secundario); }
-.indicador-nota .icone { width: 16px; height: 16px; flex: none; }
-/* Nota com link (aguardando autorização, para conferir): acima do link do cartão, em texto escuro
-   sublinhado (o azul não vai sobre o contêiner tonal), com área de toque folgada. */
-.indicador-nota-link { position: relative; z-index: 1; padding-block: 4px; color: var(--texto); text-decoration: underline; text-underline-offset: 2px; }
-.indicador-nota-link:hover { color: var(--texto); text-decoration-thickness: 2px; }
-.indicador-nota-alerta { padding: 2px 8px; border-radius: var(--raio-selo); background: var(--aviso-superficie); color: var(--aviso-texto); text-decoration: none; font-weight: 500; }
-.indicador-nota-link.indicador-nota-alerta { padding-block: 4px; }
-.indicador-nota-link.indicador-nota-alerta:hover { color: var(--aviso-texto); text-decoration: underline; }
-.indicador-acao { position: relative; z-index: 1; margin-top: auto; padding-top: var(--esp-1); }
-/* Os botões de 36px ganham a área de toque de 44px sem crescer no desenho. */
-.indicador-acao .botao { position: relative; min-height: 36px; padding: 0 14px; gap: 6px; font-size: 0.875em; }
-.indicador-acao .botao::after { content: ""; position: absolute; inset: -4px 0; }
-.indicador-acao .botao .icone { width: 16px; height: 16px; }
-.indicador-acao.dica-flutuante { align-self: stretch; }
-@media (max-width: 640px) {
-  .indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
-  .indicador { min-height: 0; padding: 14px 16px; }
-  .indicador-numero { font-size: 28px; }
+.indicador-nota { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--texto-secundario); }
+.indicador-nota .icone { width: 14px; height: 14px; flex: none; }
+/* Alerta (para conferir, erros do catálogo): vermelho forte com o ícone. Quando é link, fica acima
+   do link do cartão, sublinhado ao passar o cursor, com área de toque folgada. */
+.indicador-nota-alerta { color: var(--erro-forte); font-weight: 500; }
+a.indicador-nota { position: relative; z-index: 1; padding-block: 4px; text-decoration: none; }
+a.indicador-nota:hover { color: var(--erro-forte); text-decoration: underline; text-underline-offset: 2px; }
+.indicador-acao { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); margin-top: auto; padding-top: 12px; }
+/* Botões pequenos (32px de desenho) com a área de toque de 44px. */
+.indicador-acao .botao {
+  position: relative; height: 32px; min-height: 0; padding: 0 14px 0 12px; gap: var(--esp-1);
+  border-radius: var(--raio-pilula); font-size: 13px; font-weight: 500;
 }
-@media (max-width: 360px) { .indicadores { grid-template-columns: minmax(0, 1fr); } }
+.indicador-acao .botao::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: var(--altura-controle); transform: translateY(-50%); width: auto; }
+.indicador-acao .botao .icone { width: 16px; height: 16px; }
+/* Desabilitado: o cinza do M3, sem a transparência dos outros botões. */
+.indicador-acao .botao:is([disabled], [aria-disabled="true"]) {
+  opacity: 1; border-color: transparent; background: var(--superficie-alta); color: var(--texto-secundario);
+}
+/* "Ver avisos": botão de texto escuro com a seta (o azul não vai sobre o contêiner tonal). */
+.indicador-acao .indicador-texto { padding: 0 12px; color: var(--texto); background: none; }
+.indicador-acao .indicador-texto:hover { color: var(--texto); background: none; text-decoration: underline; text-underline-offset: 2px; }
+.indicador-dica { position: relative; font-size: 12px; color: var(--texto-secundario); text-decoration: underline; text-underline-offset: 2px; }
+.indicador-dica:hover { color: var(--texto); }
+.indicador-dica::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: var(--altura-controle); transform: translateY(-50%); }
+.indicador-acao.dica-flutuante { align-self: stretch; }
+@media (max-width: 1180px) { .indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .indicadores { grid-template-columns: minmax(0, 1fr); }
+  .indicador { min-height: 0; }
+}
 
 /* Chips (rádios de situação e chips com lista): desenho de 32px, raio de 8px e contorno; o marcado
-   em `--secundario-superficie`, com o `check` e o negrito. A área de toque é de 44px (o `::after`
-   do rótulo), e o vão vertical entre linhas de chips (12px) a mantém sem sobrepor. O rádio fica
-   fora do desenho, mas recebe o foco e as setas do teclado; o anel aparece no desenho. */
-.chips { display: flex; flex-wrap: wrap; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
+   em `--secundario-superficie`, com o `check`. A área de toque é de 44px (o `::after`), e o vão
+   vertical entre linhas de chips (12px) a mantém sem sobrepor. O rádio fica fora do desenho, mas
+   recebe o foco e as setas do teclado; o anel aparece no desenho. */
+.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
 .chip { position: relative; display: inline-flex; cursor: pointer; }
 label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .chip-entrada { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
 .chip-texto, .chip-menu > summary {
-  display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 12px;
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
   border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
-  color: var(--texto-secundario); font-size: 0.875em; font-weight: 500; line-height: 1.2; white-space: nowrap;
+  color: var(--texto-secundario); font-size: 13.5px; font-weight: 500; line-height: 1.2; white-space: nowrap;
   transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
 }
 .chip-texto .icone { display: none; width: 16px; height: 16px; }
-.chip:hover .chip-texto, .chip-menu > summary:hover { background: var(--superficie-maxima); color: var(--texto); }
+.chip:hover .chip-texto, .chip-menu > summary:hover { background: var(--superficie); }
 .chip-entrada:checked + .chip-texto, .chip-menu > summary.chip-ativo {
-  border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600;
+  border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
 }
+.chip-entrada:checked + .chip-texto { padding-left: 10px; }
 .chip-entrada:checked + .chip-texto .icone { display: inline-block; }
 .chip-entrada:focus-visible + .chip-texto { box-shadow: var(--anel-foco); }
 
 /* Chip com lista: o `<details data-menu>` (menus.js) com o campo do filtro num painel flutuante. */
 .chip-menu { position: relative; display: inline-flex; }
-.chip-menu > summary { position: relative; list-style: none; cursor: pointer; }
+.chip-menu > summary { position: relative; padding-right: 10px; list-style: none; cursor: pointer; }
 .chip-menu > summary::-webkit-details-marker { display: none; }
 .chip-menu > summary::after { content: ""; position: absolute; inset: -6px 0; }
 .chip-menu > summary .icone { width: 16px; height: 16px; transition: transform var(--transicao); }
-.chip-menu[open] > summary .icone { transform: rotate(180deg); }
+.chip-menu[open] > summary .icone:last-child { transform: rotate(180deg); }
 .chip-menu-rotulo { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
 .chip-menu-painel {
   position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; display: grid; gap: 6px;
@@ -698,10 +712,10 @@ label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .js .chip-menu[open] > .chip-menu-painel { display: grid; animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .chip-menu-periodo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
 @media (max-width: 640px) {
-  /* No celular o painel ocupa a largura da linha de filtros e abre embaixo dela. */
-  .filtros-linha { position: relative; }
+  /* No celular o painel ocupa a largura da barra de filtros e abre embaixo do chip. */
+  .filtros-chips-barra { position: relative; }
   .chip-menu { position: static; }
-  .chip-menu-painel { left: var(--esp-2); right: var(--esp-2); width: auto; min-width: 0; max-width: none; }
+  .chip-menu-painel { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
   .chip-menu-periodo { grid-template-columns: minmax(0, 1fr); }
 }
 
@@ -714,54 +728,77 @@ label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .menu-acoes > summary:hover { background: var(--superficie-alta); color: var(--texto); }
 .menu-acoes[open] > summary { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
 .menu-acoes-lista {
-  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; margin: 0; padding: 4px 0;
-  list-style: none; background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; margin: 0; padding: var(--esp-1) 0;
+  list-style: none; background: var(--fundo); border-radius: var(--raio-controle);
   box-shadow: var(--sombra-elevada); animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
 }
 .menu-acoes-acima .menu-acoes-lista { top: auto; bottom: calc(100% + 4px); }
 .menu-acoes-item {
   display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 var(--esp-2);
-  color: var(--texto); font-size: 0.9375em; white-space: nowrap;
+  color: var(--texto); font-size: 14px; white-space: nowrap;
 }
-.menu-acoes-item .icone { width: 18px; height: 18px; color: var(--texto-secundario); }
-.menu-acoes-item:hover { background: var(--superficie-alta); color: var(--texto); text-decoration: none; }
+.menu-acoes-item .icone { width: 20px; height: 20px; color: var(--texto-secundario); }
+.menu-acoes-item:hover { background: var(--superficie-media); color: var(--texto); text-decoration: none; }
 .menu-acoes-item:focus-visible { border-radius: 0; box-shadow: inset 0 0 0 2px var(--destaque); }
 @media (prefers-reduced-motion: reduce) { .menu-acoes-lista, .js .chip-menu[open] > .chip-menu-painel { animation: none; } }
 /* Lista curta (menos de 5 linhas): todo menu abre para baixo, e a rolagem reserva embaixo da última
    linha a altura do menu aberto (3 itens de 44px e as margens), seja qual for a altura das linhas. */
 .tabela-rolagem-curta { padding-bottom: 9.5rem; }
 
+/* Caixa da tabela (a lista do painel): contorno decorativo, raio de 16px, fundo branco; a paginação
+   é o rodapé da caixa, separada por uma linha. */
+.tabela-caixa { min-width: 0; border: 1px solid var(--borda); border-radius: var(--raio-cartao); overflow: hidden; background: var(--fundo); }
+.tabela-caixa > .paginacao { min-height: 52px; margin: 0; padding: var(--esp-1) 12px var(--esp-1) var(--esp-3); border-top: 1px solid var(--borda); }
+.tabela-caixa > .vazio { padding: var(--esp-6) var(--esp-3); }
+/* Linha de apoio dentro de uma célula (horário, quem recebeu, tipo da saída). */
+.cel-sub { display: flex; align-items: center; gap: 6px; margin-top: 1px; font-size: 12.5px; font-weight: 400; line-height: 1.4; color: var(--texto-suave); }
+.cel-principal { color: var(--texto); font-weight: 500; }
+
 /* Botão flutuante (a saída avulsa do painel): contêiner tonal, raio de 16px e elevação; no celular
    sobe acima da área segura. A página ganha recheio embaixo (`pagina-com-fab`) para ele não cobrir
    a paginação nem o fim da saúde do catálogo. */
 .fab {
   position: fixed; right: var(--esp-4); bottom: calc(var(--esp-4) + env(safe-area-inset-bottom)); z-index: 15;
-  display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 56px; padding: 0 20px 0 16px;
+  display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 20px 0 16px;
   border-radius: var(--raio-cartao); background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
-  box-shadow: var(--sombra-elevada); font-weight: 600; text-decoration: none;
+  box-shadow: var(--sombra-elevada); font-size: 14.5px; font-weight: 600; text-decoration: none;
   transition: box-shadow var(--transicao), transform var(--transicao);
 }
-.fab:hover { color: var(--destaque-superficie-texto); text-decoration: none; box-shadow: var(--sombra-elevada), var(--sombra-hover); }
+.fab:hover { color: var(--destaque-superficie-texto); text-decoration: none; box-shadow: var(--sombra-elevada), var(--sombra-hover); transform: translateY(-1px); }
 .fab:active { transform: scale(0.98); }
-.fab .icone { width: 22px; height: 22px; }
+.fab .icone { width: 24px; height: 24px; }
 .pagina-com-fab { padding-bottom: 72px; }
 @media (max-width: 640px) { .fab { right: var(--esp-2); bottom: calc(var(--esp-2) + env(safe-area-inset-bottom)); } }
 
-/* Barra de filtros do painel (`form#filtros-painel`): os chips de situação numa linha; na outra, o
-   material, os chips com lista e as ações. Com JavaScript os filtros se aplicam sozinhos e o
-   "Filtrar" some (continua o primeiro botão de envio, para o Enter). */
-.filtros-chips-barra { display: grid; gap: 12px; padding-bottom: var(--esp-2); margin-bottom: var(--esp-1); border-bottom: 1px solid var(--borda); }
-.filtros-linha { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); }
-.filtros-material { flex: 1 1 220px; max-width: 320px; min-width: 0; }
-.filtros-material .campo-entrada { min-height: 36px; height: 36px; }
+/* Barra de filtros do painel (`form#filtros-painel`): uma linha só, como no protótipo ("Situação:",
+   os chips de situação, o divisor, os chips com lista e o material), que quebra quando não cabe.
+   Com JavaScript os filtros se aplicam sozinhos e o "Filtrar" some (continua o primeiro botão de
+   envio, para o Enter). */
+.filtros-chips-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); }
+.filtros-rotulo { margin-right: 2px; font-size: 13px; color: var(--texto-secundario); }
+.filtros-divisor { width: 1px; height: 24px; margin: 0 6px; background: var(--borda); }
+.filtros-material { flex: 1 1 180px; min-width: 180px; max-width: 320px; }
+.filtros-material .campo-entrada { height: 32px; min-height: 0; padding-block: 0; border-radius: var(--raio-controle); font-size: 13.5px; }
+.filtros-material .campo-entrada::placeholder { color: var(--texto-secundario); }
+.filtros-material .icone { left: 12px; width: 16px; height: 16px; color: var(--texto-secundario); }
+.filtros-material .campo-busca .campo-entrada { padding-left: 36px; }
 .filtros-linha-acoes { display: flex; align-items: center; gap: var(--esp-1); margin-left: auto; }
+.filtros-linha-acoes .botao-texto { font-size: 13px; }
 .js .filtros-enviar { display: none; }
-@media (max-width: 640px) { .filtros-material { max-width: none; flex-basis: 100%; } }
-
-/* Busca do cabeçalho do painel, em pílula (a `.busca-painel` é o painel de resultados da busca de materiais). */
-.busca-cabecalho { flex: 1 1 320px; max-width: 440px; min-width: 0; }
-.pagina-acoes:has(> .busca-cabecalho) { flex: 1 1 320px; justify-content: flex-end; }
-@media (max-width: 640px) {
-  .pagina-acoes:has(> .busca-cabecalho), .busca-cabecalho { flex-basis: 100%; max-width: none; }
+@media (max-width: 860px) {
+  .filtros-divisor { display: none; }
+  .filtros-material { flex-basis: 100%; min-width: 0; max-width: none; }
 }
-.campo-busca-pilula .campo-entrada { border-radius: var(--raio-pilula); }
+
+/* Busca da barra do topo (painel), em pílula tonal sem contorno: branca e elevada no foco. */
+.busca-cabecalho { min-width: 0; }
+.campo-busca-pilula .campo-entrada {
+  height: 48px; min-height: 0; padding: 0 20px 0 52px; border: 0; border-radius: var(--raio-pilula);
+  background: var(--superficie-alta); font-size: 15px;
+  transition: background-color var(--transicao), box-shadow var(--transicao);
+}
+.campo-busca-pilula .campo-entrada::placeholder { color: var(--texto-secundario); }
+.campo-busca-pilula .campo-entrada:hover { border: 0; }
+.campo-busca-pilula .campo-entrada:focus { background: var(--fundo); box-shadow: var(--sombra-cartao), inset 0 0 0 1px var(--borda); }
+.campo-busca-pilula .campo-entrada:focus-visible { box-shadow: var(--sombra-cartao), inset 0 0 0 2px var(--destaque); }
+.campo-busca-pilula .icone { left: 20px; width: 20px; height: 20px; color: var(--texto-secundario); }

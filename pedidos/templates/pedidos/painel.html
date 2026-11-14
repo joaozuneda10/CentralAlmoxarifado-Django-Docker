@@ -9,10 +9,10 @@
 {% block voltar %}{% endblock %}
 {% block rotulo %}Pedidos{% endblock %}
 {% block heading %}Painel{% endblock %}
-{% block sub %}Pedidos dos formulários e saídas avulsas.{% endblock %}
+{# Sem subtítulo, como no protótipo: o rótulo é a migalha "Pedidos ›". #}
 
-{# A busca fica no cabeçalho, fora do formulário de filtros (o atributo `form` a liga a ele): o formulário nunca envolve os indicadores, que têm os próprios formulários (spec 015, contracts/painel.md). #}
-{% block tools %}
+{# A busca fica na barra do topo, fora do formulário de filtros (o atributo `form` a liga a ele): o formulário nunca envolve os indicadores, que têm os próprios formulários (spec 015, contracts/painel.md). #}
+{% block topo_busca %}
 <div class="busca-cabecalho" role="search">
   <label class="visually-hidden" for="{{ filtros.q.id_for_label }}">{{ filtros.q.label }}</label>
   <div class="campo-busca campo-busca-pilula">
@@ -25,34 +25,34 @@
 {% block page %}
 {% url 'pedidos:painel' as painel_url %}
 {% url 'automacoes:pagina' as automacoes_url %}
-<div class="pilha-larga pagina-com-fab">
-  {# O link de cada cartão (`indicador-link`) o cobre inteiro; as ações e as notas com link ficam acima dele. O cartão do filtro aplicado sai com `aria-current` (o filtros.js o mantém em dia depois de cada troca). #}
+<div class="painel-pilha pagina-com-fab">
+  {# O link de cada cartão (`indicador-link`) o cobre inteiro; as ações e as notas com link ficam acima dele. O cartão do filtro aplicado sai com `aria-current` (o filtros.js o mantém em dia depois de cada troca). O crítico tem o número e a nota de alerta em vermelho, com o ícone (o estado não fica só na cor). #}
   <section class="indicadores" aria-label="Resumo">
     <div data-indicador="atendimento" class="indicador">
       {% if pedidos_aguardando or filtros.data.situacao == "aguardando" %}<a class="indicador-link" href="{{ painel_url }}?situacao=aguardando#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos" data-indicador-campo="situacao" data-indicador-valor="aguardando"{% if filtros.data.situacao == "aguardando" %} aria-current="true"{% endif %}><span class="visually-hidden">Mostrar os pedidos aguardando atendimento</span></a>{% endif %}
-      <p class="indicador-rotulo">Atendimento</p>
+      <p class="indicador-rotulo">Aguardando atendimento</p>
       <p class="indicador-numero">{{ pedidos_aguardando }}</p>
       <div class="indicador-notas">
-        <p class="indicador-nota">{% if pedidos_aguardando %}{{ pedidos_aguardando|pluralize:"pedido aguardando atendimento,pedidos aguardando atendimento" }}{% else %}Nenhum pedido aguardando.{% endif %}</p>
-        {% if envio_mais_antigo %}<p class="indicador-nota">{% include "interface/_icone.html" with nome="relogio" %}<span><span class="visually-hidden">O mais antigo: </span>{{ envio_mais_antigo }}</span></p>{% endif %}
-        {% if aguardando_autorizacao %}<a class="indicador-nota indicador-nota-link" href="{{ painel_url }}?autorizacao=aguardando#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos">{% include "interface/_icone.html" with nome="escudo" %}+{{ aguardando_autorizacao }} aguardando autorização</a>{% endif %}
+        {% if not pedidos_aguardando %}<p class="indicador-nota">Nenhum pedido aguardando.</p>
+        {% elif envio_mais_antigo %}<p class="indicador-nota">{% include "interface/_icone.html" with nome="relogio" %}<span>O mais antigo {{ envio_mais_antigo }}</span></p>{% endif %}
       </div>
       <div class="indicador-acao">
         {% if pedidos_aguardando %}<a class="botao botao-primario" href="{{ painel_url }}?situacao=aguardando#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos">{% include "interface/_icone.html" with nome="caixa-check" %}Atender</a>
-        {% else %}<span class="botao botao-secundario" aria-disabled="true">{% include "interface/_icone.html" with nome="caixa-check" %}Atender</span>{% endif %}
+        {% else %}<span class="botao botao-primario" aria-disabled="true">{% include "interface/_icone.html" with nome="caixa-check" %}Atender</span>{% endif %}
+        {% if aguardando_autorizacao %}<a class="indicador-dica" href="{{ painel_url }}?autorizacao=aguardando#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos">+{{ aguardando_autorizacao }} aguardando autorização</a>{% endif %}
       </div>
     </div>
 
     <div data-indicador="recibos" class="indicador">
       {% if recibos_pendentes or filtros.data.recibo == "pendente" %}<a class="indicador-link" href="{{ painel_url }}?recibo=pendente#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos" data-indicador-campo="recibo" data-indicador-valor="pendente"{% if filtros.data.recibo == "pendente" %} aria-current="true"{% endif %}><span class="visually-hidden">Mostrar os recibos não impressos</span></a>{% endif %}
-      <p class="indicador-rotulo">Recibos</p>
+      <p class="indicador-rotulo">Recibos para imprimir</p>
       <p class="indicador-numero">{{ recibos_pendentes }}</p>
       <div class="indicador-notas">
-        <p class="indicador-nota">{% if recibos_pendentes %}{{ recibos_pendentes|pluralize:"recibo para imprimir,recibos para imprimir" }}{% else %}Nenhum recibo pendente.{% endif %}</p>
+        <p class="indicador-nota">{% if recibos_pendentes %}{% include "interface/_icone.html" with nome="impressora" %}Atendimentos ainda sem recibo impresso{% else %}Nenhum recibo pendente.{% endif %}</p>
       </div>
       <div class="indicador-acao">
-        {% if recibos_pendentes %}<a class="botao botao-secundario" href="{{ painel_url }}?recibo=pendente#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos">{% include "interface/_icone.html" with nome="impressora" %}Imprimir</a>
-        {% else %}<span class="botao botao-secundario" aria-disabled="true">{% include "interface/_icone.html" with nome="impressora" %}Imprimir</span>{% endif %}
+        {% if recibos_pendentes %}<a class="botao botao-suave" href="{{ painel_url }}?recibo=pendente#pedidos" data-rolar-ate="pedidos" data-destacar="lista-pedidos">{% include "interface/_icone.html" with nome="impressora" %}Imprimir</a>
+        {% else %}<span class="botao botao-suave" aria-disabled="true">{% include "interface/_icone.html" with nome="impressora" %}Imprimir</span>{% endif %}
       </div>
     </div>
 
@@ -60,18 +60,18 @@
     {% if perms.contas.operar_automacoes %}
     <div data-indicador="robo" class="indicador{% if lancamento_travados %} indicador-critico{% endif %}">
       <a class="indicador-link" href="{{ automacoes_url }}?aba=lancamento"><span class="visually-hidden">Abrir o lançamento no SCPI</span></a>
-      <p class="indicador-rotulo">Lançamento no SCPI</p>
+      <p class="indicador-rotulo">Requisições no robô</p>
       <p class="indicador-numero">{{ lancamento_pendentes }}</p>
       <div class="indicador-notas">
-        <p class="indicador-nota">{% if lancamento_pendentes %}{{ lancamento_pendentes|pluralize:"requisição aguardando o robô,requisições aguardando o robô" }}{% else %}Nada aguardando o robô.{% endif %}</p>
-        {% if lancamento_travados %}<a class="indicador-nota indicador-nota-link indicador-nota-alerta" href="{{ automacoes_url }}?aba=lancamento#travas">{% include "interface/_icone.html" with nome="alerta" %}{{ lancamento_travados }} para conferir</a>{% endif %}
+        {% if not lancamento_pendentes %}<p class="indicador-nota">Nada aguardando o robô.</p>{% endif %}
+        {% if lancamento_travados %}<a class="indicador-nota indicador-nota-alerta" href="{{ automacoes_url }}?aba=lancamento#travas">{% include "interface/_icone.html" with nome="alerta" %}{{ lancamento_travados }} para conferir no SCPI</a>{% endif %}
         {% if lancamento_em_andamento %}<p class="indicador-nota">{% include "interface/_icone.html" with nome="robo" %}Lançamento em andamento</p>{% endif %}
       </div>
       {# Bloqueado pelo LANCAMENTO_REAL, o motivo aparece numa dica sobre o botão (cursor, toque ou foco); o aria-describedby a liga ao botão, que fica aria-disabled e type="button" para continuar recebendo o foco pelo Tab sem enviar nada. #}
       <form method="post" action="{% url 'automacoes:lancar' %}" class="indicador-acao{% if not lancamento_real %} dica-flutuante{% endif %}">
         {% csrf_token %}
-        {# Primário só quando dá para lançar: desabilitado, o azul apagado parecia clicável. #}
-        <button type="{% if lancamento_real %}submit{% else %}button{% endif %}" class="botao {% if lancamento_pendentes and lancamento_real and not lancamento_em_andamento %}botao-primario{% else %}botao-secundario{% endif %}"{% if not lancamento_real %} aria-disabled="true" aria-describedby="dica-lancamento-real"{% elif lancamento_em_andamento or not lancamento_pendentes %} disabled{% endif %}>{% include "interface/_icone.html" with nome="robo" %}Lançar no SCPI{% if not lancamento_real %}{% include "interface/_icone.html" with nome="cadeado" %}{% endif %}</button>
+        {# Primário só quando dá para lançar: desabilitado, fica no cinza do desabilitado. #}
+        <button type="{% if lancamento_real %}submit{% else %}button{% endif %}" class="botao {% if lancamento_pendentes and lancamento_real and not lancamento_em_andamento %}botao-primario{% else %}botao-secundario{% endif %}"{% if not lancamento_real %} aria-disabled="true" aria-describedby="dica-lancamento-real"{% elif lancamento_em_andamento or not lancamento_pendentes %} disabled{% endif %}>{% if lancamento_real %}{% include "interface/_icone.html" with nome="robo" %}{% else %}{% include "interface/_icone.html" with nome="cadeado" %}{% endif %}Lançar no SCPI</button>
         {% if not lancamento_real %}<span class="dica-flutuante-texto" role="tooltip" id="dica-lancamento-real">Lançamento real bloqueado neste ambiente: só a simulação roda (LANCAMENTO_REAL no .env).</span>{% endif %}
       </form>
     </div>
@@ -79,70 +79,76 @@
 
     <div data-indicador="saude" class="indicador{% if saude_erros %} indicador-critico{% endif %}">
       <a class="indicador-link" href="#saude"><span class="visually-hidden">Ver os avisos do catálogo</span></a>
-      <p class="indicador-rotulo">Catálogo</p>
+      <p class="indicador-rotulo">Saúde do catálogo</p>
       <p class="indicador-numero">{{ saude_erros|add:saude_avisos }}</p>
       <div class="indicador-notas">
-        <p class="indicador-nota{% if saude_erros %} indicador-nota-alerta{% endif %}">{% if saude_erros %}{% include "interface/_icone.html" with nome="alerta" %}{% endif %}{{ saude_erros }} erro{{ saude_erros|pluralize }} · {{ saude_avisos }} aviso{{ saude_avisos|pluralize }}</p>
+        <p class="indicador-nota{% if saude_erros %} indicador-nota-alerta{% endif %}">{% include "interface/_icone.html" with nome="alerta" %}{{ saude_erros }} erro{{ saude_erros|pluralize }} · {{ saude_avisos }} aviso{{ saude_avisos|pluralize }}</p>
       </div>
       <div class="indicador-acao">
-        <a class="botao botao-secundario" href="#saude">{% include "interface/_icone.html" with nome="info" %}Ver avisos</a>
+        <a class="botao botao-texto indicador-texto" href="#saude">Ver avisos{% include "interface/_icone.html" with nome="seta-direita" %}</a>
       </div>
     </div>
   </section>
 
   {# `#pedidos`: os cartões "Atender" e "Imprimir" abrem a página já rolada até aqui, nos filtros e na lista. #}
-  <div class="cartao pedidos-cartao" id="pedidos">
+  <div class="pedidos-bloco" id="pedidos">
     {# Sem JavaScript, escolher um chip e apertar "Filtrar" filtra. O "Filtrar" é o primeiro (e único) botão de envio e não tem `name`: o Enter na busca ou no material envia sem acrescentar nada. Com JavaScript, o filtros.js (`data-filtros-estado`) mantém os rótulos dos chips e os indicadores em dia depois de cada troca e, na falha, devolve os campos aos da última troca aplicada. #}
     <form id="filtros-painel" class="filtros-chips-barra" method="get" action="{{ painel_url }}" data-filtros-estado
           hx-get="{{ painel_url }}" hx-target="#lista-pedidos" hx-push-url="true" hx-sync="this:replace"
           hx-trigger="change, input delay:400ms, input delay:400ms from:#id_q, submit">
+      <span class="filtros-rotulo" aria-hidden="true">Situação:</span>
       <fieldset class="chips">
         <legend class="visually-hidden">Situação</legend>
         {% for radio in filtros.situacao %}<label class="chip" for="{{ radio.id_for_label }}">{{ radio.tag }}<span class="chip-texto">{% include "interface/_icone.html" with nome="check" %}{{ radio.choice_label }}</span></label>{% endfor %}
       </fieldset>
-      <div class="filtros-linha">
-        {# Material em campo próprio, para combinar com a busca geral (o material e quem recebeu). #}
-        <div class="filtros-material">
-          <label class="visually-hidden" for="{{ filtros.material.id_for_label }}">{{ filtros.material.label }}</label>
-          <div class="campo-busca">
-            {% include "interface/_icone.html" with nome="caixa" %}
-            {{ filtros.material }}
+      <span class="filtros-divisor" aria-hidden="true"></span>
+      {% include "pedidos/_chip_menu.html" with campo=filtros.origem chip=chips.origem %}
+      {% include "pedidos/_chip_menu.html" with campo=filtros.scpi chip=chips.scpi %}
+      {% include "pedidos/_chip_menu.html" with campo=filtros.recibo chip=chips.recibo %}
+      {% include "pedidos/_chip_menu.html" with campo=filtros.autorizacao chip=chips.autorizacao %}
+      <details class="chip-menu" data-menu>
+        <summary class="chip{% if chips.periodo.ativo %} chip-ativo{% endif %}">{% include "interface/_icone.html" with nome="calendario" %}<span class="chip-menu-rotulo" data-chip-nome="{{ chips.periodo.nome }}" data-chip-periodo>{{ chips.periodo.texto }}</span>{% include "interface/_icone.html" with nome="seta-baixo" %}</summary>
+        <div class="chip-menu-painel painel-flutuante chip-menu-periodo">
+          <div class="campo">
+            <label class="campo-rotulo" for="{{ filtros.de.id_for_label }}">{{ filtros.de.label }}</label>
+            {{ filtros.de }}
+          </div>
+          <div class="campo">
+            <label class="campo-rotulo" for="{{ filtros.ate.id_for_label }}">{{ filtros.ate.label }}</label>
+            {{ filtros.ate }}
           </div>
         </div>
-        {% include "pedidos/_chip_menu.html" with campo=filtros.origem chip=chips.origem %}
-        {% include "pedidos/_chip_menu.html" with campo=filtros.scpi chip=chips.scpi %}
-        {% include "pedidos/_chip_menu.html" with campo=filtros.recibo chip=chips.recibo %}
-        {% include "pedidos/_chip_menu.html" with campo=filtros.autorizacao chip=chips.autorizacao %}
-        <details class="chip-menu" data-menu>
-          <summary class="chip{% if chips.periodo.ativo %} chip-ativo{% endif %}"><span class="chip-menu-rotulo" data-chip-nome="{{ chips.periodo.nome }}" data-chip-periodo>{{ chips.periodo.texto }}</span>{% include "interface/_icone.html" with nome="seta-baixo" %}</summary>
-          <div class="chip-menu-painel painel-flutuante chip-menu-periodo">
-            <div class="campo">
-              <label class="campo-rotulo" for="{{ filtros.de.id_for_label }}">{{ filtros.de.label }}</label>
-              {{ filtros.de }}
-            </div>
-            <div class="campo">
-              <label class="campo-rotulo" for="{{ filtros.ate.id_for_label }}">{{ filtros.ate.label }}</label>
-              {{ filtros.ate }}
-            </div>
-          </div>
-        </details>
-        <div class="filtros-linha-acoes">
-          <button type="submit" class="botao botao-secundario filtros-enviar">Filtrar</button>
-          <a class="botao botao-texto" href="{{ painel_url }}">Limpar filtros</a>
+      </details>
+      {# Material em campo próprio, para combinar com a busca geral (o material e quem recebeu). #}
+      <div class="filtros-material">
+        <label class="visually-hidden" for="{{ filtros.material.id_for_label }}">{{ filtros.material.label }}</label>
+        <div class="campo-busca">
+          {% include "interface/_icone.html" with nome="caixa" %}
+          {{ filtros.material }}
         </div>
+      </div>
+      <div class="filtros-linha-acoes">
+        <button type="submit" class="botao botao-secundario filtros-enviar">Filtrar</button>
+        <a class="botao botao-texto" href="{{ painel_url }}">Limpar filtros</a>
       </div>
     </form>
 
-    <div id="lista-pedidos">{% include "pedidos/_painel_lista.html" %}</div>
+    <section class="tabela-caixa" id="lista-pedidos" aria-label="Pedidos">{% include "pedidos/_painel_lista.html" %}</section>
   </div>
 
-  {# Secundária no painel: cada item fica em até duas linhas (pedidos.css); o texto inteiro está no catálogo. #}
+  {# Secundária no painel: cada item fica em até duas linhas (pedidos.css); o texto inteiro está no catálogo. O nível vai no ícone redondo e na palavra em negrito ("Erro."): o estado não fica só na cor. #}
   <section class="cartao saude-painel" id="saude">
     <div class="saude-painel-topo">
       <h2 class="cartao-titulo">Saúde do catálogo</h2>
       {% if perms.contas.operar_automacoes %}<a class="botao botao-texto" href="{{ automacoes_url }}">Ver automações{% include "interface/_icone.html" with nome="seta-direita" %}</a>{% endif %}
     </div>
-    {% if saude %}{% include "catalogo/_saude.html" %}{% else %}<p class="linha texto-secundario">{% include "interface/_icone.html" with nome="check" %}Catálogo em dia.</p>{% endif %}
+    {% if saude %}
+    <ul class="saude-painel-lista">
+      {% for item in saude %}
+      <li><span class="saude-painel-icone saude-painel-icone-{{ item.nivel }}" aria-hidden="true">{% if item.nivel == "ok" %}{% include "interface/_icone.html" with nome="check" %}{% else %}{% include "interface/_icone.html" with nome="alerta" %}{% endif %}</span><span class="saude-painel-texto"><b>{% if item.nivel == "erro" %}Erro.{% elif item.nivel == "aviso" %}Aviso.{% else %}OK.{% endif %}</b> {{ item.texto }}</span></li>
+      {% endfor %}
+    </ul>
+    {% else %}<p class="linha texto-secundario saude-painel-vazio">{% include "interface/_icone.html" with nome="check" %}Catálogo em dia.</p>{% endif %}
   </section>
 </div>
 

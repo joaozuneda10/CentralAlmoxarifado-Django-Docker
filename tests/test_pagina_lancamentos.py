@@ -257,7 +257,7 @@ def test_painel_mostra_cartao_de_lancamentos(client, usuario_logado):
     criar_pedido(atendido=True, linhas=[("PENDENTE", "")])
     criar_pedido(atendido=True, linhas=[("ERRO", "")])
     texto = client.get(reverse("pedidos:painel")).text
-    assert "requisição aguardando o robô" in texto and "1 para conferir" in texto
+    assert "Requisições no robô" in texto and "1 para conferir" in texto
     assert reverse("automacoes:lancar") in texto and LANCAMENTOS in texto
 
 

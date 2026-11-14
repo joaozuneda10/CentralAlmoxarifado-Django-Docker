@@ -51,7 +51,8 @@
 }
 
 /* Casca do almoxarifado */
-.app { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 100vh; background: var(--superficie); }
+.app { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 100vh; background: var(--fundo); }
+.app-coluna { display: flex; flex-direction: column; min-width: 0; }
 .app-lateral { position: sticky; top: 0; height: 100vh; display: flex; flex-direction: column; background: var(--fundo); border-right: 1px solid var(--borda); }
 .app-lateral-topo { display: flex; align-items: center; justify-content: space-between; padding: 20px var(--esp-3); }
 .app-menu-botao { display: none; }
@@ -68,10 +69,10 @@
 /* Item atual: a pílula tonal e o peso maior (o estado não fica só na cor). */
 .app-menu-item[aria-current="page"] { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600; }
 /* Contador do item (pedidos para atender, travas para conferir): o número é só visual; o leitor de
-   tela ouve o texto escondido ao lado (", 2 para atender"). Branco sobre o azul (combinação permitida). */
+   tela ouve o texto escondido ao lado (", 2 para atender"). Branco sobre o vermelho forte (combinação permitida). */
 .app-menu-contador {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 18px; height: 18px;
-  padding: 0 5px; border-radius: var(--raio-pilula); background: var(--destaque); color: var(--destaque-texto);
+  display: inline-flex; align-items: center; justify-content: center; min-width: 16px; height: 16px;
+  padding: 0 4px; border-radius: var(--raio-pilula); background: var(--erro-forte); color: var(--fundo);
   font-size: 11px; font-weight: 600; line-height: 1; font-variant-numeric: tabular-nums;
 }
 .app-menu-item > .app-menu-contador { order: 2; margin-left: auto; }
@@ -89,14 +90,44 @@
 .app-conta-nome { font-weight: 500; }
 .app-conta form { margin: 0; }
 .app-conta-sair { gap: 6px; }
-.app-principal { min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: var(--entre-blocos); padding: var(--esp-4) var(--esp-4) var(--esp-8); }
+.app-principal { flex: 1; min-width: 0; display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 20px; padding: var(--esp-1) var(--esp-4) var(--esp-8) var(--esp-2); }
+/* Barra do topo (como no protótipo do painel): o nome do sistema, a busca da página (bloco
+   `topo_busca`, só no painel) e o usuário com as iniciais. Presa no alto ao rolar. */
+.app-topo {
+  position: sticky; top: 0; z-index: 4; display: flex; align-items: center; gap: var(--esp-3);
+  min-height: 72px; padding: 0 var(--esp-4) 0 var(--esp-2); background: var(--fundo);
+}
+.app-topo-nome { flex: none; font-family: var(--fonte-titulo); font-size: 16px; font-weight: 600; letter-spacing: -0.02em; white-space: nowrap; }
+.app-topo-busca { flex: 1; min-width: 0; max-width: 640px; margin-inline: auto; }
+.app-topo-usuario { flex: none; display: flex; align-items: center; gap: 10px; min-width: 0; font-size: 13px; color: var(--texto-secundario); }
+.app-topo-dados { display: grid; justify-items: end; line-height: 1.25; max-width: 16rem; }
+.app-topo-dados > span { max-width: 100%; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.app-topo-nome-usuario { color: var(--texto); font-weight: 600; }
+.app-topo-avatar {
+  display: grid; place-items: center; width: 36px; height: 36px; border-radius: 50%; flex: none;
+  background: var(--destaque-superficie-texto); color: var(--fundo);
+  font-family: var(--fonte-titulo); font-size: 13px; font-weight: 600; letter-spacing: 0.02em;
+}
+.app-topo-avatar .icone { width: 18px; height: 18px; }
 /* Com a barra fixa do pedido (saída avulsa no tablet e no celular), o espaço dela fica no pé do
    conteúdo, não no do <body>: somado ao min-height de 100vh da .app, ele rolava a página mesmo
    quando tudo cabia na tela. */
 .js[data-gaveta] body:has(.app [data-carrinho]) { padding-bottom: 0; }
 .js[data-gaveta] .app:has([data-carrinho]) .app-principal { padding-bottom: 88px; }
 .pagina-cabecalho { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: var(--esp-2); }
-.pagina-cabecalho > div:first-child { display: grid; gap: var(--esp-meio); }
+.pagina-cabecalho > div:first-child { display: grid; gap: 2px; }
+/* O rótulo da página é a migalha: "Pedidos ›", acima do título. */
+.pagina-cabecalho .rotulo-secao {
+  display: flex; align-items: center; gap: 2px; font-size: 12.5px; font-weight: 400;
+  text-transform: none; letter-spacing: 0; color: var(--texto-secundario);
+}
+.pagina-cabecalho .rotulo-secao::after {
+  content: ""; width: 14px; height: 14px; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m9 18 6-6-6-6'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.pagina-cabecalho .rotulo-secao:empty { display: none; }
+.pagina-cabecalho h1 { font-size: 26px; font-weight: 600; line-height: 1.2; }
 .pagina-sub { color: var(--texto-secundario); }
 .pagina-sub:empty { display: none; }
 .pagina-acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); }
@@ -113,16 +144,22 @@
    não fica só na cor. A lista rola na vertical quando não cabe (janela baixa), com a marca e a conta
    presas em cima e embaixo. */
 @media (min-width: 1287px) {
-  .app-lateral-topo { justify-content: center; padding: var(--esp-2) 0 var(--esp-1); }
-  .marca { justify-content: center; width: 56px; height: 56px; border-radius: var(--raio-cartao); }
-  .marca:hover { background: var(--superficie-alta); }
-  .marca .icone { width: 26px; height: 26px; }
-  .marca > span, .app-conta-dados, .app-conta-sair > span {
+  .app-lateral { border-right: 0; }
+  .app-lateral-topo { justify-content: center; padding: 12px 0 20px; }
+  /* A marca num quadrado tonal azul de 48px. */
+  .marca {
+    justify-content: center; width: 48px; height: 48px; border-radius: var(--raio-cartao);
+    background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+    transition: background-color var(--transicao);
+  }
+  .marca:hover { background: color-mix(in srgb, var(--destaque-superficie-texto) 8%, var(--destaque-superficie)); color: var(--destaque-superficie-texto); }
+  .marca .icone { width: 24px; height: 24px; }
+  .marca > span, .app-conta-sair > span {
     position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
     clip: rect(0 0 0 0); clip-path: inset(50%);
   }
   .app-lateral-painel { overflow: hidden; padding: 0 0 var(--esp-2); }
-  .app-menu { flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; gap: var(--esp-1); padding-block: var(--esp-meio); scrollbar-width: thin; }
+  .app-menu { flex: 1 1 auto; min-height: 0; overflow-y: auto; align-content: start; gap: 12px; padding-block: var(--esp-meio); scrollbar-width: thin; }
   .app-menu-item {
     flex-direction: column; gap: 4px; width: 80px; margin-inline: auto; padding: 0 0 2px;
     border-radius: var(--raio-controle); font-size: 12px; font-weight: 500; line-height: 1.25; text-align: center;
@@ -133,13 +170,16 @@
     transition: background-color var(--transicao), color var(--transicao);
   }
   .app-menu-item:hover > .icone { background: var(--superficie-alta); }
+  .app-menu-item { color: var(--texto-secundario); }
   .app-menu-item[aria-current="page"] { background: none; color: var(--texto); font-weight: 600; }
   .app-menu-item[aria-current="page"] > .icone { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
   .app-menu-item:focus-visible { box-shadow: none; }
   .app-menu-item:focus-visible > .icone { box-shadow: var(--anel-foco); }
   /* O contador fica sobre o canto da pílula do ícone. */
-  .app-menu-item > .app-menu-contador { position: absolute; top: -4px; left: calc(50% + 8px); margin: 0; box-shadow: 0 0 0 2px var(--fundo); }
-  .app-conta { grid-template-columns: auto; justify-items: center; gap: var(--esp-1); padding: 12px 0 0; margin-inline: 12px; }
+  .app-menu-item > .app-menu-contador { position: absolute; top: -4px; left: calc(50% + 4px); margin: 0; }
+  /* No pé, só o Sair: o nome e as iniciais ficam na barra do topo. */
+  .app-conta { grid-template-columns: auto; justify-items: center; gap: var(--esp-1); padding: 12px 0 0; margin-inline: 12px; border-top: 0; }
+  .app-conta-avatar, .app-conta-dados { display: none; }
   .app-conta-sair { width: var(--altura-controle); height: var(--altura-controle); min-height: 0; padding: 0; border-radius: 50%; }
 }
 
@@ -154,16 +194,23 @@
   .js .app-menu-botao { display: inline-flex; }
   .js .app-lateral:not([data-aberto]) .app-lateral-painel { display: none; }
   .app-lateral-painel { padding-top: 0; }
-  .app-principal { padding-bottom: var(--esp-6); }
+  .app-principal { padding: var(--esp-3) var(--esp-4) var(--esp-6); }
+  /* A barra do topo fica só com a busca (o nome e o usuário estão no cabeçalho e no menu). */
+  .app-topo { position: static; min-height: 0; padding: var(--esp-3) var(--esp-4) 0; }
+  .app-topo:has(.app-topo-busca:empty) { display: none; }
+  .app-topo:not(:has(.app-topo-busca:empty)) + .app-principal { padding-top: var(--esp-2); }
+  .app-topo-nome, .app-topo-usuario { display: none; }
+  .app-topo-busca { max-width: none; margin: 0; }
 }
 @media (max-width: 900px) {
   .app-lateral-topo { padding: 12px var(--esp-2); }
   .app-principal { padding: var(--esp-3) var(--esp-2) var(--esp-6); }
+  .app-topo { padding-inline: var(--esp-2); }
 }
 
 /* Impressão: só o conteúdo, sem casca, sem fundos */
 @media print {
-  .app-lateral, .pagina-cabecalho, .mensagens, .publico-topo, .publico-rodape, .pular,
+  .app-lateral, .app-topo, .pagina-cabecalho, .mensagens, .publico-topo, .publico-rodape, .pular,
   .nao-imprimir, .so-tela { display: none !important; }
   .app { display: block; background: none; }
   .app-principal { padding: 0; }
@@ -172,4 +219,14 @@
   .cartao { box-shadow: none; border-color: #cccccc; }
   /* O ícone dos selos é só da tela: no papel, o selo sai como antes (FR-010). */
   .selo::before { display: none; }
+}
+
+/* Com a barra do topo presa (acima de 1286px), o que um link ou atalho rola até o alto fica abaixo dela. */
+@media (min-width: 1287px) {
+  .app-principal [id] { scroll-margin-top: 88px; }
+}
+/* Separador antes de Cadastros (o admin), como no protótipo: só no menu estreito. */
+.app-menu-separador { display: none; }
+@media (min-width: 1287px) {
+  .app-menu-separador { display: block; width: 40px; height: 1px; margin: 0 auto; background: var(--borda); }
 }

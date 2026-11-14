@@ -185,7 +185,7 @@ def test_painel_detalhe_recibo_e_aviso(client):
         dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
     )
     painel = client.get(reverse("pedidos:painel")).text
-    assert "Ocorrência 1234/2026" in texto(painel)
+    assert "Viaturas ocorrência 1234/2026" in texto(painel)
     assert pedido.numero in client.get(reverse("pedidos:painel"), {"origem": VIATURAS}).text
     assert pedido.numero in client.get(reverse("pedidos:painel"), {"q": "1234/2026"}).text
     assert pedido.numero not in client.get(reverse("pedidos:painel"), {"origem": "AB"}).text

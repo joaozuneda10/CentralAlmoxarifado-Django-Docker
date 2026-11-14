@@ -253,8 +253,9 @@ def test_origem_da_lista_e_curta_com_o_nome_inteiro_no_title(client, logado):
 
 def test_saude_do_catalogo_fica_no_fim_do_painel(client, logado):
     texto = client.get(reverse("pedidos:painel")).text
-    assert texto.index('id="lista-pedidos"') < texto.index("Saúde do catálogo")
-    assert texto.index('class="indicadores"') < texto.index("Saúde do catálogo")
+    titulo = '<h2 class="cartao-titulo">Saúde do catálogo</h2>'
+    assert texto.index('id="lista-pedidos"') < texto.index(titulo)
+    assert texto.index('class="indicadores"') < texto.index(titulo)
 
 
 def _atalhos(client):
@@ -266,6 +267,11 @@ def _atalhos(client):
 
 def _numeros_dos_cartoes(atalhos):
     return re.findall(r'<p class="indicador-numero">\s*([0-9]+)\s*</p>', atalhos)
+
+
+def _numero_do_robo(atalhos):
+    cartao = atalhos[atalhos.index('data-indicador="robo"') :]
+    return re.search(r'<p class="indicador-numero">\s*([0-9]+)\s*</p>', cartao).group(1)
 
 
 def _botao_desabilitado(atalhos, rotulo):
@@ -333,11 +339,11 @@ def test_cartao_conta_as_requisicoes_pela_regra_do_robo(client, logado):
     assert _botao_desabilitado(atalhos, "Lançar no SCPI")
     criar_pedido(atendido=True, linhas=[("PENDENTE", "")])
     _, atalhos = _atalhos(client)
-    assert "requisição aguardando o robô" in atalhos
+    assert _numero_do_robo(atalhos) == "1" and "Nada aguardando o robô." not in atalhos
     assert not _botao_desabilitado(atalhos, "Lançar no SCPI")
     criar_pedido(atendido=True, linhas=[("PENDENTE", "")])
     _, atalhos = _atalhos(client)
-    assert "requisições aguardando o robô" in atalhos and "lote" not in atalhos
+    assert _numero_do_robo(atalhos) == "2" and "lote" not in atalhos
 
 
 def test_lancar_fica_desabilitado_com_execucao_em_andamento(client, logado):
