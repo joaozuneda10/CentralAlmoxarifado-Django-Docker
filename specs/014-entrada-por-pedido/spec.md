@@ -266,7 +266,11 @@ requisição sem marca, e conferir o saldo livre, o aviso e a trava.
 
   O sistema guarda quem preparou e quando.
 - **FR-007**: "Total" DEVE sugerir o saldo livre de cada item disponível; "parcial" DEVE permitir
-  escolher itens e baixar quantidades. Nenhum item pode passar do saldo livre.
+  escolher itens e baixar quantidades. Nenhum item pode passar do saldo livre. O "total" abre com os
+  itens e as quantidades **travados**: alterar um deles é uma ação explícita da pessoa ("Alterar
+  itens e quantidades"), que avisa que o que ficar abaixo do saldo livre continua livre para outra
+  NF, e "Voltar ao total" restaura o sugerido e trava de novo. A trava é da tela; o servidor valida
+  as quantidades do mesmo jeito, e o recebimento não guarda se nasceu total ou parcial.
 - **FR-008**: As quantidades DEVEM ser decimais pt-BR, maiores que 0, com até 3 casas, em qualquer
   unidade.
 - **FR-009**: A data do recebimento NÃO DEVE ser futura nem anterior à data do pedido.
