@@ -68,6 +68,32 @@ select.campo-entrada { padding-right: 36px; }
 .campo-com-erro .campo-rotulo { color: var(--erro-forte); }
 .campo-com-erro .campo-entrada, .campo-com-erro .campo-entrada:hover { border-color: var(--erro-forte); }
 .campo-com-erro .campo-entrada:focus { box-shadow: inset 0 0 0 1px var(--erro-forte); }
+/* Campo com rótulo flutuante (telas públicas, contracts/campos-publicos.md): o campo contornado do M3,
+   com 56px. Por padrão o rótulo fica na borda, a reserva do navegador sem `:has()`; com `:has()`, ele
+   desce para dentro da caixa só com o campo vazio e sem foco (o `placeholder=" "` diz se está vazio;
+   o preenchimento automático conta como preenchido). O fundo do rótulo só cobre a metade de baixo,
+   onde corta a borda: em cima aparece a superfície em que o campo está. O exemplo vai embaixo, no
+   `campo-dica`, e o erro toma o lugar dele. */
+.campo-flutuante { position: relative; gap: 0; }
+.campo-flutuante .campo-entrada { min-height: var(--altura-campo); padding: 0 16px; font-size: 16px; }
+.campo-flutuante > .campo-rotulo {
+  position: absolute; z-index: 2; left: 12px; top: 0; transform: translateY(-50%);
+  max-width: calc(100% - 24px); padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 400; line-height: 16px; color: var(--texto-secundario); pointer-events: none;
+  background: linear-gradient(transparent calc(50% - 2px), var(--campo-fundo, var(--fundo)) calc(50% - 2px));
+  transition: top var(--transicao), font-size var(--transicao), line-height var(--transicao), color var(--transicao);
+}
+.campo-flutuante:has(.campo-entrada[readonly]) { --campo-fundo: var(--superficie); }
+.campo-flutuante:has(.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)) > .campo-rotulo {
+  top: calc(var(--altura-campo) / 2); font-size: 16px; line-height: 24px;
+}
+.campo-flutuante:focus-within > .campo-rotulo { color: var(--destaque); }
+.campo-flutuante.campo-com-erro > .campo-rotulo { color: var(--erro-forte); }
+.campo-flutuante.campo-com-erro .campo-entrada { box-shadow: inset 0 0 0 1px var(--erro-forte); }
+.campo-flutuante .campo-dica, .campo-flutuante .campo-erro { margin: 0; padding: 4px 16px 0; font-size: 13px; line-height: 1.4; }
+/* O erro que já traz o ícone no HTML (`pedidos/_erro_campo.html`) não ganha o segundo. */
+.campo-erro:has(> .icone)::before { content: none; }
+@media (prefers-reduced-motion: reduce) { .campo-flutuante > .campo-rotulo { transition: none; } }
 .campo-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
 .campo-check input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--destaque); }
 /* Campos de uma saída, compactos: a grade escolhe as colunas pela largura do próprio bloco

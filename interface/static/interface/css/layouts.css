@@ -15,13 +15,24 @@
   margin-top: calc(var(--esp-1) * -1); font-size: 14px;
 }
 .pagina-cabecalho .link-voltar { margin-bottom: var(--esp-1); }
-.publico-cabecalho .link-voltar { margin-bottom: calc(var(--esp-1) * -1); }
 
-/* Público */
-.publico-topo { border-bottom: 1px solid var(--borda); background: var(--fundo); }
-.publico-topo-interno, .publico-conteudo, .publico-rodape { width: 100%; max-width: 720px; margin-inline: auto; padding-inline: var(--esp-3); }
-.publico-topo-interno { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); min-height: 64px; }
-.publico-conteudo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--entre-blocos); padding-block: var(--esp-8) var(--esp-12); }
+/* Público (como no protótipo dos formulários): a barra do topo branca, sem borda e presa ao rolar,
+   com a marca num quadrado tonal; ao rolar, ela ganha a superfície e o fio de baixo (animação ligada à
+   rolagem, sem JavaScript; sem suporte, fica branca). Coluna de 760px (1160px no formulário), o
+   cabeçalho grande e o rodapé centrado, sem fio. */
+.publico-topo { position: sticky; top: 0; z-index: 20; background: var(--fundo); }
+@supports (animation-timeline: scroll()) {
+  .publico-topo { animation: publico-topo-rolou linear both; animation-timeline: scroll(root); animation-range: 0 8px; }
+  @keyframes publico-topo-rolou { to { background: var(--superficie); box-shadow: 0 1px 0 var(--borda); } }
+}
+.publico-topo-interno { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); min-height: 64px; padding-inline: var(--esp-3); }
+.publico-topo .marca { gap: 12px; font-size: 17px; letter-spacing: -0.02em; }
+.publico-topo .marca .icone {
+  box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 12px;
+  background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+}
+.publico-conteudo, .publico-rodape { width: 100%; max-width: 760px; margin-inline: auto; padding-inline: var(--esp-3); }
+.publico-conteudo { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-3); padding-block: 72px var(--esp-8); }
 /* Conta do solicitante no topo (spec 013): "Entrar", ou "Meus pedidos" e "Sair". */
 .publico-conta { display: flex; align-items: center; gap: var(--esp-1); }
 .publico-conta form { margin: 0; }
@@ -34,21 +45,28 @@
     clip: rect(0 0 0 0); clip-path: inset(50%);
   }
 }
-.publico-cabecalho { display: grid; gap: var(--esp-2); }
-.publico-sub { color: var(--texto-secundario); font-size: 1.05em; max-width: 36em; }
+.publico-cabecalho { display: grid; justify-items: start; gap: 6px; margin-top: var(--esp-1); margin-bottom: var(--esp-1); }
+/* O rótulo do cabeçalho público é texto de apoio, sem caixa alta. */
+.publico-cabecalho .rotulo-secao { margin: 0; font-size: 14px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--texto-secundario); }
+.publico-cabecalho .rotulo-secao:empty { display: none; }
+.publico-cabecalho h1 { font-size: clamp(30px, 5vw, 44px); font-weight: 600; line-height: 1.12; letter-spacing: -0.02em; }
+.publico-sub { margin-top: 4px; color: var(--texto-secundario); font-size: 17px; max-width: 36em; }
 .publico-sub:empty { display: none; }
-.publico-rodape { padding-block: var(--esp-4); border-top: 1px solid var(--borda); color: var(--texto-suave); font-size: 0.875em; }
-@media (max-width: 640px) {
+/* "Trocar tipo de material" e "Voltar ao início": botão de texto em pílula, com o fundo tonal no cursor. */
+.publico-cabecalho .link-voltar {
+  gap: 8px; min-height: 40px; margin: 0 0 var(--esp-1) -10px; padding: 0 16px 0 10px; border-radius: var(--raio-pilula);
+  font-size: 15px; font-weight: 500; transition: background-color var(--transicao);
+}
+.publico-cabecalho .link-voltar:hover { background: var(--destaque-superficie); color: var(--destaque-superficie-texto); text-decoration: none; }
+.publico-rodape { padding-block: var(--esp-3) 40px; color: var(--texto-suave); font-size: 14px; text-align: center; }
+.publico-rodape .link-discreto { font-size: inherit; }
+@media (max-width: 600px) {
   .publico-topo-interno, .publico-conteudo, .publico-rodape { padding-inline: var(--esp-2); }
-  .publico-conteudo { padding-block: var(--esp-4) var(--esp-8); }
+  .publico-conteudo { padding-block: var(--esp-2) var(--esp-6); }
 }
 
-/* Página pública larga (formulário de pedido): no desktop cabe a busca ao lado do pedido; os
-   campos dos outros passos mantêm a largura de leitura. */
-@media (min-width: 1024px) {
-  .pagina-larga .publico-topo-interno, .pagina-larga .publico-conteudo, .pagina-larga .publico-rodape { max-width: 1080px; }
-  .pagina-larga .passo-corpo > .campo { max-width: 560px; }
-}
+/* Página pública larga (formulário de pedido): a busca ao lado do "Seu pedido". */
+.pagina-larga .publico-conteudo { max-width: 1160px; }
 
 /* Casca do almoxarifado */
 .app { display: grid; grid-template-columns: 88px minmax(0, 1fr); min-height: 100vh; background: var(--fundo); }
@@ -147,14 +165,14 @@
   .app-lateral { border-right: 0; }
   .app-lateral-topo { justify-content: center; padding: 12px 0 20px; }
   /* A marca num quadrado tonal azul de 48px. */
-  .marca {
+  .app-lateral .marca {
     justify-content: center; width: 48px; height: 48px; border-radius: var(--raio-cartao);
     background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
     transition: background-color var(--transicao);
   }
-  .marca:hover { background: color-mix(in srgb, var(--destaque-superficie-texto) 8%, var(--destaque-superficie)); color: var(--destaque-superficie-texto); }
-  .marca .icone { width: 24px; height: 24px; }
-  .marca > span, .app-conta-sair > span {
+  .app-lateral .marca:hover { background: color-mix(in srgb, var(--destaque-superficie-texto) 8%, var(--destaque-superficie)); color: var(--destaque-superficie-texto); }
+  .app-lateral .marca .icone { width: 24px; height: 24px; }
+  .app-lateral .marca > span, .app-conta-sair > span {
     position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
     clip: rect(0 0 0 0); clip-path: inset(50%);
   }
