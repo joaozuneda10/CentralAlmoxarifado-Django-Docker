@@ -16,6 +16,16 @@ from contas.acesso import (
 )
 
 
+def campos_flutuantes(formulario) -> None:
+    """Prepara os campos para o rótulo flutuante das telas públicas (spec 015,
+    contracts/campos-publicos.md): a caixa do campo e o `placeholder=" "`, pelo qual o CSS sabe se o
+    campo está vazio."""
+    for campo in formulario.fields.values():
+        attrs = campo.widget.attrs
+        attrs["class"] = " ".join(filter(None, [attrs.get("class"), "campo-entrada"]))
+        attrs["placeholder"] = " "
+
+
 class FormularioEntrada(AuthenticationForm):
     """Login por matrícula.
 
@@ -29,6 +39,10 @@ class FormularioEntrada(AuthenticationForm):
         "invalid_login": "Matrícula ou senha incorretas.",
         "inactive": "Matrícula ou senha incorretas.",
     }
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        campos_flutuantes(self)
 
 
 class FormularioEntradaAdmin(AdminAuthenticationForm):
@@ -57,6 +71,7 @@ class FormularioTrocaSenha(PasswordChangeForm):
         self.fields["old_password"].label = "Senha atual"
         self.fields["new_password1"].label = "Senha nova"
         self.fields["new_password2"].label = "Repita a senha nova"
+        campos_flutuantes(self)
 
     def clean_new_password1(self):
         nova = self.cleaned_data.get("new_password1")

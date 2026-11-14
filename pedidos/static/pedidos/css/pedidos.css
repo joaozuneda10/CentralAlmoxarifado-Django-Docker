@@ -1,24 +1,40 @@
 /* Pedidos: o que é próprio desta app. Componentes comuns ficam em interface/css. */
 
-.opcoes-formulario { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: var(--esp-3); }
-/* O formulário geral: a pergunta entre dois fios e um cartão largo, branco e tracejado, com
-   ícone, texto e seta numa linha. */
-.opcoes-geral { display: grid; gap: var(--esp-2); }
-.opcoes-separador { display: flex; align-items: center; gap: var(--esp-2); margin: 0; color: var(--texto-secundario); font-size: 0.9em; text-align: center; }
-.opcoes-separador::before, .opcoes-separador::after { content: ""; flex: 1 1 var(--esp-3); border-top: 1px solid var(--borda); }
-.cartao-opcao-geral {
-  grid-template-columns: auto minmax(0, 1fr) auto; align-items: center; column-gap: var(--esp-2);
-  border: 1px dashed var(--texto-suave); box-shadow: none; padding: var(--esp-3);
+/* Página inicial (como no protótipo dos formulários): a chamada da consulta num bloco tonal e os
+   formulários numa lista de cartões de contorno, cada um com o ícone num quadrado tonal, o título e o
+   exemplo, e a seta. O formulário geral vem à parte, depois da pergunta entre dois fios, com o ícone
+   num quadrado cinza. */
+.consulta-chamada {
+  display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-2);
+  padding: var(--esp-2) var(--esp-2) var(--esp-2) var(--esp-3); border-radius: var(--raio-cartao); background: var(--superficie-media);
 }
-.cartao-opcao-geral > .icone { color: var(--texto-secundario); }
-.cartao-opcao-texto { display: grid; gap: var(--esp-meio); }
-.cartao-opcao-geral .cartao-opcao-seta { margin-top: 0; }
-/* No celular, empilhado como os outros cartões, e a pergunta sem os fios. */
-@media (max-width: 640px) {
-  .cartao-opcao-geral { grid-template-columns: minmax(0, 1fr); row-gap: var(--esp-1); }
-  .cartao-opcao-geral .cartao-opcao-seta { margin-top: var(--esp-1); }
+.consulta-chamada p { flex: 1 1 16rem; margin: 0; color: var(--texto-secundario); }
+.consulta-chamada strong { display: block; font-weight: 600; color: var(--texto); }
+.opcoes-formulario { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
+.opcoes-formulario .cartao-opcao, .cartao-opcao-geral {
+  display: flex; align-items: center; gap: var(--esp-2); padding: 20px var(--esp-2) 20px 20px;
+  border: 0; box-shadow: inset 0 0 0 1px var(--borda);
+  transition: background-color var(--transicao), box-shadow var(--transicao);
+}
+.opcoes-formulario .cartao-opcao:hover, .cartao-opcao-geral:hover {
+  transform: none; background: var(--superficie);
+  box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--contorno) 45%, var(--borda)), var(--sombra-cartao);
+}
+.opcoes-formulario .cartao-opcao > .icone, .cartao-opcao-geral > .icone { flex: none; border-radius: 14px; }
+.cartao-opcao-texto { display: grid; gap: 2px; flex: 1; min-width: 0; }
+.cartao-opcao-texto h2 { font-size: 18px; font-weight: 600; }
+.cartao-opcao-texto .texto-secundario { font-size: 15px; }
+.opcoes-formulario .cartao-opcao-seta, .cartao-opcao-geral .cartao-opcao-seta { display: inline-flex; margin: 0; color: var(--texto-suave); }
+.cartao-opcao-geral > .icone { background: var(--superficie-alta); color: var(--texto-secundario); }
+.opcoes-geral { display: grid; gap: 12px; }
+.opcoes-separador { display: flex; align-items: center; gap: var(--esp-2); margin: 4px 0 0; color: var(--texto-secundario); font-size: 15px; }
+.opcoes-separador::before, .opcoes-separador::after { content: ""; flex: 1 1 var(--esp-3); height: 1px; background: var(--borda); }
+.inicio-nota { margin-top: 4px; font-size: 14px; }
+@media (max-width: 600px) {
+  .opcoes-separador { text-align: center; }
   .opcoes-separador::before, .opcoes-separador::after { content: none; }
-  .opcoes-separador { justify-content: center; }
+  .consulta-chamada { padding-left: 20px; }
+  .consulta-chamada .botao { width: 100%; }
 }
 .busca-materiais { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px; }
 
@@ -130,19 +146,46 @@ html:not(.js) .formulario-pedido { display: none; }
 .js .busca-painel .lista-materiais { border: 0; border-radius: 0; }
 .numero-pedido { white-space: nowrap; }
 
-.sucesso-pedido { display: grid; justify-items: center; gap: var(--esp-2); text-align: center; animation: subir 0.4s ease both; }
-.sucesso-pedido .acoes { justify-content: center; }
-.pagina-larga .sucesso-pedido { width: 100%; max-width: 720px; margin-inline: auto; }
-.sucesso-icone { display: inline-flex; width: 48px; height: 48px; align-items: center; justify-content: center; border-radius: 50%; background: var(--superficie); color: var(--texto); }
-.sucesso-icone .icone { width: 24px; height: 24px; }
-/* Consulta pública (spec 011): o número e o selo na mesma linha, que quebra na tela estreita. */
+/* Tela de sucesso (como no protótipo): o ✓ num círculo no contêiner ok, o número grande em mono, o
+   cartão tonal com o destino e os materiais, o aviso e as ações lado a lado, centradas. */
+.sucesso-pedido { display: grid; justify-items: center; gap: 4px; text-align: center; animation: subir 0.4s ease both; }
+.pagina-larga .sucesso-pedido { width: 100%; max-width: 760px; margin-inline: auto; }
+.sucesso-icone {
+  display: inline-flex; width: 72px; height: 72px; margin-bottom: 12px; align-items: center; justify-content: center;
+  border-radius: 50%; background: var(--ok-superficie); color: var(--ok-texto);
+}
+.sucesso-icone .icone { width: 36px; height: 36px; stroke-width: 2.5; }
+.sucesso-rotulo { font-weight: 500; color: var(--texto-secundario); }
+.sucesso-numero { margin: 2px 0; font-size: 44px; font-weight: 600; line-height: 1.1; letter-spacing: -0.02em; color: var(--texto); }
+.sucesso-resumo { color: var(--texto-secundario); }
+.sucesso-cartao { width: 100%; margin: 24px 0 12px; padding: var(--esp-1) 0; border-radius: var(--raio-bloco); background: var(--superficie); text-align: left; }
+.sucesso-dados { margin: 0; }
+.sucesso-dados > div { display: flex; justify-content: space-between; gap: var(--esp-2); padding: 12px var(--esp-3); }
+.sucesso-dados dt { color: var(--texto-secundario); }
+.sucesso-dados dd { margin: 0; font-weight: 500; text-align: right; overflow-wrap: anywhere; }
+.sucesso-cartao .sucesso-itens { max-width: none; margin: 0; padding: 4px var(--esp-3) 12px; border-top: 1px solid var(--borda); }
+.sucesso-cartao .sucesso-itens li { padding: var(--esp-1) 0; border-bottom: 0; }
+.sucesso-pedido > .aviso { width: 100%; text-align: left; }
+.sucesso-acoes { justify-content: center; gap: 12px; margin-top: var(--esp-3); }
+.sucesso-acoes form { margin: 0; }
+.sucesso-acoes .botao { min-height: 52px; padding-inline: 28px; font-size: 16px; }
+@media (max-width: 600px) {
+  .sucesso-numero { font-size: 36px; }
+  .sucesso-dados > div { padding-inline: 20px; }
+  .sucesso-cartao .sucesso-itens { padding-inline: 20px; }
+  .sucesso-acoes, .sucesso-acoes form { width: 100%; }
+  .sucesso-acoes .botao { width: 100%; }
+}
+/* Consulta pública (spec 011): o formulário num bloco tonal, como os passos do pedido; o número e o
+   selo na mesma linha, que quebra na tela estreita. */
+.consulta-formulario { padding: var(--esp-3); border-radius: var(--raio-bloco); background: var(--superficie); }
+.consulta-formulario .campo-flutuante { --campo-fundo: var(--fundo); }
+.consulta-formulario .botao { min-height: 52px; padding-inline: 28px; font-size: 16px; }
+@media (max-width: 600px) { .consulta-formulario { padding: 20px var(--esp-2); border-radius: 24px; } .consulta-formulario .botao { width: 100%; } }
 .consulta-cabecalho { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-1) var(--esp-2); }
 .consulta-cabecalho .cartao-titulo { margin: 0; }
-.consulta-resultado, .consulta-formulario { scroll-margin-top: var(--esp-3); }
-.consulta-chamada { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); }
-.consulta-chamada p { margin: 0; }
+.consulta-resultado, .consulta-formulario { scroll-margin-top: calc(64px + var(--esp-3)); }
 .consulta-itens-bloco .rotulo-secao { margin: 0; }
-.sucesso-numero { font-size: 40px; font-weight: 500; line-height: 1.1; letter-spacing: -0.01em; color: var(--texto); }
 
 /* Recibo (detalhe e impressão) e atendimento */
 /* Na tela, o recibo são dois cartões: o cabeçalho com a situação e a lista de materiais. */
@@ -986,3 +1029,153 @@ html:not(.js) [data-quantidade] { display: none; }
 
 /* Painel: os blocos (indicadores, filtros, lista e saúde) com 20px entre eles, como no protótipo. */
 .painel-pilha, .pedidos-bloco { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }
+
+/* ---------------------------------------------------------------------------------------------
+   Formulário público (spec 015, entrega 3, como no protótipo dos formulários). Só nas telas públicas
+   (`ritmo-publico`): a saída avulsa usa os mesmos parciais e muda na entrega 4.
+   --------------------------------------------------------------------------------------------- */
+/* Passos em blocos tonais de 28px de raio, com o número num círculo azul ao lado do título; o corpo
+   usa a largura toda do bloco. */
+.ritmo-publico .pedido-passos { gap: var(--esp-2); }
+.ritmo-publico .passo {
+  grid-template-columns: 32px minmax(0, 1fr); align-items: start; gap: 20px 14px;
+  padding: var(--esp-3); border-radius: var(--raio-bloco); background: var(--superficie);
+}
+.ritmo-publico .passo-numero {
+  display: grid; place-items: center; width: 32px; height: 32px; border-radius: 50%;
+  background: var(--destaque); color: var(--destaque-texto); font-size: 14px; line-height: 1; letter-spacing: 0;
+}
+.ritmo-publico .passo-cabecalho { gap: 0; }
+.ritmo-publico .passo-cabecalho h2 { font-size: 20px; font-weight: 600; line-height: 32px; }
+.ritmo-publico .passo-cabecalho h2 .texto-secundario { font-family: var(--fonte-texto); font-size: 16px; font-weight: 400; }
+.ritmo-publico .passo-cabecalho p { font-size: 15px; }
+.ritmo-publico .passo-corpo { grid-column: 1 / -1; gap: 20px; }
+.ritmo-publico .passo .campo-flutuante { --campo-fundo: var(--fundo); }
+.ritmo-publico .passo textarea.campo-entrada { min-height: 112px; padding: 16px; font-size: 16px; }
+@media (max-width: 600px) {
+  .ritmo-publico .passo { padding: 20px var(--esp-2); border-radius: 24px; }
+}
+
+/* Busca em pílula: o rótulo fica para o leitor de tela (o título do passo já diz o que é), o exemplo
+   dentro do campo. No foco, o campo vira branco com a sombra do cartão. */
+.ritmo-publico .busca-principal .campo-rotulo {
+  position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap; clip: rect(0 0 0 0); clip-path: inset(50%);
+}
+.ritmo-publico .busca-principal .campo-busca .icone { left: 18px; width: 20px; height: 20px; color: var(--texto-secundario); }
+.ritmo-publico .busca-principal .campo-entrada {
+  min-height: 56px; padding-left: 50px; border: 0; border-radius: var(--raio-pilula);
+  background: var(--superficie-alta); font-size: 16px;
+}
+.ritmo-publico .busca-principal .campo-entrada::placeholder { color: var(--texto-secundario); }
+.ritmo-publico .busca-principal .campo-entrada:hover { border: 0; }
+.ritmo-publico .busca-principal .campo-entrada:focus { background: var(--fundo); box-shadow: var(--sombra-cartao), inset 0 0 0 1px var(--borda); }
+.ritmo-publico .busca-principal .campo-entrada:focus-visible { box-shadow: var(--sombra-cartao), inset 0 0 0 2px var(--destaque); }
+/* O filtro de grupo, acima da busca, é um chip de filtro do M3. */
+.ritmo-publico .busca-filtro-alternar { border-color: var(--contorno); border-radius: var(--raio-controle); }
+.ritmo-publico .busca-filtro-ativo .busca-filtro-alternar { border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
+.ritmo-publico .busca-filtro-ativo .busca-filtro-valor { color: var(--secundario-superficie-texto); }
+
+/* Resultados: cartão de contorno no fluxo da página (sem a sombra de flutuante), linhas de 64px com o
+   "+" num círculo que ganha o fundo tonal no cursor; a aberta tem a superfície e a barra azul de 4px. */
+.ritmo-publico .busca-painel { border: 0; box-shadow: inset 0 0 0 1px var(--borda); }
+.ritmo-publico .lista-materiais .material { min-height: 64px; padding: 12px 12px 12px var(--esp-2); }
+.js .ritmo-publico .material-abrir { inset: -12px -12px -12px calc(-1 * var(--esp-2)); }
+.ritmo-publico .material-dados strong { font-weight: 500; }
+.ritmo-publico .material-info > .texto-secundario { font-size: 14px; }
+.js .ritmo-publico .material:has([data-adicionar]) .material-titulo::before { width: 44px; }
+.js .ritmo-publico .material-mais {
+  top: 50%; right: 0; width: 40px; height: 40px; margin-top: -20px; display: grid; place-items: center;
+  border-radius: 50%; transition: background-color var(--transicao);
+}
+.js .ritmo-publico .material:has([data-adicionar]):hover { background: var(--superficie); }
+.js .ritmo-publico .material:has([data-adicionar]):hover .material-mais { background: var(--destaque-superficie); color: var(--destaque-superficie-texto); }
+.js .ritmo-publico .material:has([data-adicionar].aberto) { background: var(--superficie); box-shadow: inset 4px 0 0 var(--destaque); }
+
+/* Quantidade − / + em pílula, sem divisórias, com o número em destaque. */
+.ritmo-publico .quantidade-campo { width: 56px; border-inline: 0; font-size: 17px; }
+.ritmo-publico .quantidade .botao-icone { border-radius: 50%; color: var(--texto-secundario); }
+.ritmo-publico .quantidade .botao-icone:hover { color: var(--texto); }
+
+/* "Seu pedido": cartão tonal de 28px de raio, preso ao rolar (a partir de 960px de largura dos passos),
+   com o contador numa pílula azul, as linhas em cartões brancos e o envio em pílula grande. */
+.ritmo-publico .pedido-resumo { gap: 0; padding: 20px var(--esp-1) var(--esp-1); border: 0; border-radius: var(--raio-bloco); background: var(--superficie-media); }
+@container (min-width: 960px) {
+  .ritmo-publico .pedido-grade { grid-template-columns: minmax(0, 1fr) 360px; gap: var(--esp-3); }
+  .ritmo-publico .pedido-resumo { top: calc(64px + var(--esp-2)); max-height: calc(100dvh - 64px - 2 * var(--esp-2)); }
+}
+.js[data-gaveta] .ritmo-publico .pedido-resumo { padding: 0; background: none; }
+.ritmo-publico .carrinho-gaveta { gap: var(--esp-1); padding: 0; background: none; border: 0; }
+.ritmo-publico .carrinho-cabecalho { padding: 0 var(--esp-1) 4px var(--esp-2); }
+html:not([data-gaveta]) .ritmo-publico .pedido-resumo .carrinho-cabecalho { background: var(--superficie-media); }
+.ritmo-publico .carrinho-titulo { gap: 10px; font-size: 18px; color: var(--texto); }
+.ritmo-publico .carrinho-titulo > .icone { display: none; }
+.carrinho-contador {
+  display: inline-block; min-width: 24px; height: 24px; padding: 0 8px; border-radius: 12px;
+  background: var(--destaque); color: var(--destaque-texto); font: 600 13px/24px var(--fonte-titulo); text-align: center;
+}
+.carrinho-vazio { display: grid; justify-items: center; gap: var(--esp-1); padding: var(--esp-3) var(--esp-2) 28px; text-align: center; color: var(--texto-secundario); font-size: 15px; }
+.carrinho-vazio .icone { width: 32px; height: 32px; color: var(--texto-suave); }
+.ritmo-publico .carrinho-lista { gap: 4px; }
+.ritmo-publico .carrinho-lista .carrinho-linha, .ritmo-publico .carrinho-lista .carrinho-linha:last-child {
+  border: 0; border-radius: 12px; background: var(--fundo);
+}
+.ritmo-publico .carrinho-acoes-gaveta .botao, .ritmo-publico .pedido-enviar .botao { min-height: 52px; font-size: 16px; }
+.ritmo-publico .pedido-enviar { display: grid; gap: var(--esp-1); padding: 12px var(--esp-1) var(--esp-1); }
+.pedido-enviar-nota { font-size: 13px; text-align: center; color: var(--texto-secundario); }
+
+/* A linha do pedido, como no protótipo: fechada, o nome, a quantidade e o lápis numa linha; aberta, a
+   barra azul de 4px e, embaixo, o − / +, o "Remover" e o "Confirmar"; o ✕ fica no canto de cima. */
+.js .ritmo-publico .carrinho-linha {
+  grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
+  padding: 12px 44px 12px var(--esp-2);
+}
+.js .ritmo-publico .carrinho-linha:hover { background: var(--superficie); }
+.js .ritmo-publico .carrinho-linha .material-titulo::before { content: none; }
+.js .ritmo-publico .carrinho-linha .material-dados { position: static; }
+.js .ritmo-publico .carrinho-linha .material-dados strong { font-size: 15px; }
+.js .ritmo-publico .carrinho-linha .material-mais { top: 50%; right: 14px; width: 16px; height: 16px; margin-top: -8px; color: var(--texto-secundario); }
+.js .ritmo-publico .carrinho-linha .material-mais .icone { width: 16px; height: 16px; }
+.js .ritmo-publico .carrinho-acoes { display: block; }
+.js .ritmo-publico .carrinho-acoes .carrinho-qtd-texto { font-size: 14px; color: var(--texto-secundario); white-space: nowrap; }
+.js .ritmo-publico .carrinho-acoes .carrinho-qtd-texto strong { color: var(--texto); }
+.js .ritmo-publico .carrinho-remover { display: none; }
+.js .ritmo-publico .carrinho-linha:has([data-alterar].aberto) { box-shadow: inset 4px 0 0 var(--destaque); padding-right: 52px; }
+.js .ritmo-publico .carrinho-linha:has([data-alterar].aberto) .material-dados { grid-column: 1 / -1; }
+.js .ritmo-publico [data-alterar].aberto {
+  grid-column: 1 / -1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); margin-right: -40px;
+}
+.js .ritmo-publico [data-alterar].aberto .carrinho-qtd-texto { display: none; }
+.js .ritmo-publico [data-alterar].aberto .carrinho-remover { display: inline-flex; order: 2; }
+.js .ritmo-publico [data-alterar].aberto .quantidade { order: 1; }
+.js .ritmo-publico [data-alterar].aberto .carrinho-confirmar { order: 3; margin-left: auto; }
+.js .ritmo-publico [data-alterar].aberto .carrinho-cancelar { top: 4px; right: 4px; }
+
+/* Barra fixa e gaveta do celular: a barra na superfície tonal, com "Seu pedido" em destaque e a
+   contagem embaixo; a gaveta com os cantos de cima de 28px e a alça. */
+.js[data-gaveta] .ritmo-publico .carrinho-barra { background: var(--superficie-media); border-top: 0; box-shadow: 0 -1px 0 var(--borda); }
+.ritmo-publico .carrinho-barra-contagem .carrinho-barra-rotulo { order: -1; font-size: 16px; font-weight: 600; color: var(--texto); }
+.ritmo-publico .carrinho-barra-contagem { color: var(--texto-secundario); font-size: 14px; font-weight: 400; }
+.js[data-gaveta] .ritmo-publico .carrinho-gaveta[open] {
+  max-width: 640px; margin-inline: auto; padding: 4px var(--esp-1) calc(20px + env(safe-area-inset-bottom));
+  background: var(--superficie-media); border-radius: var(--raio-bloco) var(--raio-bloco) 0 0;
+}
+.js[data-gaveta] .ritmo-publico .carrinho-gaveta[open]::before {
+  content: ""; justify-self: center; width: 32px; height: 4px; margin: 8px 0 4px; border-radius: 2px; background: var(--contorno);
+}
+.js[data-gaveta] .ritmo-publico .carrinho-cabecalho { padding-top: 8px; }
+.js[data-gaveta] .ritmo-publico .carrinho-acoes-gaveta { padding-inline: var(--esp-1); }
+.js[data-gaveta] .ritmo-publico [data-carrinho-continuar] { background: none; border-color: transparent; color: var(--destaque); }
+
+/* Resumo dos erros do envio: o bloco no contêiner de erro, com o título. */
+.ritmo-publico .resumo-erros { padding: var(--esp-2) 20px; border-radius: var(--raio-cartao); }
+
+/* Meus pedidos, um pedido meu, a folha e as recusas: os componentes da fundação, com o cursor tonal e
+   o ícone do estado vazio num círculo. */
+.meus-pedidos-linha { transition: background-color var(--transicao); }
+.meus-pedidos-linha:hover { background: var(--superficie); border-color: var(--borda); }
+.ritmo-publico .vazio > .icone {
+  box-sizing: content-box; width: 28px; height: 28px; padding: 14px; border-radius: 50%;
+  background: var(--superficie-alta); color: var(--texto-secundario);
+}
+.folha { border: 0; border-radius: var(--raio-bloco); }
+.formulario-conta .campo-flutuante { --campo-fundo: var(--fundo); }

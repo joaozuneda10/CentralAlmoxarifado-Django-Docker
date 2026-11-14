@@ -1,16 +1,25 @@
 {% load interface_extras %}
-{# data-lembrar-*: o pedidos.js guarda nome e destino neste aparelho para o próximo pedido. Com a conta (spec 013), nada fica no aparelho, e o caminho é "Meus pedidos". #}
-<section class="cartao sucesso-pedido"{% if not com_conta %} data-lembrar-solicitante="{{ resposta.pedido.solicitante }}" data-lembrar-destino="{{ resposta.pedido.destino }}"{% endif %}>
+{% comment %}
+Tela de sucesso (como no protótipo): o check no contêiner ok, o número grande, um cartão tonal com o
+destino e os materiais, o aviso e as ações. data-lembrar-*: o pedidos.js guarda nome e destino neste
+aparelho para o próximo pedido. Com a conta (spec 013), nada fica no aparelho, e o caminho é "Meus
+pedidos".
+{% endcomment %}
+<section class="sucesso-pedido"{% if not com_conta %} data-lembrar-solicitante="{{ resposta.pedido.solicitante }}" data-lembrar-destino="{{ resposta.pedido.destino }}"{% endif %}>
   <span class="sucesso-icone">{% include "interface/_icone.html" with nome="check" %}</span>
-  <p class="rotulo-secao">{% if resposta.reenvio %}Pedido já estava registrado{% else %}Pedido registrado{% endif %}</p>
+  <p class="sucesso-rotulo">{% if resposta.reenvio %}Pedido já estava registrado{% else %}Pedido registrado{% endif %}</p>
   <p class="sucesso-numero mono">{{ resposta.numero }}</p>
-  <p>{% if n_itens == 1 %}1 material registrado{% else %}{{ n_itens }} materiais registrados{% endif %} para {{ resposta.pedido.solicitante }}.</p>
-  <p class="texto-secundario">Destino: <strong>{{ resposta.pedido.destino }}</strong></p>
-  {% if resposta.pedido.ocorrencia %}<p class="texto-secundario">Nº da ocorrência: <strong class="mono">{{ resposta.pedido.ocorrencia }}</strong></p>{% endif %}
-  {% include "pedidos/_itens_pedidos.html" %}
+  <p class="sucesso-resumo">{% if n_itens == 1 %}1 material registrado{% else %}{{ n_itens }} materiais registrados{% endif %} para {{ resposta.pedido.solicitante }}.</p>
+  <div class="sucesso-cartao">
+    <dl class="sucesso-dados">
+      <div><dt>Destino</dt><dd>{{ resposta.pedido.destino }}</dd></div>
+      {% if resposta.pedido.ocorrencia %}<div><dt>Nº da ocorrência</dt><dd class="mono">{{ resposta.pedido.ocorrencia }}</dd></div>{% endif %}
+    </dl>
+    {% include "pedidos/_itens_pedidos.html" %}
+  </div>
   {% if resposta.reenvio %}<p class="texto-secundario">Reenvio confirmado: nenhum aviso novo foi enviado.</p>
   {% elif resposta.telegram == "falhou" %}<p class="texto-secundario">O aviso {% if fluxo.exige_autorizacao %}à Segurança do Trabalho{% else %}ao almoxarifado{% endif %} pelo Telegram falhou, mas o pedido está gravado.</p>{% endif %}
-  <div class="aviso aviso-info"><div class="pilha">
+  <div class="aviso aviso-info">{% include "interface/_icone.html" with nome="info" %}<div class="pilha">
   {% if fluxo.exige_autorizacao %}
     {# Pedido de EPI: ainda não é um pedido ao almoxarifado, e a entrega só vem depois da autorização (spec 008, FR-009). #}
     <p><strong>Aguardando a autorização da Segurança do Trabalho.</strong> Só depois dela o almoxarifado atende o pedido, e a entrega só acontece nesse atendimento.</p>
@@ -25,18 +34,20 @@
     <p>Guarde o número. Para acompanhar o pedido, de qualquer aparelho, use <a href="{% url 'pedidos:consulta' %}">Consultar pedido</a> na página inicial com este número e o seu primeiro nome, como foi escrito no pedido.</p>
   {% endif %}
   </div></div>
-  <div class="acoes">
-    {% if com_conta %}<a class="botao botao-primario" href="{% url 'pedidos:meu_pedido' resposta.numero %}">{% include "interface/_icone.html" with nome="recibo" %}Ver em Meus pedidos</a>{% endif %}
-    <a class="botao {% if com_conta %}botao-secundario{% else %}botao-primario{% endif %}" href="{% url 'pedidos:formulario' fluxo.nome %}">Fazer outro pedido</a>
-    <a class="botao botao-secundario" href="{% url 'pedidos:inicio' %}">Voltar ao início</a>
+  <div class="acoes sucesso-acoes">
+    {% if com_conta %}
+    <a class="botao botao-primario" href="{% url 'pedidos:meu_pedido' resposta.numero %}">{% include "interface/_icone.html" with nome="recibo" %}Ver em Meus pedidos</a>
+    <a class="botao botao-suave" href="{% url 'pedidos:formulario' fluxo.nome %}">Fazer outro pedido</a>
+    {% else %}
+    <a class="botao botao-primario" href="{% url 'pedidos:formulario' fluxo.nome %}">Fazer outro pedido</a>
+    {# POST com o número e o nome escondidos: abre a situação sem pôr o número na URL (spec 011). #}
+    <form method="post" action="{% url 'pedidos:consulta' %}#resultado" data-ver-situacao>
+      {% csrf_token %}
+      <input type="hidden" name="numero" value="{{ resposta.numero }}">
+      <input type="hidden" name="nome" value="{{ resposta.pedido.solicitante }}">
+      <button type="submit" class="botao botao-suave">{% include "interface/_icone.html" with nome="busca" %}Ver a situação agora</button>
+    </form>
+    {% endif %}
+    <a class="botao botao-texto" href="{% url 'pedidos:inicio' %}">Voltar ao início</a>
   </div>
-  {% if not com_conta %}
-  {# POST com o número e o nome escondidos: abre a situação sem pôr o número na URL (spec 011). #}
-  <form method="post" action="{% url 'pedidos:consulta' %}#resultado" data-ver-situacao>
-    {% csrf_token %}
-    <input type="hidden" name="numero" value="{{ resposta.numero }}">
-    <input type="hidden" name="nome" value="{{ resposta.pedido.solicitante }}">
-    <button type="submit" class="botao botao-suave">{% include "interface/_icone.html" with nome="busca" %}Ver a situação agora</button>
-  </form>
-  {% endif %}
 </section>

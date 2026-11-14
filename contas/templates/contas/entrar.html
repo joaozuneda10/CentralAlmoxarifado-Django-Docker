@@ -5,16 +5,17 @@
 {% block body_class %}ritmo-publico entrada-pagina{% endblock %}
 {% block content %}
 {% comment %}
-Login da área do almoxarifado: card centralizado no fundo off-white, sem barra lateral. A
+Login (a mesma porta para a equipe e o solicitante): a marca e o cartão centralizados sobre a
+superfície, sem barra lateral, com os campos de rótulo flutuante (spec 015). A
 recusa é genérica (`FormularioEntrada`) e não diz se a matrícula existe. O erro de campo liga o
 widget ao `<auto_id>_error` por `aria-describedby`/`aria-invalid` (o Django os põe no widget).
 {% endcomment %}
 <main class="entrada" id="main">
   <a class="marca" href="{% url 'pedidos:inicio' %}">{% include "interface/_icone.html" with nome="caixa" %}<span>Central Almoxarifado</span></a>
   <div class="cartao entrada-cartao">
-    <div class="pilha">
+    <div class="entrada-cabecalho">
       {# Spec 013: a mesma porta serve à equipe e ao solicitante com conta. #}
-      <p class="rotulo-secao">Acesso com matrícula</p>
+      <p class="entrada-rotulo">Acesso com matrícula</p>
       <h1>Entrar</h1>
     </div>
     {% if form.non_field_errors %}
@@ -23,11 +24,11 @@ widget ao `<auto_id>_error` por `aria-describedby`/`aria-invalid` (o Django os p
       <div>{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>
     </div>
     {% endif %}
-    <form method="post" class="pilha">
+    <form method="post" class="entrada-formulario">
       {% csrf_token %}
       {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
       {% for campo in form %}
-      <div class="campo{% if campo.errors %} campo-com-erro{% endif %}">
+      <div class="campo campo-flutuante{% if campo.errors %} campo-com-erro{% endif %}">
         <label class="campo-rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
         {{ campo }}
         {% if campo.errors %}<p class="campo-erro" id="{{ campo.auto_id }}_error">{{ campo.errors.0 }}</p>{% endif %}
@@ -35,7 +36,7 @@ widget ao `<auto_id>_error` por `aria-describedby`/`aria-invalid` (o Django os p
       {% endfor %}
       <button type="submit" class="botao botao-primario botao-bloco">Entrar</button>
     </form>
-    <p class="texto-suave texto-pequeno">Esqueceu a senha? Procure o almoxarifado.</p>
+    <p class="entrada-nota">Esqueceu a senha? Procure o almoxarifado.</p>
   </div>
 </main>
 {% endblock %}

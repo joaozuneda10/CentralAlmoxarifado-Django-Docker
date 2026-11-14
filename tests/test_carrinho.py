@@ -209,7 +209,11 @@ def test_carrinho_no_vocabulario_novo(client):
         {"adicionar": "016.005.010", "qtd-016.005.010": "3"},
     )
     assert 'class="carrinho"' in r.text and 'class="carrinho-linha"' in r.text
-    assert "Seu pedido (1)" in r.text
+    # O título e o contador numa pílula (spec 015, entrega 3).
+    assert (
+        '<span>Seu pedido</span><span class="carrinho-contador">1'
+        '<span class="visually-hidden"> material</span></span>' in r.text
+    )
 
 
 @pytest.mark.django_db
@@ -433,7 +437,10 @@ def test_barra_e_gaveta_da_saida_avulsa_seguem_o_formulario_com_os_textos_da_sai
     barra = _barra(r)
     assert "Materiais da saída</span><span>1 material</span>" in barra
     assert "Revisar e registrar" in barra and "Seu pedido" not in r
-    assert "Materiais da saída (1)" in r
+    assert (
+        '<span>Materiais da saída</span><span class="carrinho-contador">1'
+        '<span class="visually-hidden"> material</span></span>' in r
+    )
     enviar = r[r.index("data-carrinho-enviar") :]
     assert "<span data-carrinho-enviar-rotulo>Registrar saída</span>" in enviar
     assert "data-carrinho-continuar>Adicionar mais materiais" in r

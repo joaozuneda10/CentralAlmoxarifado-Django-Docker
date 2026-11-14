@@ -13,15 +13,18 @@ Spec 011: número e primeiro nome, por POST (nada vai para a URL); a resposta mo
    que cabe na tela com o aviso logo abaixo.
 {% endcomment %}
 <div class="pilha-larga">
-  <form method="post" class="cartao pilha-larga consulta-formulario"{% if aviso %} id="resultado"{% endif %} action="{% url 'pedidos:consulta' %}#resultado">
+  <form method="post" class="pilha-larga consulta-formulario"{% if aviso %} id="resultado"{% endif %} action="{% url 'pedidos:consulta' %}#resultado">
     {% csrf_token %}
-    <div class="campo">
+    {# Rótulo flutuante (contracts/campos-publicos.md): o exemplo vai embaixo; sem resultado, os dois campos citam só o aviso. #}
+    <div class="campo campo-flutuante">
       <label class="campo-rotulo" for="numero">Número do pedido</label>
-      <input id="numero" class="campo-entrada mono" type="text" name="numero" value="{{ numero }}" maxlength="20" placeholder="Ex.: P-000123" autocomplete="off" autocapitalize="characters" spellcheck="false" required{% if aviso %} aria-invalid="true" aria-describedby="consulta-aviso"{% endif %}>
+      <input id="numero" class="campo-entrada mono" type="text" name="numero" value="{{ numero }}" maxlength="20" placeholder=" " autocomplete="off" autocapitalize="characters" spellcheck="false" required aria-describedby="{% if aviso %}consulta-aviso{% else %}numero-dica{% endif %}"{% if aviso %} aria-invalid="true"{% endif %}>
+      {% if not aviso %}<p id="numero-dica" class="campo-dica">Ex.: P-000123</p>{% endif %}
     </div>
-    <div class="campo">
+    <div class="campo campo-flutuante">
       <label class="campo-rotulo" for="nome">Primeiro nome</label>
-      <input id="nome" class="campo-entrada" type="text" name="nome" value="{{ nome }}" maxlength="200" placeholder="Como foi escrito no pedido" autocomplete="given-name" autocapitalize="words" spellcheck="false" required{% if aviso %} aria-invalid="true" aria-describedby="consulta-aviso"{% endif %}>
+      <input id="nome" class="campo-entrada" type="text" name="nome" value="{{ nome }}" maxlength="200" placeholder=" " autocomplete="given-name" autocapitalize="words" spellcheck="false" required aria-describedby="{% if aviso %}consulta-aviso{% else %}nome-dica{% endif %}"{% if aviso %} aria-invalid="true"{% endif %}>
+      {% if not aviso %}<p id="nome-dica" class="campo-dica">Como foi escrito no pedido.</p>{% endif %}
     </div>
     <div class="acoes"><button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="busca" %}Consultar</button></div>
   </form>

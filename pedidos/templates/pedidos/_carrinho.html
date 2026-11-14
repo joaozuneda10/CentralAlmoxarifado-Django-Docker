@@ -22,7 +22,7 @@ formulário (o rótulo do caso divergente vem de lá). Igual nos formulários p�
   </div>
   <dialog id="carrinho-gaveta" class="carrinho-gaveta" aria-labelledby="carrinho-titulo">
     <div class="carrinho-cabecalho">
-      <h3 id="carrinho-titulo" class="carrinho-titulo">{% include "interface/_icone.html" with nome="caixa" %}<span>{{ fluxo.rotulo_carrinho }} ({{ carrinho.linhas|length }})</span></h3>
+      <h3 id="carrinho-titulo" class="carrinho-titulo">{% include "interface/_icone.html" with nome="caixa" %}<span>{{ fluxo.rotulo_carrinho }}</span>{% if carrinho.linhas %}<span class="carrinho-contador">{{ carrinho.linhas|length }}<span class="visually-hidden"> {% if carrinho.linhas|length == 1 %}material{% else %}materiais{% endif %}</span></span>{% endif %}</h3>
       <button type="button" class="botao botao-texto botao-icone carrinho-so-gaveta" data-carrinho-fechar aria-label="Fechar">{% include "interface/_icone.html" with nome="fechar" %}</button>
     </div>
     {% if carrinho.erro %}<div class="aviso aviso-erro" role="alert" data-carrinho-alerta>{% include "interface/_icone.html" with nome="alerta" %}<p>{{ carrinho.erro }}</p></div>{% endif %}
@@ -61,7 +61,7 @@ formulário (o rótulo do caso divergente vem de lá). Igual nos formulários p�
       {% endfor %}
     </ul>
     {% else %}
-    <p class="texto-secundario">Nenhum material adicionado ainda.</p>
+    <div class="carrinho-vazio">{% include "interface/_icone.html" with nome="caixa" %}<p>Nenhum material adicionado ainda.<br>Busque e toque num material.</p></div>
     {% endif %}
     <div class="carrinho-acoes-gaveta carrinho-so-gaveta">
       {% if carrinho.linhas %}<button type="button" class="botao botao-primario botao-bloco" data-carrinho-enviar>{% if editando %}{% include "interface/_icone.html" with nome="check" %}<span data-carrinho-enviar-rotulo>Salvar alterações</span>{% else %}{% include "interface/_icone.html" with nome=fluxo.icone_enviar %}<span data-carrinho-enviar-rotulo>{{ fluxo.rotulo_enviar }}</span>{% endif %}</button>{% endif %}
