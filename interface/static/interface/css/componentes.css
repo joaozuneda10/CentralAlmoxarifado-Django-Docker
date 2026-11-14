@@ -117,15 +117,19 @@ textarea.campo-linha { min-height: var(--altura-controle); height: var(--altura-
 textarea.campo-linha:focus { height: 84px; }
 @media (prefers-reduced-motion: reduce) { textarea.campo-linha { transition: none; } }
 /* Botão suave: ação secundária tonal (contêiner secundário), em pílula, com ícone. Fica 8px mais
-   baixo que o controle para caber dentro do campo; o ::after estende a área de toque à altura do
-   controle (44px na área interna, 48px no público) sem mudar o desenho. */
+   baixo que o controle para caber dentro do campo; o ::after, centrado no botão, dá à área de toque
+   no mínimo a altura do controle nos dois eixos (44px na área interna, 48px no público) sem mudar o
+   desenho. O "Limpar" de 36px do celular ganha 6px de cada lado, dentro do recuo do campo. */
 .botao-suave {
   position: relative; display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 12px;
   background: var(--secundario-superficie); border: 1px solid transparent; border-radius: var(--raio-pilula);
   font-size: 0.8125em; font-weight: 500; color: var(--secundario-superficie-texto); cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao), transform var(--transicao);
 }
-.botao-suave::after { content: ""; position: absolute; inset: -4px 0; }
+.botao-suave::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: max(100% + 2px, var(--altura-controle)); height: var(--altura-controle);
+}
 .botao-suave > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .botao-suave .icone { width: 14px; height: 14px; }
 .botao-suave:hover { background: var(--superficie-maxima); }

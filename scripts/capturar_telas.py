@@ -114,7 +114,7 @@ def capturar(pagina: Page, url: str, arquivo: Path, largura: int, altura: int = 
 
 
 def abas_de_automacoes(pagina: Page, base: str) -> list[Tela]:
-    pagina.goto(f"{base}/painel/automacoes/")
+    abrir(pagina, f"{base}/painel/automacoes/")
     chaves = pagina.eval_on_selector_all("[data-aba]", "els => els.map(e => e.dataset.aba)")
     vistas = dict.fromkeys(c for c in chaves if c and "{" not in c)
     return [Tela(f"automacoes-{c}", f"/painel/automacoes/?aba={c}", True) for c in vistas]
@@ -207,11 +207,16 @@ def rodar(navegador: Browser, args: argparse.Namespace) -> int:
         telas += INTERNAS
         telas += [Tela(f"detalhe-{n}", f"/painel/pedidos/{n}/", True) for n in args.pedido]
         telas += [Tela(f"editar-{n}", f"/painel/pedidos/{n}/editar/", True) for n in args.editar]
-        telas += abas_de_automacoes(logado.new_page(), base)
-    telas = selecionar(telas, args.telas)
 
     rolagem: list[str] = []
     falhas: list[str] = []
+    if logado:
+        try:
+            telas += abas_de_automacoes(logado.new_page(), base)
+        except PaginaComErro as erro:
+            falhas.append(f"abas de Automações: {erro}")
+    telas = selecionar(telas, args.telas)
+
     for tela in telas:
         contexto = logado if tela.logado else anonimo
         pagina = contexto.new_page()
