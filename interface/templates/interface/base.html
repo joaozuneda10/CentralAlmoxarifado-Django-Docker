@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
   <title>{% block title %}Central Almoxarifado{% endblock %}</title>
   {% comment %}
-  Base comum aos dois layouts. Só tema claro (spec da interface Clean). O `html.js` mostra o
+  Base comum aos dois layouts. Só tema claro (docs/DESIGN.md). O `html.js` mostra o
   botão do menu móvel. Scripts no <head> com `defer`, nunca no <body>: ao restaurar o
   histórico o HTMX troca o <body> e re-executaria os scripts. O HTMX 4 troca o conteúdo mesmo
   em resposta 4xx/5xx: o `noSwap` impede que uma falha apague o formulário montado.
@@ -16,7 +16,7 @@
   <link rel="icon" href="{% static 'interface/img/favicon-32.png' %}" type="image/png" sizes="32x32">
   <link rel="apple-touch-icon" href="{% static 'interface/img/apple-touch-icon.png' %}">
   <link rel="preload" href="{% static 'interface/fonts/dm-sans-latin-400-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
-  <link rel="stylesheet" href="{% static 'interface/css/clean.css' %}">
+  <link rel="stylesheet" href="{% static 'interface/css/fundacao.css' %}">
   <link rel="stylesheet" href="{% static 'interface/css/componentes.css' %}">
   <link rel="stylesheet" href="{% static 'interface/css/layouts.css' %}">
   {% block extra_css %}{% endblock %}

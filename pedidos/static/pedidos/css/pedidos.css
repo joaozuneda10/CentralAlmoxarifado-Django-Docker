@@ -40,8 +40,8 @@ html:not([data-gaveta]) .pedido-resumo > #carrinho { scrollbar-width: thin; }
 html:not([data-gaveta]) .pedido-resumo .carrinho-cabecalho { position: sticky; top: 0; z-index: 1; padding-bottom: var(--esp-1); background: var(--destaque-superficie); }
 /* Divisores do pedido: o --borda cinza some sobre o fundo azul do cartão; um azul mais marcado separa
    os materiais (e fecha o último) na coluna ao lado e na gaveta. */
-.carrinho-lista .carrinho-linha { border-top-color: rgba(37, 99, 235, 0.3); }
-.carrinho-lista .carrinho-linha:last-child { border-bottom: 1px solid rgba(37, 99, 235, 0.3); }
+.carrinho-lista .carrinho-linha { border-top-color: color-mix(in srgb, var(--destaque) 30%, transparent); }
+.carrinho-lista .carrinho-linha:last-child { border-bottom: 1px solid color-mix(in srgb, var(--destaque) 30%, transparent); }
 html:not([data-gaveta]) .pedido-resumo .carrinho-linha { padding: 8px 12px; gap: var(--esp-meio) var(--esp-1); }
 html:not([data-gaveta]) .pedido-resumo .quantidade .botao-icone { width: 30px; height: 30px; }
 html:not([data-gaveta]) .pedido-resumo .quantidade-campo { width: 44px; min-height: 30px; font-size: 15px; }
@@ -92,7 +92,7 @@ html:not(.js) .formulario-pedido { display: none; }
 .busca-filtro-seta { display: inline-flex; color: var(--texto-suave); transition: transform var(--transicao); }
 .busca-filtro[open] .busca-filtro-seta { transform: rotate(180deg); }
 .busca-filtro[open] .busca-filtro-alternar { background: var(--superficie); }
-.busca-filtro-ativo .busca-filtro-alternar { border-color: rgba(37, 99, 235, 0.35); background: var(--destaque-superficie); color: var(--destaque-hover); }
+.busca-filtro-ativo .busca-filtro-alternar { border-color: var(--destaque); background: var(--destaque-superficie); color: var(--destaque-superficie-texto); }
 .busca-filtro-ativo .busca-filtro-valor { color: var(--destaque-hover); }
 /* A lista de grupos brota direto do <summary>: o botão do dropdown.js (que repetiria "Todos os grupos"
    embaixo dele) fica escondido, e o pedidos.js o aciona por código ao abrir o <details>. A seta e o
@@ -109,7 +109,7 @@ html:not(.js) .formulario-pedido { display: none; }
   position: absolute; left: 0; top: calc(100% + 10px); z-index: 31; pointer-events: none;
   width: max-content; max-width: min(18rem, calc(100vw - 2 * var(--esp-2)));
   padding: 8px 12px; border-radius: var(--raio-controle); background: var(--texto); color: var(--fundo);
-  font-size: 12.5px; line-height: 1.45; box-shadow: 0 8px 30px rgba(0, 0, 0, .09);
+  font-size: 12.5px; line-height: 1.45; box-shadow: var(--sombra-elevada);
   animation: dica-surge var(--transicao) both;
 }
 .busca-dica[hidden] { display: none; }
@@ -180,7 +180,7 @@ html:not(.js) .formulario-pedido { display: none; }
 /* Cartão da situação do pedido, sempre com a mesma ênfase leve (também depois do recibo impresso):
    borda azul sutil com filete à esquerda, rótulo em preto e os passos em cor cheia (o fundo segue o
    cinza do cartão). Estado nunca só por cor: os passos e o selo dizem o que fazer. */
-.recibo-quadro-destaque { border-color: rgba(37, 99, 235, 0.28); box-shadow: inset 3px 0 0 var(--destaque); }
+.recibo-quadro-destaque { border-color: color-mix(in srgb, var(--destaque) 28%, transparent); box-shadow: inset 3px 0 0 var(--destaque); }
 .recibo-quadro-destaque .rotulo-secao { color: var(--texto); }
 .recibo-quadro-destaque .recibo-passos { color: var(--texto); }
 .recibo-passos { margin: 0; padding-left: 1.2em; }
@@ -217,7 +217,7 @@ html:not(.js) .formulario-pedido { display: none; }
   --borda-c: var(--destaque); --fundo-c: var(--destaque-superficie); --cor-passo: var(--destaque);
   display: inline-flex; align-items: center; gap: var(--esp-1);
 }
-.entrega[data-estado="parcial"], .entrega[data-estado="acima"] { --borda-c: #c9891a; --fundo-c: var(--aviso-superficie); --cor-passo: var(--aviso-texto); }
+.entrega[data-estado="parcial"], .entrega[data-estado="acima"] { --borda-c: var(--aviso-texto); --fundo-c: var(--aviso-superficie); --cor-passo: var(--aviso-texto); }
 .entrega[data-estado="zero"] { --borda-c: var(--borda); --fundo-c: var(--superficie); --cor-passo: var(--texto-secundario); }
 .entrega[data-estado="invalido"], .entrega[data-estado="maximo"], .entrega.entrega-erro {
   --borda-c: var(--erro-texto); --fundo-c: var(--erro-superficie); --cor-passo: var(--erro-texto);
@@ -225,7 +225,7 @@ html:not(.js) .formulario-pedido { display: none; }
 /* Confirmada com tudo o que foi pedido, a caixa fica no verde do "Total": pronto, nada a fazer. */
 .entrega[data-confirmado][data-estado="total"] { --borda-c: var(--ok-texto); --fundo-c: var(--ok-superficie); --cor-passo: var(--ok-texto); }
 .entrega-caixa { position: relative; display: flex; flex: none; align-items: center; width: var(--entrega-caixa); height: 38px; transition: filter 0.2s ease; }
-.entrega-caixa:focus-within { filter: drop-shadow(0 0 3px rgba(37, 99, 235, 0.55)); }
+.entrega-caixa:focus-within { filter: drop-shadow(0 0 3px color-mix(in srgb, var(--destaque) 55%, transparent)); }
 .entrega-forma { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; pointer-events: none; }
 .entrega-forma .corpo { fill: var(--fundo-c); stroke: var(--borda-c); stroke-width: 1; transition: fill 0.2s ease, stroke 0.2s ease; }
 .entrega-forma .barra { fill: var(--borda-c); stroke: none; transition: fill 0.2s ease; }
@@ -331,7 +331,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .entrega[data-confirmado] .entrega-campo { cursor: default; }
 .entrega[data-confirmado] .entrega-caixa:focus-within { filter: none; box-shadow: var(--anel-foco); }
 /* O primeiro campo pulsa duas vezes ao abrir a página, para mostrar onde preencher. */
-@keyframes pulso-entrega { from { filter: drop-shadow(0 0 0 rgba(37, 99, 235, 0.6)); } to { filter: drop-shadow(0 0 9px rgba(37, 99, 235, 0)); } }
+@keyframes pulso-entrega { from { filter: drop-shadow(0 0 0 color-mix(in srgb, var(--destaque) 60%, transparent)); } to { filter: drop-shadow(0 0 9px transparent); } }
 .recibo-itens tbody tr:first-child .entrega-caixa { animation: pulso-entrega 1.2s ease-out 2; }
 @media (prefers-reduced-motion: reduce) {
   .recibo-itens tbody tr:first-child .entrega-caixa, .entrega-campo.mudou { animation: none; }
@@ -416,6 +416,14 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .assinaturas p { display: flex; align-items: flex-end; gap: var(--esp-1); min-height: 48px; white-space: nowrap; }
 .assinaturas p::after { content: ""; flex: 1; border-bottom: 1px solid currentColor; }
 @media print {
+  /* Spec 015: no papel, a folha do recibo usa os valores de antes da troca do visual (FR-010). */
+  .folha-recibo {
+    --texto: #0f0e0c; --texto-secundario: #6b6760; --texto-suave: #a8a49f;
+    --borda: #e8e6e1; --contorno: #e8e6e1; --superficie: #f7f6f2;
+    --raio-cartao: 12px; --raio-controle: 8px; --raio-campo: 8px; --raio-selo: 100px;
+  }
+  .folha-recibo .selo { padding: 2px 10px; }
+  .folha-recibo .tabela thead th { color: var(--texto-suave); text-transform: uppercase; letter-spacing: 0.06em; }
   .folha-recibo, .recibo-bloco { border: 0; border-radius: 0; box-shadow: none; padding: 0; background: none; }
   .recibo .selo { border: 1px solid #999999; background: none; color: #000000; }
   .recibo-codigo { color: #000000; }
@@ -451,7 +459,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .log-execucao {
   max-height: 20rem; overflow: auto; margin: 0; padding: var(--esp-2);
   font-size: 12px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere;
-  background: var(--superficie); border: 1px solid var(--borda); border-radius: 8px;
+  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-controle);
 }
 .trava { display: grid; gap: var(--esp-2); }
 .trava-cabecalho { display: grid; gap: var(--esp-1); }
@@ -487,13 +495,13 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .acomp-fase-nome { padding-top: 1px; line-height: 1.35; }
 .acomp-fase-estado { grid-column: 2; font-size: 0.85em; }
 .acomp-fase-feita { border-top-color: var(--ok-texto); color: var(--texto-secundario); }
-.acomp-fase-feita .acomp-fase-marca { background: var(--ok-texto); border-color: var(--ok-texto); color: #fff; }
+.acomp-fase-feita .acomp-fase-marca { background: var(--ok-texto); border-color: var(--ok-texto); color: var(--destaque-texto); }
 .acomp-fase-atual { border-top-color: var(--destaque); color: var(--texto); }
-.acomp-fase-atual .acomp-fase-marca { background: var(--destaque); border-color: var(--destaque); color: #fff; }
+.acomp-fase-atual .acomp-fase-marca { background: var(--destaque); border-color: var(--destaque); color: var(--destaque-texto); }
 .acomp-fase-atual .acomp-fase-nome { font-weight: 600; }
 .acomp-fase-atual .acomp-fase-estado { color: var(--info-texto); }
 .acomp-fase-parou { border-top-color: var(--erro-texto); color: var(--texto); }
-.acomp-fase-parou .acomp-fase-marca { background: var(--erro-texto); border-color: var(--erro-texto); color: #fff; }
+.acomp-fase-parou .acomp-fase-marca { background: var(--erro-texto); border-color: var(--erro-texto); color: var(--destaque-texto); }
 .acomp-fase-parou .acomp-fase-estado { color: var(--erro-texto); }
 .acomp-progresso { display: grid; gap: var(--esp-1); }
 .acomp-progresso-linha { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--esp-2); }
@@ -504,7 +512,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .acomp-barra { display: flex; height: 8px; overflow: hidden; background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-pilula); }
 .acomp-barra > span { display: block; height: 100%; transition: width 0.4s ease; }
 .acomp-barra-ok { background: var(--ok-texto); }
-.acomp-barra-aviso { background: #d99a1e; }
+.acomp-barra-aviso { background: var(--aviso-texto); }
 .acomp-barra-erro { background: var(--erro-texto); }
 .acomp-barra-fora { background: var(--texto-suave); }
 .acomp-barra-atual { background: var(--destaque); opacity: 0.45; }
@@ -521,9 +529,9 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 @keyframes acomp-pulso { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.35; transform: scale(0.75); } }
 .acomp-agora-atividade { display: flex; align-items: flex-start; gap: 6px; font-size: 0.85em; color: var(--texto-secundario); }
 .acomp-agora-atividade .icone { flex: none; width: 14px; height: 14px; margin-top: 3px; }
-.acomp-agora-parado { background: var(--aviso-superficie); border-left-color: #d99a1e; }
+.acomp-agora-parado { background: var(--aviso-superficie); border-left-color: var(--aviso-texto); }
 .acomp-agora-parado .acomp-agora-rotulo { color: var(--aviso-texto); }
-.acomp-agora-parado .acomp-pulso { background: #d99a1e; animation: none; }
+.acomp-agora-parado .acomp-pulso { background: var(--aviso-texto); animation: none; }
 .acomp-lista-titulo { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: baseline; gap: var(--esp-1) var(--esp-2); }
 .acomp-lista-titulo h3 { margin: 0; font-size: 1em; }
 .acomp-lista { margin: 0; padding: 0; list-style: none; border-top: 1px solid var(--borda); }
@@ -568,7 +576,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .conciliacao-filtros { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin: 0; padding: 0; list-style: none; }
 .conciliacao-filtro {
   display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px;
-  padding: var(--esp-meio) var(--esp-2); border: 1px solid var(--borda); border-radius: 100px;
+  padding: var(--esp-meio) var(--esp-2); border: 1px solid var(--borda); border-radius: var(--raio-pilula);
   color: var(--texto-secundario); text-decoration: none; font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }
@@ -631,7 +639,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .atalho .botao { min-height: 34px; padding: 0 12px; gap: 6px; font-size: 0.875em; }
 .atalho .botao .icone { width: 16px; height: 16px; }
 /* Com algo a fazer (`atalho-pendente`) ou sempre à mão (`atalho-ativo`, a saída avulsa): filete azul. */
-.atalho-pendente, .atalho-ativo { border-color: rgba(37, 99, 235, 0.28); box-shadow: inset 3px 0 0 var(--destaque); }
+.atalho-pendente, .atalho-ativo { border-color: color-mix(in srgb, var(--destaque) 28%, transparent); box-shadow: inset 3px 0 0 var(--destaque); }
 .atalho-pendente .atalho-numero, .atalho-ativo .atalho-numero { color: var(--texto); }
 .atalho-pendente .atalho-rotulo, .atalho-ativo .atalho-rotulo { color: var(--texto); }
 .atalho .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
@@ -732,7 +740,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .celula-marca label { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
 .celula-marca input { width: 20px; height: 20px; margin: 0; accent-color: var(--destaque); cursor: pointer; }
 .celula-marca input:disabled { cursor: not-allowed; }
-.celula-marca input:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: 4px; }
+.celula-marca input:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: var(--raio-campo); }
 .js .fila-robo tbody tr[data-fila-linha] { cursor: pointer; }
 .fila-robo tbody tr.marcada, .fila-robo tbody tr.marcada:hover { background: var(--destaque-superficie); box-shadow: inset 3px 0 0 var(--destaque); }
 html:not(.js) #dialogo-lancar { display: none; }
@@ -795,7 +803,7 @@ html:not(.js) #dialogo-lancar { display: none; }
 .material-abrir, .material-cancelar, .material-mais { display: none; }
 .selo[hidden] { display: none; }
 .selo .icone { width: 12px; height: 12px; }
-.selo-pulso { box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.28); transition: box-shadow var(--transicao); }
+.selo-pulso { box-shadow: 0 0 0 3px color-mix(in srgb, var(--destaque) 28%, transparent); transition: box-shadow var(--transicao); }
 .js .material:has([data-adicionar]) {
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 12px;
   transition: background-color var(--transicao);
@@ -816,7 +824,7 @@ html:not(.js) #dialogo-lancar { display: none; }
   padding: 0; border: 0; border-radius: 0; background: transparent; color: transparent; font-size: 0; cursor: pointer;
 }
 /* O cinza do cursor cobre a célula toda (também a linha da quantidade, quando aberta), não só o botão. */
-.js .material:has([data-adicionar]):hover { background: rgba(15, 14, 12, 0.04); }
+.js .material:has([data-adicionar]):hover { background: var(--superficie); }
 .js .material-abrir:focus-visible { outline: 2px solid var(--destaque); outline-offset: -2px; }
 .js .material-mais {
   display: inline-flex; position: absolute; top: 0; right: -2px; width: 20px; height: 20px;
@@ -865,7 +873,7 @@ html:not(.js) [data-quantidade] { display: none; }
   position: relative; display: grid; grid-template-columns: minmax(0, 1fr); align-items: start; gap: 8px;
   padding-inline: 12px; transition: background-color var(--transicao);
 }
-.js .carrinho-linha:hover { background: rgba(15, 14, 12, 0.04); }
+.js .carrinho-linha:hover { background: var(--superficie); }
 .js .carrinho-linha > .material-abrir { inset: 0; }
 .js .carrinho-linha .material-dados { position: relative; transition: opacity var(--transicao); }
 .js .carrinho-linha .material-mais { right: 0; }
@@ -927,7 +935,7 @@ html:not(.js) [data-quantidade] { display: none; }
   padding: 0; color: inherit; background: var(--fundo); border: 1px solid var(--borda);
   border-radius: var(--raio-cartao); box-shadow: var(--sombra-elevada);
 }
-.folha::backdrop { background: rgba(15, 14, 12, 0.4); }
+.folha::backdrop { background: color-mix(in srgb, var(--texto) 40%, transparent); }
 /* A barra "Fechar / Pôr no pedido" fica presa embaixo: a rolagem para o campo com foco desconta a
    altura dela, para o foco nunca ficar escondido atrás (WCAG 2.4.11). */
 .folha { scroll-padding-bottom: 96px; }

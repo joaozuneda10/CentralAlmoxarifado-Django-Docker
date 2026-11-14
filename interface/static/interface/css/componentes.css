@@ -1,42 +1,45 @@
-/* Componentes do Clean (docs/DESIGN.md). Só usa os tokens de clean.css. */
+/* Componentes do Tonal (docs/DESIGN.md), na linguagem do Material 3. Só usa os tokens de fundacao.css. */
 
-/* Botões */
+/* Botões: pílula. Primário cheio, secundário de contorno, suave tonal, texto sem fundo. */
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-1);
-  min-height: var(--altura-controle); padding: var(--esp-1) 20px;
-  border: 1px solid transparent; border-radius: var(--raio-controle);
+  min-height: var(--altura-controle); padding: var(--esp-1) var(--esp-3);
+  border: 1px solid transparent; border-radius: var(--raio-pilula);
   font-family: var(--fonte-texto); font-size: 0.95em; font-weight: 500; line-height: 1.3;
   text-align: center; text-decoration: none; cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao),
-    color var(--transicao), transform var(--transicao);
+    color var(--transicao), box-shadow var(--transicao), transform var(--transicao);
 }
 .botao:hover { text-decoration: none; }
 .botao:active { transform: scale(0.98); }
-.botao[disabled], .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; }
+.botao[disabled], .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .botao-primario { background: var(--destaque); color: var(--destaque-texto); }
-.botao-primario:hover { background: var(--destaque-hover); color: var(--destaque-texto); }
-.botao-secundario { background: var(--fundo); border-color: var(--borda); color: var(--texto); }
+.botao-primario:hover { background: var(--destaque-hover); color: var(--destaque-texto); box-shadow: var(--sombra-cartao); }
+.botao-secundario { background: var(--fundo); border-color: var(--contorno); color: var(--texto); }
 .botao-secundario:hover { background: var(--superficie); color: var(--texto); }
 .botao-texto { min-height: 0; padding: var(--esp-meio) var(--esp-1); background: none; color: var(--texto-secundario); }
-.botao-texto:hover { background: var(--superficie); color: var(--texto); }
+.botao-texto:hover { background: var(--destaque-superficie); color: var(--destaque-superficie-texto); }
 .botao-perigo, .botao-perigo:hover { color: var(--erro-texto); }
 /* Variantes de cor do botão secundário (contorno e texto na cor, fundo tingido ao passar o mouse):
    destaque (azul, incluir), perigo (vermelho, o que afeta tudo) e ok (verde, reativar). */
-.botao-secundario.botao-destaque { color: var(--info-texto); border-color: rgba(37, 99, 235, 0.35); }
-.botao-secundario.botao-destaque:hover { color: var(--info-texto); background: var(--destaque-superficie); border-color: rgba(37, 99, 235, 0.6); }
-.botao-secundario.botao-perigo { border-color: rgba(163, 38, 29, 0.35); }
-.botao-secundario.botao-perigo:hover { background: var(--erro-superficie); border-color: rgba(163, 38, 29, 0.6); }
-.botao-secundario.botao-ok { color: var(--ok-texto); border-color: rgba(30, 107, 52, 0.35); }
-.botao-secundario.botao-ok:hover { color: var(--ok-texto); background: var(--ok-superficie); border-color: rgba(30, 107, 52, 0.6); }
-.botao-icone { width: var(--altura-controle); padding: 0; }
+.botao-secundario.botao-destaque { color: var(--info-texto); border-color: var(--destaque); }
+.botao-secundario.botao-destaque:hover { color: var(--info-texto); background: var(--destaque-superficie); }
+.botao-secundario.botao-perigo { border-color: var(--erro-forte); }
+.botao-secundario.botao-perigo:hover { background: var(--erro-superficie); }
+.botao-secundario.botao-ok { color: var(--ok-texto); border-color: currentColor; }
+.botao-secundario.botao-ok:hover { color: var(--ok-texto); background: var(--ok-superficie); }
+/* Botão de ícone: a área de toque é a altura do controle (44px na área interna, 48px no público). */
+.botao-icone { width: var(--altura-controle); height: var(--altura-controle); min-height: 0; padding: 0; border-radius: 50%; }
 @media (max-width: 640px) { .botao-bloco { width: 100%; } }
 
 /* Campos */
 .campo { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; }
 .campo-rotulo { font-size: 0.875em; font-weight: 500; color: var(--texto); }
+/* Caixa do campo no padrão do M3: contorno de controle (3:1) e, no foco, a borda de 2px em azul
+   (o segundo pixel é uma sombra interna, para o texto não pular). */
 .campo-entrada {
   width: 100%; min-height: var(--altura-controle); padding: 10px 14px;
-  background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  background: var(--fundo); border: 1px solid var(--contorno); border-radius: var(--raio-campo);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 .campo-entrada::placeholder { color: var(--texto-suave); }
@@ -46,17 +49,25 @@ input[type="date"].campo-entrada {
   box-sizing: border-box; display: block; min-width: 0; max-width: 100%;
 }
 input[type="date"].campo-entrada::-webkit-date-and-time-value { text-align: left; min-width: 0; }
-.campo-entrada:hover { border-color: var(--texto-suave); }
-.campo-entrada:focus { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-superficie); }
+.campo-entrada:hover { border-color: var(--texto); }
+.campo-entrada:focus { outline: none; border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
 /* Campo só de leitura (o nome da conta no formulário, spec 013): o mesmo tom dos controles
    travados, sem o realce de quem espera digitação. */
-.campo-entrada[readonly] { background: var(--superficie); color: var(--texto-secundario); cursor: default; }
+.campo-entrada[readonly] { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: default; }
 .campo-entrada[readonly]:hover { border-color: var(--borda); }
 textarea.campo-entrada { min-height: 96px; resize: vertical; }
 select.campo-entrada { padding-right: 36px; }
 .campo-dica { font-size: 0.85em; color: var(--texto-secundario); }
-.campo-erro { font-size: 0.85em; color: var(--erro-texto); }
-.campo-com-erro .campo-entrada { border-color: var(--erro-texto); }
+/* Erro: borda, rótulo e texto em vermelho forte; o texto do erro leva o ícone de alerta. */
+.campo-erro { display: flex; align-items: flex-start; gap: 6px; font-size: 0.85em; color: var(--erro-forte); }
+.campo-erro::before {
+  content: ""; flex: none; width: 14px; height: 14px; margin-top: 0.2em; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.campo-com-erro .campo-rotulo { color: var(--erro-forte); }
+.campo-com-erro .campo-entrada, .campo-com-erro .campo-entrada:hover { border-color: var(--erro-forte); }
+.campo-com-erro .campo-entrada:focus { box-shadow: inset 0 0 0 1px var(--erro-forte); }
 .campo-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
 .campo-check input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--destaque); }
 /* Campos de uma saída, compactos: a grade escolhe as colunas pela largura do próprio bloco
@@ -94,10 +105,10 @@ select.campo-entrada { padding-right: 36px; }
 .campo-nota .icone { width: 12px; height: 12px; }
 .campo-check-caixa {
   align-items: center; align-self: end; min-height: var(--altura-controle); padding: 0 12px;
-  background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  background: var(--fundo); border: 1px solid var(--contorno); border-radius: var(--raio-campo);
   font-size: 0.875em; transition: border-color var(--transicao);
 }
-.campo-check-caixa:hover { border-color: var(--texto-suave); }
+.campo-check-caixa:hover { border-color: var(--texto); }
 .campo-check-caixa input { margin-top: 0; width: 16px; height: 16px; flex: none; }
 .campo-check-caixa > span { line-height: 1.25; }
 .campo-check-caixa .campo-dica { display: block; font-size: 11px; line-height: 1.25; }
@@ -105,16 +116,16 @@ select.campo-entrada { padding-right: 36px; }
 textarea.campo-linha { min-height: var(--altura-controle); height: var(--altura-controle); padding-block: 9px; resize: none; line-height: 1.4; overflow: hidden; transition: height 0.2s ease, border-color var(--transicao), box-shadow var(--transicao); }
 textarea.campo-linha:focus { height: 84px; }
 @media (prefers-reduced-motion: reduce) { textarea.campo-linha { transition: none; } }
-/* Botão suave: ação secundária em azul sutil (mesmo tom do selo-info), com ícone. */
+/* Botão suave: ação secundária tonal (contêiner secundário), em pílula, com ícone. */
 .botao-suave {
-  display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 10px;
-  background: var(--destaque-superficie); border: 1px solid transparent; border-radius: 6px;
-  font-size: 0.8125em; font-weight: 500; color: var(--info-texto); cursor: pointer;
+  display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 12px;
+  background: var(--secundario-superficie); border: 1px solid transparent; border-radius: var(--raio-pilula);
+  font-size: 0.8125em; font-weight: 500; color: var(--secundario-superficie-texto); cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao), transform var(--transicao);
 }
 .botao-suave > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .botao-suave .icone { width: 14px; height: 14px; }
-.botao-suave:hover { background: #dde8ff; border-color: rgba(37, 99, 235, 0.25); }
+.botao-suave:hover { background: var(--superficie-maxima); }
 .botao-suave:active { transform: scale(0.97); }
 /* Atalho dentro do campo (ex.: "Usar <solicitante>"), à esquerda da seta do dropdown. */
 .com-acao { position: relative; }
@@ -138,17 +149,17 @@ textarea.campo-linha:focus { height: 84px; }
   text-align: left; cursor: pointer;
 }
 .dropdown-valor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dropdown-gatilho:disabled { background: var(--superficie); color: var(--texto-secundario); cursor: not-allowed; }
+.dropdown-gatilho:disabled { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: not-allowed; }
 .dropdown-gatilho:disabled:hover { border-color: var(--borda); }
 .dropdown-gatilho:disabled .dropdown-seta { opacity: 0.4; }
 .dropdown-vazio .dropdown-valor { color: var(--texto-secundario); }
 .dropdown-seta { display: inline-flex; flex: none; color: var(--texto-suave); transition: transform var(--transicao); }
 .dropdown[data-aberto] .dropdown-seta { transform: rotate(180deg); color: var(--destaque); }
-.dropdown[data-aberto] > .campo-entrada { border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-superficie); }
+.dropdown[data-aberto] > .campo-entrada { border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
 /* block: sem a folga de linha de um inline-block, o wrapper tem a altura do campo e a seta fica no centro. */
 .dropdown-combo { display: block; padding-right: 44px; }
 /* Select digitável travado (o centro de custo, enquanto há placa): como o gatilho travado. */
-.dropdown-combo:disabled { background: var(--superficie); color: var(--texto-secundario); cursor: not-allowed; }
+.dropdown-combo:disabled { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: not-allowed; }
 .dropdown-combo:disabled ~ .dropdown-seta { opacity: 0.4; }
 .dropdown-seta-campo { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .dropdown[data-aberto] .dropdown-seta-campo { transform: translateY(-50%) rotate(180deg); }
@@ -182,9 +193,9 @@ textarea.campo-linha:focus { height: 84px; }
 }
 .dropdown-opcao:last-child { border-bottom: 0; }
 .dropdown-texto { min-width: 0; overflow-wrap: anywhere; }
-.dropdown-check { display: inline-flex; flex: none; color: var(--destaque); visibility: hidden; }
-.dropdown-opcao[data-ativa] { background: var(--superficie); }
-.dropdown-opcao[aria-selected="true"] { background: var(--destaque-superficie); color: var(--destaque-hover); font-weight: 500; }
+.dropdown-check { display: inline-flex; flex: none; color: currentColor; visibility: hidden; }
+.dropdown-opcao[data-ativa] { background: var(--superficie-alta); }
+.dropdown-opcao[aria-selected="true"] { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 500; }
 .dropdown-opcao[aria-selected="true"] .dropdown-check { visibility: visible; }
 .dropdown-sem-opcoes { padding: 14px var(--esp-2); }
 /* Árvore (data-dropdown-arvore): linhas mais baixas; à esquerda, a quantidade de subgrupos da
@@ -212,18 +223,24 @@ textarea.campo-linha:focus { height: 84px; }
 .dropdown-arvore .dropdown-filho:has(+ :not(.dropdown-filho)), .dropdown-arvore .dropdown-filho:last-child { border-bottom-color: var(--borda); }
 
 /* Cartões */
+/* Cartão de contorno do M3: branco, com a borda decorativa e sem sombra; o sutil é tonal, sem borda. */
 .cartao {
   background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-cartao);
-  box-shadow: var(--sombra-cartao); padding: var(--recheio-cartao);
+  padding: var(--recheio-cartao);
 }
 .cartao-titulo { margin-bottom: var(--esp-2); }
-.cartao-sutil { background: var(--superficie); box-shadow: none; }
+.cartao-sutil { background: var(--superficie-media); border-color: transparent; box-shadow: none; }
 .cartao-opcao {
   display: grid; gap: var(--esp-1); color: inherit; text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .cartao-opcao:hover { color: inherit; text-decoration: none; transform: translateY(-2px); box-shadow: var(--sombra-hover); }
 .cartao-opcao .icone { width: 24px; height: 24px; }
+/* O ícone do formulário num quadrado tonal de 48px. */
+.cartao-opcao > .icone {
+  box-sizing: content-box; padding: 12px; border-radius: var(--raio-cartao);
+  background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+}
 .cartao-opcao-seta { margin-top: var(--esp-1); color: var(--destaque); transition: transform var(--transicao); }
 .cartao-opcao:hover .cartao-opcao-seta { transform: translateX(4px); }
 
@@ -253,44 +270,59 @@ textarea.campo-linha:focus { height: 84px; }
 }
 .aba {
   display: inline-flex; align-items: center; gap: var(--esp-1); min-height: var(--altura-controle); padding: 0 var(--esp-2);
-  background: rgba(15, 14, 12, 0.04); border: 1px solid var(--borda); border-bottom: 0;
-  border-radius: var(--raio-controle) var(--raio-controle) 0 0;
+  background: var(--superficie-media); border: 1px solid var(--borda); border-bottom: 0;
+  border-radius: var(--raio-cartao) var(--raio-cartao) 0 0;
   font: inherit; font-weight: 500; color: var(--texto-secundario); cursor: pointer; white-space: nowrap;
   transition: color var(--transicao), background var(--transicao);
 }
 /* As não selecionadas também são abas da pasta: cinza, atrás da ativa, apoiadas na borda do cartão. */
-.aba:hover { color: var(--texto); background: rgba(15, 14, 12, 0.08); }
+.aba:hover { color: var(--texto); background: var(--superficie-alta); }
 /* Estado pela forma (aba aberta, ligada ao cartão) e pelo filete azul em cima, não só pela cor. */
-.aba-ativa, .aba-ativa:hover { background: var(--fundo); border-color: var(--borda); color: var(--texto); box-shadow: inset 0 2px 0 var(--destaque); }
+.aba-ativa, .aba-ativa:hover { background: var(--fundo); border-color: var(--borda); color: var(--destaque-superficie-texto); box-shadow: inset 0 3px 0 var(--destaque); }
 .aba:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--destaque); }
 .js .aba-painel:not(.aba-painel-ativo) { display: none; }
-/* Selo dentro da aba: com texto na tela larga; abaixo de 1024px só o ícone (o texto fica para o
-   leitor de tela), para as abas caberem no tablet. O ícone é a forma do estado, não só a cor. */
-.aba-selo .icone { display: none; width: 14px; height: 14px; }
+/* Selo dentro da aba: o ícone em toda largura, com o texto ao lado na tela larga; abaixo de 1024px só
+   o ícone (o texto fica para o leitor de tela), para as abas caberem no tablet. O ícone é a forma do
+   estado, não só a cor. */
+.aba-selo .icone { width: 14px; height: 14px; }
 @media (max-width: 1024px) {
   .aba-selo { padding: 3px; }
-  .aba-selo .icone { display: block; }
   .aba-selo-texto {
     position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
     clip: rect(0, 0, 0, 0); white-space: nowrap;
   }
 }
 
-/* Selos (estado sempre com texto) */
+/* Selos: estado sempre com texto e, pelo tom, um ícone no ::before (máscara de um SVG do Lucide, na
+   cor do texto; research R12): check no ok, triângulo de alerta no aviso, alerta em círculo no erro,
+   info no info. O neutro não tem ícone; o selo que já traz um svg não ganha outro; na impressão o
+   ícone some (layouts.css). */
 .selo {
-  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
-  border-radius: var(--raio-pilula); font-size: 0.8em; font-weight: 500; line-height: 1.6; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+  border-radius: var(--raio-selo); font-size: 0.8em; font-weight: 500; line-height: 1.6; white-space: nowrap;
 }
+.selo::before {
+  flex: none; width: 14px; height: 14px; background: currentColor;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.selo .icone { width: 14px; height: 14px; }
 .selo-ok { background: var(--ok-superficie); color: var(--ok-texto); }
+.selo-ok::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
 .selo-aviso { background: var(--aviso-superficie); color: var(--aviso-texto); }
+.selo-aviso::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"); }
 .selo-erro { background: var(--erro-superficie); color: var(--erro-texto); }
+.selo-erro::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E"); }
 .selo-info { background: var(--info-superficie); color: var(--info-texto); }
-.selo-neutro { background: var(--neutro-superficie); color: var(--neutro-texto); border: 1px solid var(--borda); }
+.selo-info::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E"); }
+.selo-neutro { background: var(--neutro-superficie); color: var(--neutro-texto); }
+.selo:has(svg)::before { display: none; }
 
 /* Avisos */
 .aviso {
   display: flex; gap: var(--esp-1); align-items: flex-start;
-  padding: 14px var(--esp-2); border-radius: var(--raio-controle); font-size: 0.95em;
+  padding: 14px var(--esp-2); border-radius: var(--raio-cartao); font-size: 0.95em;
 }
 .aviso > .icone { margin-top: 3px; }
 .aviso ul { margin-top: var(--esp-meio); }
@@ -305,8 +337,7 @@ textarea.campo-linha:focus { height: 84px; }
 .tabela { width: 100%; border-collapse: collapse; font-size: 0.95em; }
 .tabela th {
   padding: var(--celula-v) var(--celula-h); text-align: left; white-space: nowrap;
-  font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--texto-suave); border-bottom: 1px solid var(--borda);
+  font-size: 13px; font-weight: 500; color: var(--texto-secundario); border-bottom: 1px solid var(--borda);
 }
 .tabela td { padding: var(--celula-v) var(--celula-h); border-bottom: 1px solid var(--borda); vertical-align: top; }
 .tabela tbody tr { transition: background-color var(--transicao); }
@@ -320,11 +351,11 @@ textarea.campo-linha:focus { height: 84px; }
 .paginacao-resumo { font-size: 0.875em; color: var(--texto-secundario); }
 .paginacao-lista { display: flex; flex-wrap: wrap; gap: var(--esp-meio); list-style: none; margin: 0; padding: 0; }
 .paginacao-link {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px;
-  border: 1px solid var(--borda); border-radius: var(--raio-controle); background: var(--fundo); color: var(--texto); font-size: 0.9em;
+  display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 40px; padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--raio-pilula); background: none; color: var(--texto); font-size: 0.9em;
 }
 a.paginacao-link:hover { background: var(--superficie); color: var(--texto); text-decoration: none; }
-.paginacao-atual { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
+.paginacao-atual { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600; }
 .paginacao-desativado { color: var(--texto-suave); }
 .paginacao-reticencia { padding: 0 var(--esp-meio); color: var(--texto-suave); align-self: center; }
 .paginacao-compacta { display: none; }
@@ -334,7 +365,7 @@ a.paginacao-link:hover { background: var(--superficie); color: var(--texto); tex
    fundo claro que se dissolvem. Com movimento reduzido não anima: o destaque fica parado até o JS
    tirar a classe. */
 @keyframes piscar-destaque {
-  0%, 100% { box-shadow: var(--sombra-cartao); background-color: var(--fundo); }
+  0%, 100% { box-shadow: 0 0 0 0 transparent; background-color: var(--fundo); }
   25%, 45% { box-shadow: 0 0 0 3px var(--destaque), var(--sombra-hover); background-color: var(--destaque-superficie); }
 }
 .destaque-piscada { animation: piscar-destaque 1.3s ease-in-out; }
@@ -359,16 +390,16 @@ tr.destaque-piscada > td { animation: piscar-linha 1.3s ease-in-out; }
    (escondido) não aparece. */
 .dialogo-confirmacao {
   width: min(440px, calc(100% - 2 * var(--esp-2))); padding: 0; color: inherit; background: var(--fundo);
-  border: 1px solid var(--borda); border-radius: var(--raio-cartao); box-shadow: var(--sombra-elevada);
+  border: 0; border-radius: var(--raio-bloco); box-shadow: var(--sombra-elevada);
 }
-.dialogo-confirmacao::backdrop { background: rgba(15, 14, 12, 0.4); }
+.dialogo-confirmacao::backdrop { background: color-mix(in srgb, var(--texto) 40%, transparent); }
 .js .dialogo-confirmacao:not(:modal) { display: none; }
 html:not(.js) .dialogo-confirmacao {
   position: static; width: auto; margin: 0; box-shadow: none; background: var(--aviso-superficie); color: var(--aviso-texto);
 }
 .dialogo-confirmacao-corpo { display: grid; gap: var(--esp-3); padding: var(--esp-3); }
 .dialogo-confirmacao-texto { display: grid; gap: var(--esp-1); }
-.dialogo-confirmacao-titulo { margin: 0; font-size: 20px; }
+.dialogo-confirmacao-titulo { margin: 0; font-size: 22px; }
 .dialogo-confirmacao-texto p { margin: 0; color: var(--texto-secundario); }
 .dialogo-confirmacao-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 /* Sem JavaScript só o botão que fecha por `formmethod="dialog"` (nativo, sem enviar nada) continua à vista. */
@@ -413,13 +444,12 @@ html:not(.js) .filtros-alternar { display: none; }
 .filtros-chips[hidden] { display: none; }
 .filtros-chip {
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px 0 12px;
-  border: 1px solid var(--borda); border-radius: var(--raio-pilula); background: var(--superficie);
-  color: var(--texto); font: inherit; font-size: 0.875em; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--raio-controle); background: var(--secundario-superficie);
+  color: var(--secundario-superficie-texto); font: inherit; font-size: 0.875em; font-weight: 500; cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao);
 }
-.filtros-chip .icone { width: 14px; height: 14px; color: var(--texto-secundario); }
-.filtros-chip:hover { background: var(--fundo); border-color: var(--texto-suave); }
-.filtros-chip:hover .icone { color: var(--texto); }
+.filtros-chip .icone { width: 14px; height: 14px; color: currentColor; }
+.filtros-chip:hover { background: var(--superficie-maxima); }
 .filtros-painel { display: grid; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 .filtros-painel[hidden] { display: none; }
 @starting-style { .filtros-painel { opacity: 0; transform: translateY(-4px); } }
@@ -444,7 +474,7 @@ html:not(.js) .filtros-alternar { display: none; }
   position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 30;
   width: max-content; max-width: min(18rem, calc(100vw - 2 * var(--esp-2)));
   padding: 8px 12px; border-radius: var(--raio-controle); background: var(--texto); color: var(--fundo);
-  font-size: 12.5px; font-weight: 400; line-height: 1.45; box-shadow: 0 8px 30px rgba(0, 0, 0, .09);
+  font-size: 12.5px; font-weight: 400; line-height: 1.45; box-shadow: var(--sombra-elevada);
   /* Escondida fica fora do layout (display: none): com visibility ela ainda alargava a página no celular. */
   display: none; pointer-events: none;
 }
@@ -493,13 +523,13 @@ html:not(.js) .filtros-alternar { display: none; }
 .material-alerta > .icone { width: 16px; height: 16px; margin-top: 2px; flex: none; }
 .material-alerta-lista { margin: 2px 0 4px; padding-left: 1.1em; }
 .material-alerta-lista li + li { margin-top: 2px; }
-.quantidade { display: inline-flex; align-items: center; border: 1px solid var(--borda); border-radius: var(--raio-controle); background: var(--fundo); }
+.quantidade { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--contorno); border-radius: var(--raio-pilula); background: var(--fundo); }
 /* A quantidade é o que a pessoa confere: número em Geist 600, algarismos de largura fixa e os
    sinais de − e + no traço mais grosso, na cor do texto (no cinza secundário pareciam apagados). */
-.quantidade:hover { border-color: var(--texto-suave); }
-.quantidade .botao-icone { min-height: 0; width: 40px; height: var(--altura-controle); border: 0; background: none; color: var(--texto); }
+.quantidade:hover { border-color: var(--texto); }
+.quantidade .botao-icone { min-height: 0; width: 44px; height: var(--altura-controle); border: 0; border-radius: 0; background: none; color: var(--texto); }
 .quantidade .botao-icone .icone { stroke-width: 2; }
-.quantidade .botao-icone:hover { background: var(--superficie); color: var(--texto); }
+.quantidade .botao-icone:hover { background: var(--superficie-alta); color: var(--texto); }
 .quantidade-campo {
   width: 64px; min-height: var(--altura-controle); border: 0; border-inline: 1px solid var(--borda); text-align: center; background: none;
   font-family: var(--fonte-titulo); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--texto);
@@ -523,7 +553,7 @@ html:not(.js) .filtros-alternar { display: none; }
   border: 1px solid var(--destaque); border-radius: var(--raio-cartao);
 }
 .carrinho-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-1); }
-.carrinho-titulo { display: inline-flex; align-items: center; gap: var(--esp-1); color: var(--destaque-hover); }
+.carrinho-titulo { display: inline-flex; align-items: center; gap: var(--esp-1); color: var(--destaque-superficie-texto); }
 .carrinho-so-gaveta { display: none; }
 .carrinho-lista { list-style: none; margin: 0; padding: 0; display: grid; }
 .carrinho-linha {
@@ -552,7 +582,7 @@ html:not(.js) .filtros-alternar { display: none; }
   background: var(--fundo); border: 0; border-radius: var(--raio-cartao) var(--raio-cartao) 0 0;
   box-shadow: var(--sombra-elevada);
 }
-.js[data-gaveta] .carrinho-gaveta::backdrop { background: rgba(15, 14, 12, 0.4); }
+.js[data-gaveta] .carrinho-gaveta::backdrop { background: color-mix(in srgb, var(--texto) 40%, transparent); }
 .js[data-gaveta] .carrinho-so-gaveta { display: inline-flex; }
 .js[data-gaveta] .carrinho-so-gaveta.botao-bloco { width: 100%; }
 
@@ -562,7 +592,7 @@ html:not(.js) .filtros-alternar { display: none; }
 
 /* Dados (rótulo e valor) */
 .dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--esp-2) var(--esp-3); }
-.dados dt { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-suave); }
+.dados dt { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-secundario); }
 .dados dd { overflow-wrap: anywhere; }
 
 /* Ações de formulário */

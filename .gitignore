@@ -17,3 +17,6 @@ output/
 *.sqlite3
 .DS_Store
 dados/
+
+# Capturas da revisão visual (scripts/capturar_telas.py)
+capturas/

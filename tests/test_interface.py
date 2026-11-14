@@ -221,7 +221,7 @@ def _publico():
 def test_layout_publico_carrega_assets_no_head():
     html = _publico()
     head = html.split("</head>")[0]
-    for arquivo in ("interface/css/clean.css",):
+    for arquivo in ("interface/css/fundacao.css",):
         assert arquivo in head
     assert 'src="/static/interface/js/shell.js" defer' in head
     assert 'src="/static/interface/js/dropdown.js" defer' in head

@@ -60,7 +60,7 @@ def test_estatico_servido_sob_o_prefixo(tmp_path, settings, producao):
     if producao:
         settings.FORCE_SCRIPT_NAME = PREFIXO
         settings.STATIC_URL = PREFIXO + "/static/"
-    arquivo = tmp_path / "interface" / "css" / "clean.css"
+    arquivo = tmp_path / "interface" / "css" / "fundacao.css"
     arquivo.parent.mkdir(parents=True)
     arquivo.write_text("body { color: black; }", encoding="utf-8")
     settings.STATIC_ROOT = tmp_path
@@ -69,7 +69,7 @@ def test_estatico_servido_sob_o_prefixo(tmp_path, settings, producao):
     setup_testing_defaults(ambiente)
     ambiente.update(
         SCRIPT_NAME=PREFIXO,
-        PATH_INFO="/static/interface/css/clean.css",
+        PATH_INFO="/static/interface/css/fundacao.css",
         HTTP_HOST="testserver",
     )
     estado = []
@@ -89,7 +89,7 @@ CODIGO = (
     "from django.templatetags.static import static;"
     "from django.urls import reverse;"
     "print(json.dumps([settings.FORCE_SCRIPT_NAME, settings.STATIC_URL, reverse('login'),"
-    " static('interface/css/clean.css')]))"
+    " static('interface/css/fundacao.css')]))"
 )
 
 

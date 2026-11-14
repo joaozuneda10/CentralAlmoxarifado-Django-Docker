@@ -1,13 +1,14 @@
 <!--
 Sync Impact Report
-- Versão: 2.0.0 → 2.1.0 (MINOR: princípios ampliados para cobrir as entradas por pedido de compra, spec 014).
-- Princípio I: `compras/regras.py` entra na lista de regras puras.
-- Princípio II: `compras/servicos.py` é a porta única dos recebimentos e das travas de pedido; o robô
-  de entradas grava só seis campos; o reenvio igual não duplica.
-- Princípio III: "lote ou recebimento", journal próprio por robô, uma execução de lançamento por vez
-  (saídas ou entradas, com a mesma trava) e a conferência da tela antes do Salvar.
+- Versão: 2.1.0 → 2.2.0 (MINOR: Princípio VI ampliado, spec 015, troca do design system Clean pela
+  linguagem visual do Material 3, o Tonal).
+- Princípio VI: "segue o design system Clean (`docs/DESIGN.md`)" passa a "segue o design system do
+  projeto (`docs/DESIGN.md`)". Redefinição compatível: nenhuma garantia cai (pt-BR, estado nunca só
+  por cor, códigos em mono, sem dependência externa, CSRF), e a referência fica mais geral, sem
+  amarrar o princípio ao nome de um estilo.
 - Nenhum princípio removido ou redefinido de forma incompatível.
-- Documentos conferidos: specs/014-entrada-por-pedido (plan, research R23, tasks).
+- Documentos conferidos: specs/015-design-system-m3 (plan, research R16, tasks T023 a T027),
+  docs/DESIGN.md, CLAUDE.md e a skill .claude/skills/design-tonal/.
 -->
 
 # Central Almoxarifado (Django) Constitution
@@ -86,7 +87,7 @@ de verdade.
 ### VI. Interface em pt-BR, acessível e sem dependências externas
 
 - Nomes de código, textos de interface, mensagens e commits em português (pt-BR).
-- A interface segue o design system Clean (`docs/DESIGN.md`). Estado nunca só por cor; códigos
+- A interface segue o design system do projeto (`docs/DESIGN.md`). Estado nunca só por cor; códigos
   (CADPRO, matrícula, placa) em fonte mono.
 - Nenhuma dependência do Google, de CDN ou de npm: fontes, ícones e HTMX ficam no repositório.
 - Requisição que grava leva CSRF; logout só por POST.
@@ -126,4 +127,4 @@ Motivo: o público é o almoxarifado e os funcionários da operação, e o servi
 - Todo plano tem uma verificação de conformidade com estes princípios. Exceção a um princípio
   só com justificativa escrita no plano; o Princípio III não admite exceção.
 
-**Version**: 2.1.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-11-11
+**Version**: 2.2.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-11-13

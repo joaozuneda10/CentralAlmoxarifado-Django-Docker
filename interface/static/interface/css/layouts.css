@@ -60,13 +60,13 @@
 .app-lateral-painel { display: flex; flex: 1; flex-direction: column; justify-content: space-between; min-height: 0; padding: var(--esp-1) var(--esp-2) var(--esp-3); overflow-y: auto; }
 .app-menu { display: grid; gap: 2px; }
 .app-menu-item {
-  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border-radius: var(--raio-controle); color: var(--texto-secundario); font-weight: 500;
+  position: relative; display: flex; align-items: center; gap: 12px; padding: 10px 16px;
+  border-radius: var(--raio-pilula); color: var(--texto-secundario); font-weight: 500;
   transition: background-color var(--transicao), color var(--transicao);
 }
-.app-menu-item:hover { background: var(--superficie); color: var(--texto); text-decoration: none; }
-.app-menu-item[aria-current="page"] { background: var(--superficie); color: var(--texto); }
-.app-menu-item[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 8px; bottom: 8px; width: 3px; border-radius: 3px; background: var(--destaque); }
+.app-menu-item:hover { background: var(--superficie-alta); color: var(--texto); text-decoration: none; }
+/* Item atual: a pílula tonal e o peso maior (o estado não fica só na cor). */
+.app-menu-item[aria-current="page"] { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600; }
 .app-conta { display: grid; gap: var(--esp-meio); padding: var(--esp-2) 12px 0; border-top: 1px solid var(--borda); }
 .app-conta-nome { font-weight: 500; }
 .app-conta form { margin-top: var(--esp-1); }
@@ -116,4 +116,6 @@
   body { background: #ffffff; color: #000000; }
   .rotulo-secao, .dados dt, .texto-suave, .texto-secundario { color: #000000; }
   .cartao { box-shadow: none; border-color: #cccccc; }
+  /* O ícone dos selos é só da tela: no papel, o selo sai como antes (FR-010). */
+  .selo::before { display: none; }
 }
