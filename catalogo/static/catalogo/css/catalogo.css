@@ -56,7 +56,7 @@
 }
 .mais-opcoes summary { min-height: var(--altura-controle); }
 .mais-opcoes summary:hover, .aviso-itens summary:hover { color: var(--texto); }
-.mais-opcoes summary:focus-visible, .aviso-itens summary:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: 4px; }
+.mais-opcoes summary:focus-visible, .aviso-itens summary:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: var(--raio-campo); }
 .mais-opcoes[open] summary { margin-bottom: var(--esp-2); }
 .mais-opcoes form { max-width: 40rem; }
 .mais-opcoes p { margin: 0; }
@@ -115,7 +115,7 @@
 .estado-carga { margin: 0; font-size: 0.8125em; color: var(--texto-secundario); }
 .opcao-modo { padding: var(--esp-2); border: 1px solid var(--borda); border-radius: var(--raio-controle); }
 .opcao-modo:hover { border-color: var(--texto-suave); }
-.opcao-modo:has(input:checked) { border-color: rgba(37, 99, 235, 0.45); background: var(--info-superficie); }
+.opcao-modo:has(input:checked) { border-color: var(--destaque); background: var(--info-superficie); }
 .opcao-modo:has(input:disabled) { opacity: 0.5; cursor: not-allowed; }
 .opcao-modo .campo-dica { display: block; margin-top: 2px; }
 .aviso .campo-dica { display: block; margin-top: 2px; }

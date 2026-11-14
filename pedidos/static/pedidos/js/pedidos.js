@@ -1267,7 +1267,7 @@
   // da tela (no celular, atrás da barra "Seu pedido"): em qualquer tela, a página rola para o
   // elemento ficar no topo, descontando a barra do almoxarifado quando ela é uma barra no topo (a
   // .app-lateral do celular; na tela larga ela é uma coluna). Só rola para baixo.
-  // Com "reduzir movimento", o clean.css zera as transições: a rolagem também não anima.
+  // Com "reduzir movimento", o fundacao.css zera as transições: a rolagem também não anima.
   function rolagemSuave() {
     var campo = document.querySelector(".campo-entrada");
     return !campo || parseFloat(getComputedStyle(campo).transitionDuration) >= 0.05;

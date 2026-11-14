@@ -240,9 +240,15 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `contas/bloqueado.html` (429) e o desbloqueio apagando a tentativa no admin. Sem proxy, a origem é
   o `REMOTE_ADDR` (falta conferir no servidor se é o do aparelho). O axes exige o `request` no
   `authenticate`: nos testes, `client.login` falha; entre pelo formulário ou use `force_login`.
-- `interface` é só apresentação (sem modelos nem regras), no design system Clean (skill
-  `.claude/skills/clean-design/`; regras e vocabulário de classes em `docs/DESIGN.md`):
-  `clean.css` (tokens, fontes, tipografia e os ritmos `ritmo-publico`/`ritmo-almox`),
+- `interface` é só apresentação (sem modelos nem regras), no design system Tonal, a linguagem
+  visual do Material 3 sobre o CSS do projeto (spec `specs/015-design-system-m3/`, que trocou o
+  Clean; skill `.claude/skills/design-tonal/`; regras, tokens, combinações de cor permitidas e
+  vocabulário de classes em `docs/DESIGN.md`): `fundacao.css` (tokens, fontes, tipografia e os
+  ritmos `ritmo-publico`/`ritmo-almox`; o contraste das combinações declaradas é conferido por
+  `tests/test_contraste_tokens.py`), o selo com o ícone pelo tom no `::before` (o neutro sem ícone,
+  o selo com `svg` próprio sem o segundo, sem ícone no papel), o recibo impresso idêntico ao de
+  antes (a `.folha-recibo` redefine no `@media print` os tokens que usa) e as capturas para a
+  revisão visual em `scripts/capturar_telas.py` (fora da suíte; `capturas/` fica fora do Git),
   `componentes.css` e `layouts.css`, ícones Lucide em `_icone.html`, fontes `.woff2` locais
   (Geist, DM Sans, Geist Mono), HTMX 4.0.0 vendorizado, parciais e template tags. Só tema
   claro; o `shell.js` só cuida do menu móvel. O `dropdown.js` troca todo `select.campo-entrada` e
@@ -1051,12 +1057,11 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
 - Logout só por POST com CSRF, num único formulário por página. Requisição HTMX que grava vai
   dentro de um `<form>` com `{% csrf_token %}`.
 - Estado nunca só por cor; códigos (CADPRO, matrícula, placa) em fonte mono (`.mono`).
-- Todo ajuste de UI/UX usa três skills juntas: `clean-design` (no repositório) com o
+- Todo ajuste de UI/UX usa três skills juntas: `design-tonal` (no repositório) com o
   `docs/DESIGN.md`, que são a referência fixa de estilo e vencem as outras duas;
   `ui-ux-pro-max` (plugin), para conferir usabilidade e acessibilidade pelo buscador; e
   `frontend-design` (plugin), para hierarquia, contenção, textos de interface e a conferência
-  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não refazer o
-  questionário inicial da `clean-design` (o projeto já o respondeu) nem gerar ou gravar um
-  design system novo das skills sem pedido.
+  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não gerar nem
+  gravar um design system novo das skills sem pedido.
 - O servidor está em produção com dados reais: mudança de modelo ganha **migration nova**,
   nunca regenerada (nem `migrate <app> zero`).
