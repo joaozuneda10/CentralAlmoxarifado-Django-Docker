@@ -294,17 +294,22 @@
     var form = formDoEstado(e);
     var estado = form && e.detail.ctx.filtrosEstado;
     if (!estado) return;
+    // Resposta 4xx/5xx: o `noSwap` do `htmx-config` deixa a lista antiga, mas o evento dispara
+    // igual (a troca vira `none`); quem cuida dela é o `falhou`.
+    var resposta = e.detail.ctx.response;
+    if ((resposta && resposta.status >= 400) || e.detail.ctx.swap === "none") return;
     form._filtrosAplicados = estado.enviado;
     mostrar(form, estado.enviado);
   });
 
-  // Erro do servidor (4xx/5xx, que o `htmx-config` do base.html não deixa trocar a lista) ou da
-  // rede. A requisição cancelada pelo `hx-sync` (um envio mais novo a substituiu) não desfaz nada.
+  // Erro do servidor (4xx/5xx, que o `htmx-config` do base.html não deixa trocar a lista), da rede
+  // ou o tempo esgotado (o HTMX aborta a requisição). A requisição cancelada pelo `hx-sync` não
+  // desfaz nada: o envio mais novo que a substituiu já ganhou o número seguinte no
+  // `htmx:config:request`, que vem antes do cancelamento.
   function falhou(e) {
     var form = formDoEstado(e);
     var estado = form && e.detail.ctx.filtrosEstado;
     if (!estado || estado.numero !== envios || !form._filtrosAplicados) return;
-    if (e.detail.error && e.detail.error.name === "AbortError") return;
     desfazer(form, estado.enviado, form._filtrosAplicados);
     mostrar(form, form._filtrosAplicados);
   }

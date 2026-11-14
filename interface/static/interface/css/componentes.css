@@ -627,7 +627,7 @@ html:not(.js) .filtros-alternar { display: none; }
 }
 .indicador-critico { box-shadow: inset 4px 0 0 var(--erro-forte); }
 .indicador-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; transition: background-color var(--transicao), box-shadow var(--transicao); }
-.indicador-link:hover { background: rgba(16, 24, 40, 0.04); }
+.indicador-link:hover { background: color-mix(in srgb, var(--texto) 4%, transparent); }
 .indicador-link:focus-visible { border-radius: inherit; }
 .indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque); }
 .indicador-critico .indicador-link[aria-current="true"] { box-shadow: inset 0 0 0 2px var(--destaque), inset 6px 0 0 var(--erro-forte); }
@@ -698,6 +698,8 @@ label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .js .chip-menu[open] > .chip-menu-painel { display: grid; animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
 .chip-menu-periodo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
 @media (max-width: 640px) {
+  /* No celular o painel ocupa a largura da linha de filtros e abre embaixo dela. */
+  .filtros-linha { position: relative; }
   .chip-menu { position: static; }
   .chip-menu-painel { left: var(--esp-2); right: var(--esp-2); width: auto; min-width: 0; max-width: none; }
   .chip-menu-periodo { grid-template-columns: minmax(0, 1fr); }
@@ -725,8 +727,9 @@ label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .menu-acoes-item:hover { background: var(--superficie-alta); color: var(--texto); text-decoration: none; }
 .menu-acoes-item:focus-visible { border-radius: 0; box-shadow: inset 0 0 0 2px var(--destaque); }
 @media (prefers-reduced-motion: reduce) { .menu-acoes-lista, .js .chip-menu[open] > .chip-menu-painel { animation: none; } }
-/* Lista curta (menos de 5 linhas): a rolagem tem a altura do menu aberto, para não cortá-lo. */
-.tabela-rolagem-curta { min-height: 16rem; }
+/* Lista curta (menos de 5 linhas): todo menu abre para baixo, e a rolagem reserva embaixo da última
+   linha a altura do menu aberto (3 itens de 44px e as margens), seja qual for a altura das linhas. */
+.tabela-rolagem-curta { padding-bottom: 9.5rem; }
 
 /* Botão flutuante (a saída avulsa do painel): contêiner tonal, raio de 16px e elevação; no celular
    sobe acima da área segura. A página ganha recheio embaixo (`pagina-com-fab`) para ele não cobrir
