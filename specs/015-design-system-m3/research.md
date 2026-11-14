@@ -69,7 +69,10 @@ por nada; a paleta gerada do M3 a partir da semente, que muda o azul de hoje (a 
 `:has()`), o rótulo fica sempre na borda, flutuado: é a reserva segura. Com `:has()`, ele desce para
 dentro da caixa só quando o campo está vazio e sem foco:
 
-`.campo-flutuante:has(.campo-entrada:placeholder-shown:not(:focus)) .campo-rotulo`
+`.campo-flutuante:has(.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)) .campo-rotulo`
+
+As exclusões de `:autofill` e `:-webkit-autofill` vêm de `contracts/campos-publicos.md`: o Chrome
+pode manter o `:placeholder-shown` durante o preenchimento automático, e o rótulo cobriria o valor.
 
 O campo recebe `placeholder=" "`, e o exemplo de hoje sai do `placeholder` para o `campo-dica` embaixo
 (`aria-describedby`). O `<label class="campo-rotulo">` continua antes do campo, como hoje: os testes

@@ -576,7 +576,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .conciliacao-filtros { display: flex; flex-wrap: wrap; gap: var(--esp-1); margin: 0; padding: 0; list-style: none; }
 .conciliacao-filtro {
   display: inline-flex; align-items: center; gap: var(--esp-1); min-height: 36px;
-  padding: var(--esp-meio) var(--esp-2); border: 1px solid var(--borda); border-radius: var(--raio-pilula);
+  padding: var(--esp-meio) var(--esp-2); border: 1px solid var(--contorno); border-radius: var(--raio-pilula);
   color: var(--texto-secundario); text-decoration: none; font-weight: 500;
   transition: background 0.18s ease, color 0.18s ease, border-color 0.18s ease;
 }

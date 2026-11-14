@@ -88,11 +88,17 @@ O formulário continua o `FiltrosPainel`: GET para `pedidos:painel`, com o mesmo
 Com JavaScript, o HTMX troca só `#lista-pedidos`. O resto da tela não pode afirmar um filtro que não
 está aplicado.
 
-- Os **chips de rádio** já mostram o estado certo: é o próprio campo que o formulário envia.
+- Os **chips de rádio** mostram o estado certo enquanto a troca dá certo: é o próprio campo que o
+  formulário envia.
 - Os **rótulos dos chips com lista** ("Origem: Limpeza") e o **`aria-current` dos indicadores** são
-  atualizados pelo `filtros.js` a partir dos valores do próprio formulário, a cada `change`. O
+  atualizados pelo `filtros.js` a partir dos valores do próprio formulário, **só depois que a
+  resposta troca a `#lista-pedidos`** (evento de troca concluída do HTMX), nunca no `change`. O
   formulário é a fonte do que foi enviado, e não é preciso trocar a barra de filtros pelo servidor
   (o que fecharia o painel aberto e tiraria o foco de quem digita).
+- **Falha da requisição** (erro do servidor ou da rede): a lista antiga fica, então o `filtros.js`
+  devolve os campos do formulário aos valores da última troca aplicada (guardados a cada troca
+  concluída e na carga da página), sem disparar um envio novo; rótulos e indicadores continuam os
+  dessa troca, e o aviso de falha do HTMX aparece como hoje.
 - O `filtros.js` deixa de recolher o painel de filtros no painel de pedidos, que fica sempre à
   vista. O recolhimento, a contagem e os chips de filtro ativo continuam no histórico de Automações,
   sem mudança.
@@ -108,8 +114,11 @@ está aplicado.
   maior que o do `a::after` que cobre a linha.
 - **Itens do ⋮**: as condições de `data-model.md`.
 - **Corte pela rolagem**: a `.tabela-rolagem` tem `overflow-x: auto`, e o `overflow-y` vira `auto`
-  junto, então um menu que desce além da tabela seria cortado. Nas duas últimas linhas da página
-  (`forloop.revcounter <= 2`), o menu abre para cima (`menu-acoes-acima`).
+  junto, então um menu que sai da tabela, para baixo ou para cima, seria cortado. Com 5 linhas ou
+  mais na página, as duas últimas (`forloop.revcounter <= 2`) abrem o menu para cima
+  (`menu-acoes-acima`): há ao menos 3 linhas acima para ele. Com menos de 5 linhas, todo menu abre
+  para baixo e a `.tabela-rolagem` ganha a altura mínima do menu aberto (`tabela-rolagem-curta`),
+  para não cortá-lo na lista curta, nem com uma linha só.
 - **Largura estreita**: na container query de hoje, a linha vira cartão, com o ⋮ no canto superior
   direito. A regra de abrir para cima vale igual.
 - **Sem JavaScript**: o `<details>` abre e fecha nativamente, e os itens são links comuns.

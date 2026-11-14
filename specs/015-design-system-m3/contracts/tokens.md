@@ -33,7 +33,7 @@ foram calculados com a fórmula da WCAG 2.1 e são conferidos por `tests/test_co
 | `--neutro-superficie` / `--neutro-texto` | `#ECEDF2` / `#4A4D57` | `--superficie` / `--texto-secundario` | status neutro |
 
 A impressão continua a exceção: texto preto e bordas cinza. No `@media print`, a folha do recibo
-(`.folha-recibo`) **redefine os tokens que usa com os valores de hoje** (`--texto` `#000000`,
+(`.folha-recibo`) **redefine os tokens que usa com os valores de hoje** (`--texto` `#0F0E0C`, o de antes; o preto `#000000` fica só nas regras de impressão que já o usam,
 `--borda` e contornos cinza, `--raio-cartao` 12px e a tabela de hoje) e esconde o ícone dos selos,
 para o recibo impresso sair idêntico (FR-010, SC-007).
 

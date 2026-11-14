@@ -103,7 +103,7 @@ idêntico ao de `capturas/base/`.
 - [X] T017 [US1] Reestilizar avisos, cartões, tabela e paginação em `interface/static/interface/css/componentes.css`: `.aviso` em contêiner de status com `--raio-cartao` e ícone; `.cartao` branco com `--borda` e `--raio-cartao`; `.cartao-sutil` em `--superficie-media`, sem borda; `.cartao-opcao` com o ícone num quadrado de 48px em `--destaque-superficie`; `.tabela` com o cabeçalho em `--texto-secundario` 500, divisórias em `--borda` e hover em `--superficie` (o recheio `--celula-v`/`--celula-h` do ritmo não muda, research R13); paginação nos tokens novos
 - [X] T018 [US1] Reestilizar abas, diálogos, painel flutuante e dropdown em `interface/static/interface/css/componentes.css`: a aba ativa em cor tonal, mantendo a pasta (funde-se ao primeiro cartão); `.dialogo-confirmacao` com `--raio-bloco`; `.painel-flutuante` com `--raio-cartao` e `--sombra-elevada`; opção marcada do `dropdown` em tonal com o `check`
 - [X] T019 [US1] Passar `interface/static/interface/css/layouts.css`, `pedidos/static/pedidos/css/pedidos.css`, `catalogo/static/catalogo/css/catalogo.css` e `contas/static/contas/css/entrar.css` para os tokens novos, sem mudar a composição: trocar as cores fixas que restaram (`#d99a1e`, `#c9891a`, `#dde8ff` e afins) pelo token equivalente e os raios fixos pelos tokens de raio. A composição de cada tela muda só nas US2 a US4
-- [X] T020 [US1] Isolar a impressão do recibo (FR-010, `contracts/tokens.md`): no `@media print` de `interface/static/interface/css/layouts.css`, `.selo::before { display: none }`; no de `pedidos/static/pedidos/css/pedidos.css`, a `.folha-recibo` redefine os tokens que usa com os valores de hoje (`--texto` `#000000`, `--borda` e contornos no cinza de hoje, `--raio-cartao` 12px e a tabela de hoje)
+- [X] T020 [US1] Isolar a impressão do recibo (FR-010, `contracts/tokens.md`): no `@media print` de `interface/static/interface/css/layouts.css`, `.selo::before { display: none }`; no de `pedidos/static/pedidos/css/pedidos.css`, a `.folha-recibo` redefine os tokens que usa com os valores de hoje (`--texto` `#0F0E0C`, o de antes, `--borda` e contornos no cinza de hoje, `--raio-cartao` 12px e a tabela de hoje)
 - [X] T021 [US1] Gerar com `scripts/capturar_telas.py` as capturas de todas as telas-chave e os dois PDFs do recibo. Comparar com `capturas/base/`: o recibo idêntico (SC-007, Q-1.4); nenhuma rolagem lateral (SC-002); selos com o ícone do tom e o "N no pedido" sem ícone duplicado (Q-1.3). Corrigir o que quebrou
 - [X] T022 [US1] Rodar os portões e conferir que só mudaram as asserções de nome de arquivo e de valor de token (SC-001)
 
@@ -179,7 +179,7 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - atendido e lançado: sem "Editar atendimento";
   - EPI aguardando autorização: só "Abrir pedido";
   - saída avulsa: "Editar saída";
-  - nas duas últimas linhas da página, o `details` tem `menu-acoes-acima`;
+  - com 5 linhas ou mais na página, as duas últimas têm `menu-acoes-acima`; com menos de 5, nenhuma tem, e a `.tabela-rolagem` tem `tabela-rolagem-curta`;
   - o `summary` tem o `aria-label` "Ações do pedido <número>".
 - [ ] T033 [P] [US2] Criar `tests/test_painel_filtros.py`:
   - a situação é um grupo de rádios `name="situacao"`, com a legenda "Situação", e o rádio marcado é o da URL;
@@ -236,19 +236,20 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - `indicadores`, `indicador`, `indicador-critico`, `indicador-rotulo`, `indicador-numero`, `indicador-nota`, `indicador-nota-alerta`, `indicador-acao` e o link que cobre o cartão, com as ações acima dele; contorno de destaque com `aria-current="true"`;
   - `chips`, `chip`, `chip-entrada`, `chip-texto` (com `.chip-entrada:checked + .chip-texto`), com 32px de desenho e 44px de área de toque;
   - `chip-menu` e `chip-menu-painel`;
-  - `menu-acoes`, `menu-acoes-acima` e `menu-acoes-lista`, com `z-index` acima do `a::after` da linha;
+  - `menu-acoes`, `menu-acoes-acima` e `menu-acoes-lista`, com `z-index` acima do `a::after` da linha, e `tabela-rolagem-curta` com a altura mínima do menu aberto;
   - `fab`, com recheio embaixo da página para não cobrir a paginação;
   - `app-menu-contador` e `app-conta-avatar`.
 - [ ] T045 [US2] Reescrever `pedidos/templates/pedidos/_painel_lista.html`:
   - as colunas Situação e SCPI separadas, com os selos de sempre;
   - "Recibo não impresso", com o ícone da impressora, quando `a.recibo_impresso_em` é nulo;
-  - o `details.menu-acoes data-menu` com os itens de `data-model.md` e `menu-acoes-acima` quando `forloop.revcounter <= 2`;
+  - o `details.menu-acoes data-menu` com os itens de `data-model.md` e `menu-acoes-acima` quando a página tem 5 linhas ou mais e `forloop.revcounter <= 2`; com menos de 5, a `.tabela-rolagem` ganha `tabela-rolagem-curta` (`contracts/painel.md`);
   - o link do Nº continua cobrindo a linha;
   - a container query de hoje faz a linha virar cartão, com o ⋮ no canto superior direito.
 - [ ] T046 [P] [US2] Criar `interface/static/interface/js/menus.js` para todo `details[data-menu]`: abrir um fecha os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha. Carregar em `interface/templates/interface/base.html`, no `<head>` com `defer`
 - [ ] T047 [US2] Ajustar `interface/static/interface/js/filtros.js`:
   - no formulário do painel (sem o `data-filtros-alternar`), não recolher nada;
-  - a cada `change` do formulário, atualizar os rótulos dos `chip-menu` ("Origem: Limpeza") e o `aria-current` dos indicadores pelos valores do formulário;
+  - depois de cada troca concluída da `#lista-pedidos` (não no `change`), atualizar os rótulos dos `chip-menu` ("Origem: Limpeza") e o `aria-current` dos indicadores pelos valores do formulário, e guardar esses valores como a última troca aplicada;
+  - na falha da requisição, devolver os campos do formulário aos valores da última troca aplicada, sem novo envio (`contracts/painel.md`);
   - no histórico de Automações, manter o comportamento de hoje.
 - [ ] T048 [US2] Ajustar a impressão pela lista:
   - **view** (`pedidos/views/almoxarifado.py`): no detalhe, `voltar_sem_imprimir` (o `get_full_path` sem o parâmetro `imprimir`) e o sinal de imprimir ao abrir, só com atendimento e `recibo_impresso_em` nulo;

@@ -90,10 +90,23 @@ def entrar(contexto: BrowserContext, base: str, usuario: str, senha: str) -> Non
     pagina.close()
 
 
+class PaginaComErro(Exception):
+    """A página respondeu com erro (ex.: 404 de um pedido que não existe): nada é salvo."""
+
+
+def abrir(pagina: Page, url: str) -> None:
+    # O goto do Playwright não levanta exceção com 404 ou 500: sem esta conferência, a página de
+    # erro seria salva como se fosse a tela.
+    resposta = pagina.goto(url)
+    if resposta is None or not resposta.ok:
+        situacao = resposta.status if resposta else "sem resposta"
+        raise PaginaComErro(f"{url} ({situacao})")
+
+
 def capturar(pagina: Page, url: str, arquivo: Path, largura: int, altura: int = ALTURA) -> bool:
     """Salva a tela inteira e devolve se há rolagem lateral."""
     pagina.set_viewport_size({"width": largura, "height": altura})
-    pagina.goto(url)
+    abrir(pagina, url)
     pagina.wait_for_load_state("networkidle")
     arquivo.parent.mkdir(parents=True, exist_ok=True)
     pagina.screenshot(path=str(arquivo), full_page=True)
@@ -123,7 +136,7 @@ def contar_linhas(pagina: Page, base: str) -> int:
 def recibo_pdf(pagina: Page, base: str, numero: str, pasta: Path) -> Path:
     pagina.set_viewport_size({"width": 1280, "height": ALTURA})
     pagina.emulate_media(media="screen")
-    pagina.goto(f"{base}/painel/pedidos/{numero}/")
+    abrir(pagina, f"{base}/painel/pedidos/{numero}/")
     pagina.wait_for_load_state("networkidle")
     pagina.emulate_media(media="print")
     destino = pasta / f"recibo-{numero}.pdf"
@@ -198,30 +211,41 @@ def rodar(navegador: Browser, args: argparse.Namespace) -> int:
     telas = selecionar(telas, args.telas)
 
     rolagem: list[str] = []
+    falhas: list[str] = []
     for tela in telas:
         contexto = logado if tela.logado else anonimo
         pagina = contexto.new_page()
         tamanhos = [(largura, ALTURA) for largura in larguras]
         if tela.nome == "painel":
             tamanhos.append(PAINEL_JANELA)
+        situacao = "ok "
         for largura, altura in tamanhos:
             sufixo = f"{largura}" if altura == ALTURA else f"{largura}x{altura}"
             arquivo = pasta / f"{nome_arquivo(tela.nome)}-{sufixo}.png"
-            if capturar(pagina, base + tela.caminho, arquivo, largura, altura):
-                rolagem.append(f"{tela.nome} a {largura}px")
+            try:
+                if capturar(pagina, base + tela.caminho, arquivo, largura, altura):
+                    rolagem.append(f"{tela.nome} a {largura}px")
+            except PaginaComErro as erro:
+                falhas.append(f"{tela.nome}: {erro}")
+                situacao = "ERRO"
+                break
         pagina.close()
-        print(f"ok  {tela.nome}")
+        print(f"{situacao} {tela.nome}")
 
     recibo_diferente = False
     if logado:
         pagina = logado.new_page()
         for numero in args.recibo:
-            print(f"pdf {recibo_pdf(pagina, base, numero, pasta)}")
+            try:
+                print(f"pdf {recibo_pdf(pagina, base, numero, pasta)}")
+            except PaginaComErro as erro:
+                falhas.append(f"recibo {numero}: {erro}")
+                continue
             if args.comparar_com:
                 nome = f"recibo-{numero}-impressao.png"
                 antes = args.comparar_com / nome
                 if not antes.exists():
-                    print(f"     sem {antes} para comparar")
+                    falhas.append(f"recibo {numero}: sem {antes} para comparar")
                     continue
                 iguais, motivo = comparar_imagens(pagina, antes, pasta / nome)
                 veredito = "IGUAL" if iguais else "DIFERENTE"
@@ -236,7 +260,11 @@ def rodar(navegador: Browser, args: argparse.Namespace) -> int:
         print("ROLAGEM LATERAL (SC-002):")
         for item in rolagem:
             print(f"  - {item}")
-    return 1 if rolagem or recibo_diferente else 0
+    if falhas:
+        print("FALHAS (nada salvo nessas telas ou comparação não feita):")
+        for item in falhas:
+            print(f"  - {item}")
+    return 1 if rolagem or recibo_diferente or falhas else 0
 
 
 def main() -> int:

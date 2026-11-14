@@ -630,7 +630,7 @@ tbody tr:last-child td { border-bottom: 0; }
 
   busca.addEventListener('input', function () { filtro.texto = busca.value.trim().toLowerCase(); aplicar(); });
 
-  var menu = document.getElementById('menu');
+  var menu = document.getElementById('menu'), acionador = null;
   document.querySelectorAll('.menu-linha .botao-icone').forEach(function (b) {
     b.addEventListener('click', function (e) {
       e.stopPropagation();
@@ -638,9 +638,17 @@ tbody tr:last-child td { border-bottom: 0; }
       menu.style.top = (window.scrollY + r.bottom + 4) + 'px';
       menu.style.left = (window.scrollX + r.right - 220) + 'px';
       menu.classList.add('aberto');
+      acionador = b;
     });
   });
-  document.addEventListener('click', function () { menu.classList.remove('aberto'); });
+  document.addEventListener('click', function () { menu.classList.remove('aberto'); acionador = null; });
+  /* Esc fecha o menu e devolve o foco ao botão que o abriu (Q-2.4). */
+  document.addEventListener('keydown', function (e) {
+    if (e.key !== 'Escape' || !menu.classList.contains('aberto')) return;
+    menu.classList.remove('aberto');
+    if (acionador) acionador.focus();
+    acionador = null;
+  });
   menu.style.position = 'absolute'; menu.style.right = 'auto';
 
   var anuncio = document.getElementById('anuncio'), t;

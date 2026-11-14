@@ -350,7 +350,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); letter-spacing: -.02em; margin: 0
             <p class="campo-apoio" id="solicitante-apoio" hidden></p>
           </div>
           <div class="campo" id="c-destino">
-            <input id="destino" placeholder=" " autocomplete="off" list="destinos">
+            <input id="destino" placeholder=" " autocomplete="off" list="destinos" aria-describedby="destino-apoio">
             <label for="destino">Destino dos materiais</label>
             <p class="campo-apoio" id="destino-apoio">Setor ou posto de trabalho</p>
             <datalist id="destinos"><option value="ALMOXARIFADO"><option value="ETA CENTRAL"><option value="ESGOTO — ETE NORTE"><option value="ABASTECIMENTO DE ÁGUA"><option value="ADMINISTRAÇÃO"></datalist>
@@ -519,7 +519,8 @@ h1, h2, h3 { font-family: var(--fonte-titulo); letter-spacing: -.02em; margin: 0
   }
 
   /* ----- Seu pedido ----- */
-  function htmlPedido() {
+  /* Um HTML por contêiner (lado e gaveta), com o prefixo nos ids, para o label achar o próprio campo. */
+  function htmlPedido(prefixo) {
     var n = pedido.length;
     var s = '<div class="pedido-topo"><h2>Seu pedido</h2>' + (n ? '<span class="contador">' + n + '</span>' : '') + '</div>';
     if (!n) return s + '<div class="pedido-vazio">' + icone("caixa") + '<span>Nenhum material adicionado ainda.<br>Busque e toque num material.</span></div>';
@@ -528,7 +529,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); letter-spacing: -.02em; margin: 0
       var r = '<li class="linha' + (ab ? ' aberta' : '') + '" data-c="' + l.c + '"><button type="button" class="linha-botao" data-alterar aria-expanded="' + ab + '">' +
         '<span class="linha-nome">' + esc(i.n) + '</span><span class="linha-qtd"><strong>' + l.q + '</strong> ' + i.u + '</span>' + icone(ab ? "fechar" : "lapis", "ic-p") +
         '<span class="sr">' + (ab ? 'Fechar' : 'Alterar a quantidade') + '</span></button>';
-      if (ab) r += '<div class="linha-acoes">' + stepper("lq-" + l.c + "-" + Math.random().toString(36).slice(2, 6), l.q, "Quantidade de " + i.n) +
+      if (ab) r += '<div class="linha-acoes">' + stepper("lq-" + prefixo + "-" + l.c, l.q, "Quantidade de " + i.n) +
         '<button type="button" class="botao botao-texto botao-perigo" data-remover>' + icone("lixeira", "ic-p") + 'Remover</button>' +
         '<button type="button" class="botao botao-cheio" data-confirmar-linha style="margin-left:auto">Confirmar</button><p class="qtd-erro" hidden></p></div>';
       return r + '</li>';
@@ -537,7 +538,7 @@ h1, h2, h3 { font-family: var(--fonte-titulo); letter-spacing: -.02em; margin: 0
       '<small>O almoxarifado confere e separa depois do envio.</small></div>';
   }
   function desenharPedido() {
-    var h = htmlPedido(); $("pedido-lado").innerHTML = h; $("pedido-gaveta").innerHTML = h;
+    $("pedido-lado").innerHTML = htmlPedido("lado"); $("pedido-gaveta").innerHTML = htmlPedido("gaveta");
     var n = pedido.length;
     $("barra-texto").innerHTML = n ? '<strong>Seu pedido</strong>' + n + (n === 1 ? ' material' : ' materiais') : '<strong>Seu pedido</strong>Nenhum material adicionado';
     $("barra-abrir").hidden = !n;
@@ -565,8 +566,10 @@ h1, h2, h3 { font-family: var(--fonte-titulo); letter-spacing: -.02em; margin: 0
   function marcar(id, msg) {
     var c = $("c-" + id), a = $(id + "-apoio");
     c.classList.toggle("erro", !!msg);
+    /* O texto de apoio visível (o erro ou a dica) descreve o campo; escondido, sai do aria-describedby. */
     if (msg) { a.innerHTML = icone("alerta", "ic-p") + msg; a.hidden = false; $(id).setAttribute("aria-invalid", "true"); }
     else { $(id).removeAttribute("aria-invalid"); if (id === "destino") a.textContent = "Setor ou posto de trabalho"; else a.hidden = true; }
+    if (a.hidden) $(id).removeAttribute("aria-describedby"); else $(id).setAttribute("aria-describedby", id + "-apoio");
   }
   function enviar() {
     var erros = [];

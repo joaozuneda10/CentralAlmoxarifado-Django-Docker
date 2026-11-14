@@ -116,13 +116,16 @@ select.campo-entrada { padding-right: 36px; }
 textarea.campo-linha { min-height: var(--altura-controle); height: var(--altura-controle); padding-block: 9px; resize: none; line-height: 1.4; overflow: hidden; transition: height 0.2s ease, border-color var(--transicao), box-shadow var(--transicao); }
 textarea.campo-linha:focus { height: 84px; }
 @media (prefers-reduced-motion: reduce) { textarea.campo-linha { transition: none; } }
-/* Botão suave: ação secundária tonal (contêiner secundário), em pílula, com ícone. */
+/* Botão suave: ação secundária tonal (contêiner secundário), em pílula, com ícone. Fica 8px mais
+   baixo que o controle para caber dentro do campo; o ::after estende a área de toque à altura do
+   controle (44px na área interna, 48px no público) sem mudar o desenho. */
 .botao-suave {
-  display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 12px;
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 12px;
   background: var(--secundario-superficie); border: 1px solid transparent; border-radius: var(--raio-pilula);
   font-size: 0.8125em; font-weight: 500; color: var(--secundario-superficie-texto); cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao), transform var(--transicao);
 }
+.botao-suave::after { content: ""; position: absolute; inset: -4px 0; }
 .botao-suave > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .botao-suave .icone { width: 14px; height: 14px; }
 .botao-suave:hover { background: var(--superficie-maxima); }
@@ -351,7 +354,7 @@ textarea.campo-linha:focus { height: 84px; }
 .paginacao-resumo { font-size: 0.875em; color: var(--texto-secundario); }
 .paginacao-lista { display: flex; flex-wrap: wrap; gap: var(--esp-meio); list-style: none; margin: 0; padding: 0; }
 .paginacao-link {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 40px; height: 40px; padding: 0 12px;
+  display: inline-flex; align-items: center; justify-content: center; min-width: var(--altura-controle); height: var(--altura-controle); padding: 0 12px;
   border: 1px solid transparent; border-radius: var(--raio-pilula); background: none; color: var(--texto); font-size: 0.9em;
 }
 a.paginacao-link:hover { background: var(--superficie); color: var(--texto); text-decoration: none; }
@@ -527,9 +530,11 @@ html:not(.js) .filtros-alternar { display: none; }
 /* A quantidade é o que a pessoa confere: número em Geist 600, algarismos de largura fixa e os
    sinais de − e + no traço mais grosso, na cor do texto (no cinza secundário pareciam apagados). */
 .quantidade:hover { border-color: var(--texto); }
-.quantidade .botao-icone { min-height: 0; width: 44px; height: var(--altura-controle); border: 0; border-radius: 0; background: none; color: var(--texto); }
+.quantidade .botao-icone { min-height: 0; width: var(--altura-controle); height: var(--altura-controle); border: 0; border-radius: 0; background: none; color: var(--texto); }
 .quantidade .botao-icone .icone { stroke-width: 2; }
 .quantidade .botao-icone:hover { background: var(--superficie-alta); color: var(--texto); }
+/* Anel interno: o overflow da .quantidade cortaria o anel de fora do :focus-visible comum. */
+.quantidade .botao-icone:focus-visible { box-shadow: inset 0 0 0 2px var(--destaque); }
 .quantidade-campo {
   width: 64px; min-height: var(--altura-controle); border: 0; border-inline: 1px solid var(--borda); text-align: center; background: none;
   font-family: var(--fonte-titulo); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--texto);
