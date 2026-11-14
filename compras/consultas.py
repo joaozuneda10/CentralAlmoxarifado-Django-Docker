@@ -291,6 +291,20 @@ def fila_entradas() -> FilaEntradas:
     )
 
 
+def contar_recebimentos_travados(com_em_lancamento: bool) -> int:
+    """Recebimentos em `VERIFICAR` ou `ERRO` e, com `com_em_lancamento`, os `EM_LANCAMENTO` (o
+    contador do item Automações, spec 015: durante uma execução de entradas, o em lançamento é o
+    robô trabalhando)."""
+    estados = [Recebimento.Status.VERIFICAR, Recebimento.Status.ERRO]
+    if com_em_lancamento:
+        estados.append(Recebimento.Status.EM_LANCAMENTO)
+    return Recebimento.objects.filter(status__in=estados).count()
+
+
+def ha_recebimento_em_lancamento() -> bool:
+    return Recebimento.objects.filter(status=Recebimento.Status.EM_LANCAMENTO).exists()
+
+
 def liberacao(recebimento: Recebimento) -> list[str]:
     """As faltas das três provas para liberar (ou cancelar) um recebimento em verificação (R16);
     vazia quando pode. Só lê: `regras.tres_provas` decide, com o que o banco tem:

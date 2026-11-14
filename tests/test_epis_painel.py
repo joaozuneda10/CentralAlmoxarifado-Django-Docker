@@ -86,7 +86,7 @@ def test_situacao_aguardando_atendimento_nao_inclui_nao_autorizado_nem_recusado(
 def test_o_atalho_atender_conta_so_o_que_pode_ser_atendido(client, almox, tres):
     outro = criar_pedido()
     html = client.get(PAINEL).text
-    atalho = html.partition('class="atalho-numero">')[2].partition("<")[0]
+    atalho = html.partition('class="indicador-numero">')[2].partition("<")[0].strip()
     assert atalho == "2"  # o autorizado e o pedido de outro formulário
     assert outro.numero
 

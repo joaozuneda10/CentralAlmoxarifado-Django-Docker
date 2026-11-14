@@ -769,6 +769,22 @@
     revelarConfirmacao();
   });
 
+  // "Imprimir recibo" pelo ⋮ da lista do painel (spec 015): o detalhe abre com `?imprimir=1`, e o
+  // servidor marca o botão (`data-imprimir-ao-abrir`) só com o recibo ainda não impresso. No `load`
+  // (com as fontes já carregadas), ele é acionado uma vez, e o parâmetro sai da barra, mantendo o
+  // estado de histórico do HTMX: recarregar a página ou voltar a ela não imprime de novo.
+  window.addEventListener("load", function () {
+    var url = new URL(window.location.href);
+    if (url.searchParams.has("imprimir")) {
+      url.searchParams.delete("imprimir");
+      history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+    }
+    var botao = document.querySelector("[data-imprimir-ao-abrir]");
+    if (!botao) return;
+    botao.removeAttribute("data-imprimir-ao-abrir");
+    botao.click();
+  });
+
   // O pedido em montagem só existe na página: sair dela (link, voltar, fechar) com material no
   // pedido pede confirmação. O envio sem HTMX (sem JavaScript não há aviso) e a tela de sucesso,
   // que já não tem o carrinho, saem direto. A saída avulsa não tem `data-formulario-pedido`.

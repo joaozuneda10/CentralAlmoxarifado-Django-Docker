@@ -617,51 +617,27 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 /* Rodapé do atendimento: o botão e o aviso do lote na mesma linha. */
 .rodape-saida { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 
-/* Atalhos do painel: cartões compactos, com o número à esquerda e o rótulo, os avisos e o botão
-   numa coluna ao lado. Com pendência, a mesma linguagem do cartão de situação (borda azul sutil e
-   filete à esquerda); em dia, o cartão fica apagado e o botão, desabilitado. As ações extras
-   (simular, atualizar o catálogo) ficam na linha do título. */
-.atalhos-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-1) var(--esp-2); margin-bottom: var(--esp-2); }
-.atalhos-topo .cartao-titulo { margin: 0; }
-.atalhos-grade { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 12px; }
-.atalho {
-  --atalho-recuo: calc(2.25rem + 12px); /* coluna do número + o vão: onde começa o corpo */
-  display: grid; grid-template-columns: 2.25rem minmax(0, 1fr); gap: 12px; padding: 14px var(--esp-2);
-  background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-cartao);
-}
-/* Os cartões da linha têm a mesma altura (a grade estica) e o botão vai para o pé do corpo: os
-   botões ficam alinhados mesmo com rótulos de uma ou duas linhas. */
-.atalho-corpo { display: flex; flex-direction: column; align-items: flex-start; gap: 6px; min-width: 0; }
-.atalho-corpo > .botao, .atalho-corpo > .atalho-acao { margin-top: auto; }
-.atalho-numero { margin: 0; font-family: var(--fonte-titulo); font-size: 26px; font-weight: 700; line-height: 1.1; letter-spacing: -0.02em; color: var(--texto-suave); }
-.atalho-mais .icone { width: 24px; height: 24px; stroke-width: 1.5; }
-.atalho-rotulo { margin: 0 0 4px; font-size: 0.9375em; line-height: 1.4; color: var(--texto-secundario); }
-.atalho .botao { min-height: 34px; padding: 0 12px; gap: 6px; font-size: 0.875em; }
-.atalho .botao .icone { width: 16px; height: 16px; }
-/* Com algo a fazer (`atalho-pendente`) ou sempre à mão (`atalho-ativo`, a saída avulsa): filete azul. */
-.atalho-pendente, .atalho-ativo { border-color: color-mix(in srgb, var(--destaque) 28%, transparent); box-shadow: inset 3px 0 0 var(--destaque); }
-.atalho-pendente .atalho-numero, .atalho-ativo .atalho-numero { color: var(--texto); }
-.atalho-pendente .atalho-rotulo, .atalho-ativo .atalho-rotulo { color: var(--texto); }
-.atalho .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; }
-/* A dica do "Lançar no SCPI" tem a largura do conteúdo do cartão, nunca mais: no cartão da
-   última coluna, ancorada no botão e mais larga que ele, passaria da borda da tela. */
-.atalho .dica-flutuante { align-self: stretch; }
-.atalho .dica-flutuante-texto { left: calc(-1 * var(--atalho-recuo)); width: calc(100% + var(--atalho-recuo)); max-width: none; }
-.atalho .dica-flutuante-texto::after { left: calc(var(--atalho-recuo) + 20px); }
-.atalho-alerta { text-decoration: none; }
-.atalho-alerta:hover { text-decoration: none; }
-.atalho-alerta .icone { width: 14px; height: 14px; }
-@media (max-width: 640px) { .atalhos-grade { gap: var(--esp-1); } }
-
-/* Saúde do catálogo no painel: secundária, cada item em até duas linhas; o texto inteiro fica na
-   página do catálogo. */
-.saude-painel-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-1); margin-bottom: var(--esp-2); }
-.saude-painel-topo .cartao-titulo { margin: 0; }
-.saude-painel-topo .botao { gap: 6px; }
-.saude-painel .saude li > span:last-child {
+/* Saúde do catálogo no painel (como no protótipo): a caixa com contorno, o título e, em cada item,
+   o ícone redondo no tom do nível e a palavra em negrito ("Erro."); cada item em até duas linhas, e
+   o texto inteiro fica na página do catálogo. */
+.saude-painel { padding: 0; overflow: hidden; }
+.saude-painel-topo { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: var(--esp-1); padding: var(--esp-2) 12px var(--esp-1) var(--esp-3); }
+.saude-painel-topo .cartao-titulo { margin: 0; font-size: 16px; letter-spacing: -0.01em; }
+.saude-painel-topo .botao { gap: 6px; font-size: 13px; }
+.saude-painel-lista { margin: 0; padding: 0 0 var(--esp-1); list-style: none; }
+.saude-painel-lista li { display: flex; align-items: flex-start; gap: var(--esp-2); padding: 10px var(--esp-3); }
+.saude-painel-lista li:hover { background: var(--superficie); }
+.saude-painel-icone { display: grid; place-items: center; flex: none; width: 32px; height: 32px; border-radius: 50%; }
+.saude-painel-icone .icone { width: 16px; height: 16px; }
+.saude-painel-icone-erro { background: var(--erro-superficie); color: var(--erro-texto); }
+.saude-painel-icone-aviso { background: var(--aviso-superficie); color: var(--aviso-texto); }
+.saude-painel-icone-ok { background: var(--ok-superficie); color: var(--ok-texto); }
+.saude-painel-texto {
   display: -webkit-box; -webkit-box-orient: vertical; -webkit-line-clamp: 2; line-clamp: 2; overflow: hidden;
-  font-size: 0.9375em; color: var(--texto-secundario); overflow-wrap: anywhere;
+  padding-top: 5px; font-size: 14px; color: var(--texto); overflow-wrap: anywhere;
 }
+.saude-painel-texto b { margin-right: 4px; font-weight: 600; }
+.saude-painel-vazio { padding: 0 var(--esp-3) var(--esp-2); }
 
 /* Lista do painel. A linha inteira leva ao detalhe (o link do Nº se estende sobre ela, selos
    incluídos: nenhum deles tem ação própria). As colunas de texto têm largura mínima, para o
@@ -673,24 +649,41 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .tabela-pedidos .col-numero a:focus-visible::after { outline: 2px solid var(--destaque); outline-offset: -2px; border-radius: var(--raio-controle); }
 .tabela-pedidos .col-pessoa { min-width: 11rem; }
 .tabela-pedidos .col-destino { min-width: 13rem; }
-/* Situação e SCPI numa coluna só: o selo do SCPI embaixo do da situação. */
-.situacao-selos { display: flex; flex-direction: column; align-items: flex-start; gap: var(--esp-meio); }
+/* Tabela do painel (como no protótipo): cabeçalho de 52px, a primeira coluna com 24px de recuo,
+   células de 12px por 16px alinhadas ao meio e linhas de apoio (`cel-sub`) embaixo do texto. */
+.tabela-painel { font-size: 14px; }
+.tabela-painel th { height: 52px; padding: 0 var(--esp-2); background: var(--fundo); }
+.tabela-painel td { padding: 12px var(--esp-2); vertical-align: middle; }
+.tabela-painel th:first-child, .tabela-painel td:first-child { padding-left: var(--esp-3); }
+.tabela-painel .numero-pedido { color: var(--destaque); font-size: 13px; font-weight: 500; }
+.tabela-painel .tabela-data { color: var(--texto); font-variant-numeric: tabular-nums; }
+.tabela-painel .col-data .cel-sub { font-variant-numeric: tabular-nums; }
+/* Os selos da lista: 24px de altura, como no protótipo. */
+.tabela-painel .selo { height: 24px; padding: 0 8px 0 6px; gap: 5px; font-size: 12.5px; line-height: 1; }
+/* Situação: o selo e, embaixo, "Recibo não impresso" com o ícone da impressora. */
+.tabela-painel .col-situacao .selo { display: inline-flex; }
+.recibo-pendente { display: flex; align-items: center; gap: 6px; margin-top: 4px; color: var(--aviso-texto); font-size: 12.5px; line-height: 1.4; }
+.recibo-pendente .icone { width: 14px; height: 14px; flex: none; }
+/* O ⋮ fica no fim da linha, acima do link que a cobre (componentes.css, `menu-acoes`). */
+.tabela-painel .col-acoes { width: 1%; padding-block: 0; padding-left: 0; padding-right: 12px; text-align: right; vertical-align: middle; }
 /* A origem da lista do painel: texto curto embaixo do Nº, na tabela e no cartão. */
-.tabela-painel .numero-origem { display: block; margin-top: 2px; font-size: 0.8125em; font-weight: 400; line-height: 1.35; }
+.tabela-painel .numero-origem { display: block; margin-top: 1px; font-size: 12.5px; font-weight: 400; line-height: 1.4; color: var(--texto-suave); }
 /* Lista do painel em tabela: colunas de largura fixa (as do `colgroup`; Pessoa e Destino dividem o
    resto), para os pedidos da página não as mexerem. Cada largura é o maior conteúdo da coluna mais
    o padding. */
-@container (width > 720px) {
-  .tabela-painel { table-layout: fixed; min-width: 51rem; }
-  .tabela-painel .largura-numero { width: 6.75rem; }
-  .tabela-painel .largura-data { width: 9.25rem; }
-  .tabela-painel .largura-situacao { width: 13rem; }
+@container (width > 1040px) {
+  .tabela-painel { table-layout: fixed; min-width: 65rem; }
+  .tabela-painel .largura-numero { width: 8.5rem; }
+  .tabela-painel .largura-data { width: 7.5rem; }
+  .tabela-painel .largura-situacao { width: 14rem; }
+  .tabela-painel .largura-scpi { width: 12.5rem; }
+  .tabela-painel .largura-acoes { width: 3.5rem; }
   .tabela-painel .col-pessoa, .tabela-painel .col-destino { min-width: 0; overflow-wrap: anywhere; }
   /* O selo raro mais largo que a coluna (lançado em várias requisições) quebra dentro dela. */
-  .tabela-painel .col-situacao .selo { max-width: 100%; white-space: normal; }
+  .tabela-painel .col-situacao .selo, .tabela-painel .col-scpi .selo { max-width: 100%; white-space: normal; }
 }
 /* Estreita (celular, ou tela pequena com a barra lateral): cada pedido vira um cartão. */
-@container (max-width: 720px) {
+@container (max-width: 1040px) {
   .tabela-pedidos thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
   .tabela-pedidos, .tabela-pedidos tbody { display: block; }
   .tabela-pedidos tbody tr { display: flex; flex-wrap: wrap; align-items: center; gap: 6px var(--esp-1); padding: 14px var(--esp-1); border-bottom: 1px solid var(--borda); }
@@ -708,15 +701,25 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
   .tabela-painel .col-numero, .tabela-painel .col-data, .tabela-painel .col-situacao { align-self: baseline; }
   /* O que complementa a linha (materiais, quem decidiu, motivo): embaixo, em texto menor. */
   .tabela-pedidos .col-extra { order: 7; flex-basis: 100%; font-size: 0.875em; color: var(--texto-secundario); }
-  /* No cartão, os dois selos voltam a ficar lado a lado, quebrando linha se faltar largura. */
-  .situacao-selos { flex-direction: row; flex-wrap: wrap; gap: 6px var(--esp-1); }
+  /* No cartão, os selos da situação e do SCPI ficam lado a lado, e o recibo não impresso embaixo
+     deles; o ⋮ vai ao canto superior direito, e o Nº deixa o lugar dele livre. */
+  .tabela-painel .col-situacao { display: contents; }
+  .tabela-painel .col-situacao > .selo { order: 6; }
+  .tabela-painel .col-scpi { order: 6; }
+  .tabela-painel .recibo-pendente { order: 7; flex-basis: 100%; margin-top: 0; }
+  .tabela-painel tbody tr { padding: 14px 52px 14px var(--esp-2); }
+  .tabela-painel td, .tabela-painel td:first-child { padding: 0; }
+  .tabela-painel .col-data .cel-sub { display: inline; margin: 0 0 0 4px; }
+  .tabela-painel .col-acoes { position: absolute; top: 6px; right: 0; width: auto; }
 }
 /* No tablet, o Nº com os selos ao lado na primeira linha; embaixo, quem pediu e o destino, com a data
    no canto inferior direito (solta do fluxo, para os selos, que quebram linha, não a empurrarem).
    No celular, os selos ficam embaixo, como acima. */
-@container (min-width: 481px) and (max-width: 720px) {
+@container (min-width: 481px) and (max-width: 1040px) {
   .tabela-pedidos .col-numero { flex: none; margin-right: var(--esp-meio); }
   .tabela-pedidos .col-situacao { order: 3; }
+  .tabela-painel .col-situacao > .selo, .tabela-painel .col-scpi { order: 3; }
+  .tabela-painel .recibo-pendente { order: 4; }
   .tabela-pedidos .col-data { position: absolute; right: var(--esp-1); bottom: 14px; white-space: nowrap; }
   .tabela-pedidos .col-pessoa { order: 5; margin-top: 2px; }
   .tabela-pedidos .col-destino { order: 6; }
@@ -980,3 +983,6 @@ html:not(.js) [data-quantidade] { display: none; }
 .meu-pedido-itens > li { display: grid; gap: 2px; padding-block: var(--esp-1); border-bottom: 1px solid var(--borda); }
 .meu-pedido-itens > li:last-child { border-bottom: 0; }
 .meu-pedido-itens .icone { width: 14px; height: 14px; vertical-align: -2px; }
+
+/* Painel: os blocos (indicadores, filtros, lista e saúde) com 20px entre eles, como no protótipo. */
+.painel-pilha, .pedidos-bloco { display: grid; grid-template-columns: minmax(0, 1fr); gap: 20px; }

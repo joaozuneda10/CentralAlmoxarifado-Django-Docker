@@ -151,20 +151,20 @@ flutuante, e os quatro comportamentos novos da decisão Q1 (`contracts/painel.md
 **Independent Test**: com dados de teste, os números, os filtros e os destinos são os mesmos de antes;
 os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do quickstart passam.
 
-- [ ] T029 [US2] Com a entrega 1 integrada em `develop`, criar `claude/design-painel` a partir de `develop` atualizada (como em T001)
+- [X] T029 [US2] Com a entrega 1 integrada em `develop`, criar `claude/design-painel` a partir de `develop` atualizada (como em T001)
 
 ### Tests for User Story 2
 
 > Escrever primeiro e ver falhar.
 
-- [ ] T030 [P] [US2] Criar `tests/test_painel_indicadores.py`:
+- [X] T030 [P] [US2] Criar `tests/test_painel_indicadores.py`:
   - `regras.texto_envio_mais_antigo` (puro): "enviado hoje", "enviado ontem", "há N dias" e a virada de mês;
   - o "mais antigo" ignora os aguardando autorização e os recusados, e some com zero pedido;
   - "+N aguardando autorização" conta só os `AGUARDANDO`, leva a `?autorizacao=aguardando#pedidos` e some com zero;
   - o cartão da saúde soma erros e avisos e leva a `#saude`, e a seção tem `id="saude"`;
   - o cartão do robô (com `operar_automacoes`) leva a `automacoes:pagina?aba=lancamento` e mantém o "N para conferir" de hoje, com o link para as travas;
   - os textos com zero continuam os de hoje.
-- [ ] T031 [P] [US2] Criar `tests/test_contadores_menu.py` (research R7, `data-model.md`):
+- [X] T031 [P] [US2] Criar `tests/test_contadores_menu.py` (research R7, `data-model.md`):
   - **quem vê**: o contador do Painel e o de Automações aparecem só para quem abre cada item, e nenhum aparece com zero;
   - **Painel**: o contador é igual ao cartão "Aguardando atendimento";
   - **Automações**: soma os lotes com linha `VERIFICAR` ou `ERRO` e os recebimentos de compra `VERIFICAR` ou `ERRO`;
@@ -173,7 +173,7 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - **cartão do robô**: continua contando o `EM_LANCAMENTO` sempre;
   - **quem só recebe compras** (`usuario_com` só com `contas.receber_compras`): não vê contador de Painel nem de Automações;
   - **sem contagem dupla**: o painel não conta duas vezes (`django_assert_num_queries` comparando a página com e sem os contadores na memória).
-- [ ] T032 [P] [US2] Criar `tests/test_painel_menu_acoes.py`:
+- [X] T032 [P] [US2] Criar `tests/test_painel_menu_acoes.py`:
   - pedido aguardando: só "Abrir pedido";
   - atendido com o lote `PENDENTE`: "Abrir pedido", "Imprimir recibo" (com `?imprimir=1`) e "Editar atendimento";
   - atendido e lançado: sem "Editar atendimento";
@@ -181,7 +181,7 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - saída avulsa: "Editar saída";
   - com 5 linhas ou mais na página, as duas últimas têm `menu-acoes-acima`; com menos de 5, nenhuma tem, e a `.tabela-rolagem` tem `tabela-rolagem-curta`;
   - o `summary` tem o `aria-label` "Ações do pedido <número>".
-- [ ] T033 [P] [US2] Criar `tests/test_painel_filtros.py`:
+- [X] T033 [P] [US2] Criar `tests/test_painel_filtros.py`:
   - a situação é um grupo de rádios `name="situacao"`, com a legenda "Situação", e o rádio marcado é o da URL;
   - cada valor de `situacao` devolve o mesmo resultado de hoje, com e sem `HX-Request`;
   - com `?origem=<valor>`, o rótulo do chip mostra o valor;
@@ -190,37 +190,37 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - o `hx-trigger` contém `input delay:400ms from:#id_q`;
   - o primeiro `button[type=submit]` do formulário é o "Filtrar", sem `name`;
   - o `<form>` do "Lançar no SCPI" não fica dentro do `<form id="filtros-painel">`.
-- [ ] T034 [P] [US2] Criar `tests/test_imprimir_pela_lista.py`:
+- [X] T034 [P] [US2] Criar `tests/test_imprimir_pela_lista.py`:
   - `GET pedidos:detalhe?imprimir=1` marca o botão `[data-imprimir]` com `data-imprimir-ao-abrir` só com atendimento e `recibo_impresso_em` nulo;
   - o campo `voltar` do diálogo sai sem o parâmetro `imprimir`;
   - abrir a página não grava nada (contagem de `Atendimento.recibo_impresso_em` nula igual antes e depois);
   - sem atendimento, o parâmetro é ignorado.
-- [ ] T035 [US2] Reescrever as asserções de markup de `tests/test_painel.py` (linhas 223-330: `cartao atalhos`, `atalho-numero`, "Atalhos", `filtros-recolhiveis`, `data-fechar-filtros`) e de `tests/test_epis_painel.py` (linha 89: `atalho-numero`) para a estrutura nova: `indicador-numero`, a ordem dos cartões e os mesmos links. Conferir **os mesmos números e os mesmos destinos** de antes (SC-001) e registrar no PR cada asserção reescrita
+- [X] T035 [US2] Reescrever as asserções de markup de `tests/test_painel.py` (linhas 223-330: `cartao atalhos`, `atalho-numero`, "Atalhos", `filtros-recolhiveis`, `data-fechar-filtros`) e de `tests/test_epis_painel.py` (linha 89: `atalho-numero`) para a estrutura nova: `indicador-numero`, a ordem dos cartões e os mesmos links. Conferir **os mesmos números e os mesmos destinos** de antes (SC-001) e registrar no PR cada asserção reescrita
 
 ### Implementation for User Story 2
 
-- [ ] T036 [P] [US2] Implementar `texto_envio_mais_antigo(data_envio: date, hoje: date) -> str` em `pedidos/regras.py`. É pura e conta dias de calendário: 0 → "enviado hoje", 1 → "enviado ontem", N → "há N dias"
-- [ ] T037 [P] [US2] Em `pedidos/consultas.py`:
+- [X] T036 [P] [US2] Implementar `texto_envio_mais_antigo(data_envio: date, hoje: date) -> str` em `pedidos/regras.py`. É pura e conta dias de calendário: 0 → "enviado hoje", 1 → "enviado ontem", N → "há N dias"
+- [X] T037 [P] [US2] Em `pedidos/consultas.py`:
   - acrescentar `envio_mais_antigo_aguardando()`: `Min("criado_em")` sobre `filtrar_situacao(Pedido.objects.all(), "aguardando")`, ou `None`;
   - acrescentar `contar_aguardando_autorizacao()`: `Pedido` com `autorizacao__situacao=AGUARDANDO`;
   - dar a `contar_lotes_travados` o parâmetro `com_em_lancamento: bool = True`, que com `False` conta só os lotes distintos com linha `VERIFICAR` ou `ERRO`. O padrão mantém o comportamento de hoje.
-- [ ] T038 [P] [US2] Acrescentar `contar_recebimentos_travados(com_em_lancamento: bool) -> int` em `compras/consultas.py`. Conta os `Recebimento` em `VERIFICAR` ou `ERRO`, e também os `EM_LANCAMENTO` com `com_em_lancamento=True`
-- [ ] T039 [US2] Em `pedidos/consultas.py`, trocar o widget de `FiltrosPainel.situacao` por `forms.RadioSelect`, com as mesmas opções e o valor vazio "Todas" (`contracts/painel.md`)
-- [ ] T040 [US2] Implementar `contadores(request)` em `interface/navegacao.py` (research R7), que guarda as parcelas na própria requisição e calcula cada uma só quando é lida:
+- [X] T038 [P] [US2] Acrescentar `contar_recebimentos_travados(com_em_lancamento: bool) -> int` em `compras/consultas.py`. Conta os `Recebimento` em `VERIFICAR` ou `ERRO`, e também os `EM_LANCAMENTO` com `com_em_lancamento=True`
+- [X] T039 [US2] Em `pedidos/consultas.py`, trocar o widget de `FiltrosPainel.situacao` por `forms.RadioSelect`, com as mesmas opções e o valor vazio "Todas" (`contracts/painel.md`)
+- [X] T040 [US2] Implementar `contadores(request)` em `interface/navegacao.py` (research R7), que guarda as parcelas na própria requisição e calcula cada uma só quando é lida:
   - pedidos aguardando;
   - requisições travadas como hoje (`contar_lotes_travados()`);
   - requisições a conferir: `contar_lotes_travados(com_em_lancamento=False)` mais os lotes `EM_LANCAMENTO` quando `ExecucaoRobo.em_andamento(agora, robo=SAIDAS)` está vazio, sem contar duas vezes o lote que já entrou;
   - recebimentos a conferir: a mesma regra com `ENTRADAS`. A conferência da execução só roda se houver algo `EM_LANCAMENTO`.
 
   As importações de `pedidos.consultas` e `compras.consultas` ficam dentro da função. O context processor `menu` passa a dar a cada item o `contador`: Painel = aguardando; Automações = requisições a conferir + recebimentos a conferir. Só para quem abre o item, e nada com zero. O `ItemMenu` de Compras troca o ícone `caixa` por `caminhao`.
-- [ ] T041 [US2] Reescrever `interface/templates/interface/_menu.html` e a casca em `interface/static/interface/css/layouts.css` (research R6):
+- [X] T041 [US2] Reescrever `interface/templates/interface/_menu.html` e a casca em `interface/static/interface/css/layouts.css` (research R6):
   - **acima de 1286px**: menu estreito de 88px, com ícone sobre rótulo e o item atual na pílula tonal (`aria-current="page"`). O `app-menu-contador` vai depois do ícone, com o número `aria-hidden` e o texto para o leitor de tela (", 2 para atender"; ", 1 trava para conferir" em Automações). A lista de destinos tem `overflow-y: auto`, e a marca (só o ícone) e a conta ficam presas;
   - **conta**: a `app-conta-avatar` com as iniciais e, em `title` e em texto escondido, o nome e a matrícula; o "Sair" só com ícone e `aria-label`, no formulário POST único de hoje;
   - **até 1286px**: o cabeçalho com o botão de menu de hoje, sem mudança no `shell.js`.
 
   Mantém o markup que o `test_menu_com_icone_e_botao_acessivel` confere.
-- [ ] T042 [US2] Em `pedidos/views/almoxarifado.py`, fazer o `painel` montar o contexto de `contracts/painel.md`: `pedidos_aguardando` e `lancamento_travados` vindos de `interface.navegacao.contadores(request)`, mais `envio_mais_antigo`, `aguardando_autorizacao`, `saude_erros` e `saude_avisos`. O trecho do HTMX não ganha chave nova
-- [ ] T043 [US2] Reescrever `pedidos/templates/pedidos/painel.html` na ordem de `contracts/painel.md`:
+- [X] T042 [US2] Em `pedidos/views/almoxarifado.py`, fazer o `painel` montar o contexto de `contracts/painel.md`: `pedidos_aguardando` e `lancamento_travados` vindos de `interface.navegacao.contadores(request)`, mais `envio_mais_antigo`, `aguardando_autorizacao`, `saude_erros` e `saude_avisos`. O trecho do HTMX não ganha chave nova
+- [X] T043 [US2] Reescrever `pedidos/templates/pedidos/painel.html` na ordem de `contracts/painel.md`:
   - o cabeçalho com a busca `q` em pílula, fora do formulário e com `form="filtros-painel"`;
   - a `section.indicadores`, com os quatro cartões, cada um com os seus formulários próprios. O do robô mantém o formulário, o bloqueio, a dica e o cadeado de hoje;
   - o `<form id="filtros-painel">` com:
@@ -232,32 +232,32 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - o `#lista-pedidos`;
   - a `section#saude`;
   - o `a.fab.nao-imprimir` para `pedidos:avulsa`.
-- [ ] T044 [US2] Acrescentar a `interface/static/interface/css/componentes.css` os componentes da entrega 2 (`contracts/componentes.md`):
+- [X] T044 [US2] Acrescentar a `interface/static/interface/css/componentes.css` os componentes da entrega 2 (`contracts/componentes.md`):
   - `indicadores`, `indicador`, `indicador-critico`, `indicador-rotulo`, `indicador-numero`, `indicador-nota`, `indicador-nota-alerta`, `indicador-acao` e o link que cobre o cartão, com as ações acima dele; contorno de destaque com `aria-current="true"`;
   - `chips`, `chip`, `chip-entrada`, `chip-texto` (com `.chip-entrada:checked + .chip-texto`), com 32px de desenho e 44px de área de toque;
   - `chip-menu` e `chip-menu-painel`;
   - `menu-acoes`, `menu-acoes-acima` e `menu-acoes-lista`, com `z-index` acima do `a::after` da linha, e `tabela-rolagem-curta` com a altura mínima do menu aberto;
   - `fab`, com recheio embaixo da página para não cobrir a paginação;
   - `app-menu-contador` e `app-conta-avatar`.
-- [ ] T045 [US2] Reescrever `pedidos/templates/pedidos/_painel_lista.html`:
+- [X] T045 [US2] Reescrever `pedidos/templates/pedidos/_painel_lista.html`:
   - as colunas Situação e SCPI separadas, com os selos de sempre;
   - "Recibo não impresso", com o ícone da impressora, quando `a.recibo_impresso_em` é nulo;
   - o `details.menu-acoes data-menu` com os itens de `data-model.md` e `menu-acoes-acima` quando a página tem 5 linhas ou mais e `forloop.revcounter <= 2`; com menos de 5, a `.tabela-rolagem` ganha `tabela-rolagem-curta` (`contracts/painel.md`);
   - o link do Nº continua cobrindo a linha;
   - a container query de hoje faz a linha virar cartão, com o ⋮ no canto superior direito.
-- [ ] T046 [P] [US2] Criar `interface/static/interface/js/menus.js` para todo `details[data-menu]`: abrir um fecha os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha. Carregar em `interface/templates/interface/base.html`, no `<head>` com `defer`
-- [ ] T047 [US2] Ajustar `interface/static/interface/js/filtros.js`:
+- [X] T046 [P] [US2] Criar `interface/static/interface/js/menus.js` para todo `details[data-menu]`: abrir um fecha os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha. Carregar em `interface/templates/interface/base.html`, no `<head>` com `defer`
+- [X] T047 [US2] Ajustar `interface/static/interface/js/filtros.js`:
   - no formulário do painel (sem o `data-filtros-alternar`), não recolher nada;
   - depois de cada troca concluída da `#lista-pedidos` (não no `change`), atualizar os rótulos dos `chip-menu` ("Origem: Limpeza") e o `aria-current` dos indicadores pelos valores do formulário, e guardar esses valores como a última troca aplicada;
   - na falha da requisição, devolver os campos do formulário aos valores da última troca aplicada, sem novo envio (`contracts/painel.md`);
   - no histórico de Automações, manter o comportamento de hoje.
-- [ ] T048 [US2] Ajustar a impressão pela lista:
+- [X] T048 [US2] Ajustar a impressão pela lista:
   - **view** (`pedidos/views/almoxarifado.py`): no detalhe, `voltar_sem_imprimir` (o `get_full_path` sem o parâmetro `imprimir`) e o sinal de imprimir ao abrir, só com atendimento e `recibo_impresso_em` nulo;
   - **template** (`pedidos/templates/pedidos/detalhe.html`): o campo `voltar` usa o valor novo, e o botão ganha `data-imprimir-ao-abrir`;
   - **script** (`pedidos/static/pedidos/js/pedidos.js`): no `load`, aciona uma vez o botão com `data-imprimir-ao-abrir` e roda `history.replaceState(history.state, "", url_sem_imprimir)`.
-- [ ] T049 [US2] Atualizar `CLAUDE.md` (menu estreito, contadores e a regra do `EM_LANCAMENTO`, chips de rádio, `filtros.js` no painel, `menus.js` e `?imprimir=1`) e tirar a marca "entrega 2" dos componentes que passaram a existir em `docs/DESIGN.md`
-- [ ] T050 [US2] Gerar as capturas (o painel a 1366×650, com o ⋮ aberto numa linha do meio e na última) e conferir Q-2.1 a Q-2.8. Em especial: os 7 destinos visíveis ou rolando; os chips mantendo o filtro; o "Lançar no SCPI" lançando; o recibo não impresso duas vezes; o ⋮ inteiro na última linha a 375px. Contar as linhas visíveis a 1366×768 com `--contar-linhas` (≥ a base, SC-004)
-- [ ] T051 [US2] Rodar os portões e preparar o PR da entrega 2 (só abrir com o pedido do usuário), com a lista das asserções reescritas (T035)
+- [X] T049 [US2] Atualizar `CLAUDE.md` (menu estreito, contadores e a regra do `EM_LANCAMENTO`, chips de rádio, `filtros.js` no painel, `menus.js` e `?imprimir=1`) e tirar a marca "entrega 2" dos componentes que passaram a existir em `docs/DESIGN.md`
+- [X] T050 [US2] Gerar as capturas (o painel a 1366×650, com o ⋮ aberto numa linha do meio e na última) e conferir Q-2.1 a Q-2.8. Em especial: os 7 destinos visíveis ou rolando; os chips mantendo o filtro; o "Lançar no SCPI" lançando; o recibo não impresso duas vezes; o ⋮ inteiro na última linha a 375px. Contar as linhas visíveis a 1366×768 com `--contar-linhas` (≥ a base, SC-004)
+- [X] T051 [US2] Rodar os portões e preparar o PR da entrega 2 (só abrir com o pedido do usuário), com a lista das asserções reescritas (T035)
 
 **Checkpoint**: casca e painel novos, com os quatro comportamentos testados.
 

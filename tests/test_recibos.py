@@ -100,7 +100,7 @@ def test_links_no_painel_e_no_detalhe(client, logado):
     criar_pedido(atendido=True)
     assert "Nenhum recibo pendente" not in client.get(reverse("pedidos:painel")).text
     painel = client.get(reverse("pedidos:painel")).text
-    assert "recibos para imprimir" in painel and "?recibo=pendente" in painel
+    assert "Recibos para imprimir" in painel and "?recibo=pendente" in painel
     detalhe = client.get(reverse("pedidos:detalhe", args=[p.numero])).text
     assert "Imprimir recibo" in detalhe
 

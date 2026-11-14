@@ -260,12 +260,33 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   elemento original fica escondido e continua guardando o valor e disparando `change` (script
   que troca o valor de um `select` precisa disparar `change`). O `abas.js` (`[data-abas]`, `?aba=` na URL) dá as abas em pasta: a ativa se funde ao primeiro cartão
   do painel. O `filtros.js` recolhe o painel de
-  um `form[data-filtros]` (filtros do painel de pedidos e do histórico de Automações): botão com a contagem, estado lembrado no
-  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. Dois layouts: `base_publico.html` (sem login,
+  um `form[data-filtros]` (filtros do histórico de Automações): botão com a contagem, estado lembrado no
+  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. No
+  `form[data-filtros-estado]` (o painel de pedidos, sempre à vista, em chips) ele só mantém a tela em
+  dia: depois de cada troca concluída da lista, refaz os rótulos dos chips com lista
+  (`data-chip-nome`, "Origem: Limpeza") e o `aria-current` dos indicadores pelo que foi enviado, e
+  guarda isso como a última troca aplicada; na falha da requisição (não no cancelamento pelo
+  `hx-sync="this:replace"`), devolve a ela os campos que ainda estão como foram enviados, sem envio
+  novo (o `select` só redesenha o gatilho, pelo evento `dropdown:atualizar` do `dropdown.js`). O
+  `menus.js` atende todo `details[data-menu]` (o ⋮ das linhas e os chips com lista): abrir um fecha
+  os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha, e escolher num `select`
+  de um chip o fecha; sem JavaScript o `<details>` abre e fecha sozinho. Dois layouts: `base_publico.html` (sem login,
   pensado para o celular) e `base_almoxarifado.html` (barra lateral), os dois com o bloco `voltar`
   (`link-voltar`, acima do rótulo; no almoxarifado, "Voltar ao painel" por padrão, vazio no painel). Cada subprojeto
   acrescenta seus destinos (com ícone) a `ITENS_MENU` em `interface/navegacao.py`; o menu só
-  mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Scripts
+  mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Acima de 1286px a
+  barra lateral é o menu estreito de 88px (a marca num quadrado tonal, ícone sobre rótulo e, no pé,
+  só o Sair com o ícone), e a área interna é branca com a barra do topo (`app-topo`: o nome, a busca
+  da página no bloco `topo_busca` e o usuário com as iniciais), como no protótipo do painel; até
+  1286px, o cabeçalho com o botão de menu de sempre, e a barra do topo só com a busca. Dois itens têm
+  contador (`_CONTADORES`, só para quem abre o item e nunca com zero; o número `aria-hidden` e o texto
+  escondido ", 2 para atender"): o Painel, com os pedidos aguardando atendimento, e Automações, com as
+  travas a conferir, as requisições travadas mais os recebimentos travados, cada um sem o
+  `EM_LANCAMENTO` enquanto o robô do seu tipo roda (aí é o robô trabalhando; a conferência da
+  execução só roda com algum em lançamento). As parcelas vêm de `navegacao.contadores(request)`
+  (`Contadores`, uma vez por requisição e só quando lidas: o trecho do HTMX não conta nada), a mesma
+  memória que o painel usa nos cartões; o cartão do robô conta as requisições travadas com o
+  `EM_LANCAMENTO`, como antes, e não soma as entradas. Scripts
   ficam no `<head>` com `defer`, nunca no `<body>` (o HTMX re-executa scripts do corpo ao
   restaurar o histórico).
 - `pedidos/regras.py` guarda as regras de negócio: funções puras, sem ORM. Vieram de
@@ -357,7 +378,24 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   concordam), detalhe com o atendimento, saída avulsa e recibos (`_recibo.html`, que nunca
   mostra quem registrou). Não há página de recibos: o "Imprimir recibo" do detalhe imprime a própria
   página (`data-imprimir`, escondido sem JavaScript) e, depois, mostra ali a confirmação de impresso
-  (`marcar_impressos`); o atalho do painel filtra os não impressos (`?recibo=pendente`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
+  (`marcar_impressos`); o cartão Recibos do painel filtra os não impressos (`?recibo=pendente`). O
+  "Imprimir recibo" do ⋮ da lista abre o detalhe com `?imprimir=1`: o botão ganha
+  `data-imprimir-ao-abrir` só com atendimento e recibo não impresso, o `pedidos.js` o aciona uma vez
+  no `load` e tira o parâmetro da barra (`history.replaceState`), e o `voltar` da confirmação vem da
+  view sem ele (`voltar_sem_imprimir`), para não imprimir de novo. Nada é marcado sem a confirmação.
+  O painel (spec 015, `contracts/painel.md`, no desenho do protótipo): a busca `q` em pílula na barra do topo, fora do formulário e
+  ligada a ele por `form="filtros-painel"` (o gatilho do HTMX tem `input delay:400ms from:#id_q`);
+  os quatro indicadores (Atendimento, com o envio mais antigo, `regras.texto_envio_mais_antigo`, e
+  "+N aguardando autorização"; Recibos; Lançamento no SCPI, só com `operar_automacoes`, com o
+  formulário do "Lançar no SCPI" e levando à aba do lançamento, não a um filtro; Catálogo, erros mais
+  avisos, levando a `#saude`), numa seção que nunca fica dentro do formulário de filtros; o
+  formulário com a situação em chips de rádio (`RadioSelect`: o valor vale em todo envio), o
+  material, os chips com lista de Origem, SCPI, Recibo, Autorização e Período
+  (`FiltrosPainel.rotulos_dos_chips`) e o "Filtrar" como primeiro botão de envio, sem `name`; a
+  lista com Situação (e "Recibo não impresso") e SCPI em colunas separadas e o ⋮ de cada linha (Abrir
+  pedido; com atendimento, Imprimir recibo; e Editar atendimento ou Editar saída quando
+  `regras.edicao_permitida` deixa, pelas linhas já pré-carregadas); e a saída avulsa no botão
+  flutuante (`fab`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
   `NAO_LANCAR` com a opção marcada): é o contrato com o robô do subprojeto 4. Na área interna a
   unidade é a do cadastro do SCPI (`consultas.unidades_scpi`), nunca a unidade exibida do
   formulário de limpeza (`ItemPedido.unidade`, que só vale para código fora do cadastro), e vai

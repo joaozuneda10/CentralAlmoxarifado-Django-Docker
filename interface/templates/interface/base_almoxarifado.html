@@ -1,25 +1,40 @@
 {% extends "interface/base.html" %}
 {% comment %}
-Layout da área do almoxarifado (login obrigatório): barra lateral (`_menu.html`) e a área de
-trabalho com cabeçalho da página (rotulo, heading, sub, tools), mensagens e o bloco page.
+Layout da área do almoxarifado (login obrigatório): barra lateral (`_menu.html`) e, ao lado, a barra
+do topo (`app-topo`: o nome do sistema, a busca da página no bloco `topo_busca` e o usuário) e a área
+de trabalho com o cabeçalho da página (rotulo, heading, sub, tools), mensagens e o bloco page. Até
+1286px a barra lateral vira o cabeçalho com o botão de menu, e a barra do topo só aparece com a busca.
 {% endcomment %}
+{% load interface_extras %}
 {% block body_class %}ritmo-almox{% endblock %}
 {% block content %}
 <a class="pular" href="#main">Pular para o conteúdo</a>
 <div class="app">
   {% include "interface/_menu.html" %}
-  <main class="app-principal" id="main">
-    <header class="pagina-cabecalho">
-      <div>
-        {% block voltar %}<a class="link-voltar" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a>{% endblock %}
-        <p class="rotulo-secao">{% block rotulo %}{% endblock %}</p>
-        <h1>{% block heading %}{% endblock %}</h1>
-        <p class="pagina-sub">{% block sub %}{% endblock %}</p>
+  <div class="app-coluna">
+    {% with nome=user.get_full_name|default:user.username %}
+    <div class="app-topo">
+      <p class="app-topo-nome">Central Almoxarifado</p>
+      <div class="app-topo-busca">{% block topo_busca %}{% endblock %}</div>
+      <div class="app-topo-usuario">
+        <p class="app-topo-dados"><span class="app-topo-nome-usuario">{{ nome }}</span><span class="mono">{{ user.username }}</span></p>
+        <p class="app-topo-avatar" aria-hidden="true">{% with letras=nome|iniciais %}{% if letras %}{{ letras }}{% else %}{% include "interface/_icone.html" with nome="usuario" %}{% endif %}{% endwith %}</p>
       </div>
-      <div class="pagina-acoes">{% block tools %}{% endblock %}</div>
-    </header>
-    {% include "interface/_mensagens.html" %}
-    {% block page %}{% endblock %}
-  </main>
+    </div>
+    {% endwith %}
+    <main class="app-principal" id="main">
+      <header class="pagina-cabecalho">
+        <div>
+          {% block voltar %}<a class="link-voltar" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a>{% endblock %}
+          <p class="rotulo-secao">{% block rotulo %}{% endblock %}</p>
+          <h1>{% block heading %}{% endblock %}</h1>
+          <p class="pagina-sub">{% block sub %}{% endblock %}</p>
+        </div>
+        <div class="pagina-acoes">{% block tools %}{% endblock %}</div>
+      </header>
+      {% include "interface/_mensagens.html" %}
+      {% block page %}{% endblock %}
+    </main>
+  </div>
 </div>
 {% endblock %}
