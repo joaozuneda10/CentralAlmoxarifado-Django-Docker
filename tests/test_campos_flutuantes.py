@@ -168,3 +168,16 @@ def test_troca_de_senha_com_rotulo_flutuante(client):
         inicio = html.rindex('<div class="campo', 0, html.index(f'id="{campo}"'))
         assert html[inicio:].startswith('<div class="campo campo-flutuante')
         assert 'placeholder=" "' in entrada(html, campo)
+
+
+def test_troca_de_senha_com_erro_tira_a_ajuda(client):
+    # A senha nova igual à atual dá erro no campo: a ajuda sai e só o erro descreve o campo.
+    senha = "senha-antiga-bem-longa-1"
+    usuario = get_user_model().objects.create_user("troca", password=senha)
+    client.force_login(usuario)
+    dados = {"old_password": senha, "new_password1": senha, "new_password2": senha}
+    html = client.post(reverse("trocar_senha"), dados).text
+    tag = entrada(html, "id_new_password1")
+    assert 'aria-describedby="id_new_password1_error"' in tag
+    assert 'id="id_new_password1_error"' in html
+    assert "id_new_password1_helptext" not in html

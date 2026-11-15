@@ -19,7 +19,7 @@ formulário de saída próprio (o do layout é o único da página). Cada erro f
     <label class="campo-rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
     {{ campo }}
     {% if campo.errors %}<p class="campo-erro" id="{{ campo.auto_id }}_error">{{ campo.errors.0 }}</p>{% endif %}
-    {% if campo.name == "new_password1" and campo.help_text %}<div class="campo-dica" id="{{ campo.auto_id }}_helptext">{{ campo.help_text|safe }}</div>{% endif %}
+    {% if campo.name == "new_password1" and campo.help_text and not campo.errors %}<div class="campo-dica" id="{{ campo.auto_id }}_helptext">{{ campo.help_text|safe }}</div>{% endif %}
   </div>
   {% endfor %}
   <div class="acoes"><button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="cadeado" %}Trocar a senha</button></div>

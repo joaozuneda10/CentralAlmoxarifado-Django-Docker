@@ -84,7 +84,7 @@ select.campo-entrada { padding-right: 36px; }
   transition: top var(--transicao), font-size var(--transicao), line-height var(--transicao), color var(--transicao);
 }
 .campo-flutuante:has(.campo-entrada[readonly]) { --campo-fundo: var(--superficie); }
-.campo-flutuante:has(.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)) > .campo-rotulo {
+.campo-flutuante:not(.campo-com-erro):has(.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)) > .campo-rotulo {
   top: calc(var(--altura-campo) / 2); font-size: 16px; line-height: 24px;
 }
 .campo-flutuante:focus-within > .campo-rotulo { color: var(--destaque); }

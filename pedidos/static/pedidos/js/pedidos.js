@@ -1295,6 +1295,9 @@
     var barra = document.querySelector(".app-lateral");
     var noTopo = barra && barra.offsetWidth >= window.innerWidth / 2;
     if (noTopo && getComputedStyle(barra).position === "sticky") topo += barra.getBoundingClientRect().bottom;
+    // Nas telas públicas, o topo fica preso ao rolar (spec 015): o campo para logo abaixo dele.
+    var publico = document.querySelector(".publico-topo");
+    if (publico && getComputedStyle(publico).position === "sticky") topo += publico.offsetHeight;
     return topo;
   }
   function trazerAoTopo(el, depois) {

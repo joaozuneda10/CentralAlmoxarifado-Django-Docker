@@ -73,6 +73,14 @@ class FormularioTrocaSenha(PasswordChangeForm):
         self.fields["new_password2"].label = "Repita a senha nova"
         campos_flutuantes(self)
 
+    def full_clean(self):
+        super().full_clean()
+        # Com erro, só o erro descreve o campo: a ajuda sai do HTML e do `aria-describedby`
+        # (contracts/campos-publicos.md). O widget com o atributo vence o que o Django montaria.
+        for nome in self.errors:
+            if nome in self.fields:
+                self.fields[nome].widget.attrs["aria-describedby"] = f"{self[nome].auto_id}_error"
+
     def clean_new_password1(self):
         nova = self.cleaned_data.get("new_password1")
         if nova and self.user.check_password(nova):
