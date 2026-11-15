@@ -1,6 +1,6 @@
 /* Layouts: público (sem login) e casca da área do almoxarifado; impressão. */
 
-.pular { position: absolute; left: var(--esp-2); top: -100px; z-index: 10; padding: var(--esp-1) var(--esp-2); background: var(--texto); color: var(--fundo); border-radius: var(--raio-controle); }
+.pular { position: absolute; left: var(--esp-2); top: -100px; z-index: 100; padding: var(--esp-1) var(--esp-2); background: var(--texto); color: var(--fundo); border-radius: var(--raio-controle); }
 .pular:focus { top: var(--esp-2); color: var(--fundo); }
 
 .marca { display: inline-flex; align-items: center; gap: 10px; font-family: var(--fonte-titulo); font-weight: 600; letter-spacing: -0.01em; color: var(--texto); }
