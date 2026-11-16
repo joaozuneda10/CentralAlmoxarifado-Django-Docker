@@ -623,10 +623,9 @@ html:not(.js) .filtros-alternar { display: none; }
 .recusa-icone { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--neutro-superficie); color: var(--neutro-texto); }
 .recusa-aviso .recusa-icone { background: var(--aviso-superficie); color: var(--aviso-texto); }
 .recusa-icone .icone { width: 28px; height: 28px; }
-.recusa-texto { max-width: 32em; font-size: 17px; color: var(--texto); }
+.recusa-texto { max-width: 32em; font-size: var(--texto-corpo); color: var(--texto); }
 .recusa-titulo { font-size: 20px; }
 .recusa-titulo + .recusa-texto { margin-top: calc(-1 * var(--esp-1)); color: var(--texto-secundario); }
-.ritmo-almox .recusa-texto { font-size: 15px; }
 .recusa .acoes { margin-top: var(--esp-1); }
 @media (max-width: 600px) { .recusa { padding: 20px var(--esp-2); border-radius: 24px; } }
 
@@ -638,7 +637,7 @@ html:not(.js) .filtros-alternar { display: none; }
 /* Ações de formulário */
 .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
 /* Ação em dois passos (`details.acao-recolhida`): o `summary` é um botão (em geral `botao botao-texto
-   botao-perigo`, "Cancelar…"); aberto, o que confirma fica embaixo, depois de um filete. Sem JavaScript. */
+   botao-perigo`, "Cancelar…", "Não lançar…"); aberto, o que confirma fica embaixo, depois de um filete. */
 .acao-recolhida > summary { list-style: none; width: fit-content; cursor: pointer; }
 .acao-recolhida > summary::-webkit-details-marker { display: none; }
 .acao-recolhida[open] > summary.botao-perigo { background: var(--erro-superficie); }
@@ -709,47 +708,35 @@ a.indicador-nota:hover { color: var(--erro-forte); text-decoration: underline; t
 
 /* Chips (rádios de situação e chips com lista): 32px de desenho e 44px de toque (o `::after`); o
    marcado em `--secundario-superficie`, com o `check`. O rádio fica fora do desenho, mas tem o foco. */
-.chips { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
+.chips, .chips-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
 .chip { position: relative; display: inline-flex; cursor: pointer; }
-label.chip::after { content: ""; position: absolute; inset: -6px 0; }
+label.chip::after, .chip-menu > summary::after, .chip-link::after { content: ""; position: absolute; inset: -6px 0; }
 .chip-entrada { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
-.chip-texto, .chip-menu > summary {
+.chip-texto, .chip-menu > summary, .chip-link {
   display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
   border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
   color: var(--texto-secundario); font-size: 13.5px; font-weight: 500; line-height: 1.2; white-space: nowrap;
   transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
 }
-.chip-texto .icone { display: none; width: 16px; height: 16px; }
-.chip:hover .chip-texto, .chip-menu > summary:hover { background: var(--superficie); }
-.chip-entrada:checked + .chip-texto, .chip-menu > summary.chip-ativo {
+.chip-texto .icone, .chip-link .icone { display: none; flex: none; width: 16px; height: 16px; }
+.chip:hover .chip-texto, .chip-menu > summary:hover, .chip-link:hover { background: var(--superficie); }
+.chip-entrada:checked + .chip-texto, .chip-menu > summary.chip-ativo, .chip-link[aria-current] {
   border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
 }
-.chip-entrada:checked + .chip-texto { padding-left: 10px; }
-.chip-entrada:checked + .chip-texto .icone { display: inline-block; }
+.chip-entrada:checked + .chip-texto, .chip-link[aria-current] { padding-left: 10px; }
+.chip-entrada:checked + .chip-texto .icone, .chip-link[aria-current] .icone { display: inline-block; }
 .chip-entrada:focus-visible + .chip-texto { box-shadow: var(--anel-foco); }
 
-/* Chips em links: o filtro que vai na URL (o veredito da conferência, o formulário da página
-   Formulários). O mesmo desenho do chip de rádio; o atual (`aria-current`) em tonal, com o check. */
-.chips-links { display: flex; flex-wrap: wrap; gap: 12px var(--esp-1); margin: 0; padding: 0; list-style: none; }
-.chip-link {
-  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 6px 14px;
-  border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
-  color: var(--texto-secundario); font-size: 13.5px; font-weight: 500; line-height: 1.2; text-decoration: none;
-  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
-}
-.chip-link::after { content: ""; position: absolute; inset: -6px 0; }
-.chip-link .icone { display: none; flex: none; width: 16px; height: 16px; }
-.chip-link:hover { background: var(--superficie); color: var(--texto); }
-.chip-link[aria-current], .chip-link[aria-current]:hover {
-  padding-left: 10px; border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
-}
-.chip-link[aria-current] .icone { display: inline-block; }
+/* Chips em links (`ul.chips-links`): o filtro que vai na URL (o veredito da conferência, o formulário
+   da página Formulários), no desenho do chip de rádio, com o texto que pode quebrar. */
+.chips-links { list-style: none; }
+.chip-link { position: relative; height: auto; min-height: 32px; padding-block: 6px; white-space: normal; text-decoration: none; }
+.chip-link:not([aria-current]):hover { color: var(--texto); }
 
 /* Chip com lista: o `<details data-menu>` (menus.js) com o campo do filtro num painel flutuante. */
 .chip-menu { position: relative; display: inline-flex; }
 .chip-menu > summary { position: relative; padding-right: 10px; list-style: none; cursor: pointer; }
 .chip-menu > summary::-webkit-details-marker { display: none; }
-.chip-menu > summary::after { content: ""; position: absolute; inset: -6px 0; }
 .chip-menu > summary .icone { width: 16px; height: 16px; transition: transform var(--transicao); }
 .chip-menu[open] > summary .icone:last-child { transform: rotate(180deg); }
 .chip-menu-rotulo { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }

@@ -197,8 +197,7 @@ html:not(.js) .formulario-pedido { display: none; }
 .recibo-quadro { display: grid; gap: var(--esp-1); justify-items: start; align-content: start; padding: var(--esp-2) var(--esp-3); }
 .recibo-quadro-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2); }
 /* Cartão da situação do pedido: o contêiner tonal, com o rótulo e os passos em cor cheia. */
-.recibo-quadro-destaque .rotulo-secao { color: var(--texto); }
-.recibo-quadro-destaque .recibo-passos { color: var(--texto); }
+.recibo-quadro-destaque :is(.rotulo-secao, .recibo-passos) { color: var(--texto); }
 .recibo-passos { margin: 0; padding-left: 1.2em; }
 .recibo-passos li + li { margin-top: var(--esp-meio); }
 .recibo-itens { font-size: 0.9em; }
@@ -445,15 +444,10 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
   background: var(--superficie); border: 1px solid var(--borda); border-radius: var(--raio-controle);
 }
 .trava { display: grid; gap: var(--esp-2); }
-.trava-cabecalho { display: grid; gap: var(--esp-1); }
-/* Entradas (spec 014): a lista das travas de um pedido e a resolução do recebimento em verificação,
-   no espaçamento das travas das saídas ("Cancelar o recebimento…" é a `acao-recolhida` comum). */
-.lista-travas { display: grid; gap: var(--esp-meio); margin: 0; padding-left: var(--esp-3); }
-.acoes-trava { display: grid; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
+/* As entradas (spec 014) usam o mesmo espaçamento das travas das saídas. */
+.trava-cabecalho, .conferir-cabecalho { display: grid; gap: var(--esp-1); }
 .acoes-trava .botao, .trava form .botao { justify-self: start; }
-.conferir-cabecalho { display: grid; gap: var(--esp-1); }
-.conferir-cabecalho p { margin: 0; }
-.resolucao { display: grid; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
+.resolucao, .acoes-trava { display: grid; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 .resolucao-requisicao { display: grid; gap: var(--esp-1); }
 .resolucao-linha { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); }
 .resolucao-linha .campo-entrada { width: 11rem; max-width: 100%; }
@@ -567,7 +561,7 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .conciliacao-lote:last-child { padding-bottom: 0; }
 .conciliacao-lote-topo { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); }
 .conciliacao-lote-titulo { margin: 0; font-size: 1em; }
-.conciliacao-diferencas { margin: 0; padding-left: var(--esp-3); display: grid; gap: var(--esp-meio); }
+.conciliacao-diferencas, .lista-travas { padding-left: var(--esp-3); display: grid; gap: var(--esp-meio); }
 .conciliacao-notas { margin: 0; padding-left: var(--esp-3); }
 .conciliacao-corrigir > summary { width: fit-content; list-style: none; cursor: pointer; }
 .conciliacao-corrigir > summary::-webkit-details-marker { display: none; }
@@ -583,12 +577,6 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .detalhe-tecnico > summary { width: fit-content; cursor: pointer; color: var(--texto-secundario); font-size: 0.875em; }
 .detalhe-tecnico[open] > summary { margin-bottom: var(--esp-1); }
 
-/* "Não lançar" em dois passos: o <summary> parece um botão de texto; aberto, o aviso e a
-   confirmação ficam embaixo, separados por um filete. */
-.confirmar-nao-lancar > summary { list-style: none; width: fit-content; cursor: pointer; }
-.confirmar-nao-lancar > summary::-webkit-details-marker { display: none; }
-.confirmar-nao-lancar[open] > summary { background: var(--erro-superficie); }
-.confirmar-nao-lancar-painel { display: grid; gap: var(--esp-2); margin-top: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 
 /* Rodapé do atendimento: o botão e o aviso do lote na mesma linha. */
 .rodape-saida { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
@@ -705,7 +693,6 @@ tr[data-trocado] .entrega-alterar, tr[data-em-troca] .entrega-alterar { visibili
 .botao-suave[disabled] { opacity: 0.5; cursor: not-allowed; transform: none; }
 
 /* Formulário do lançamento: a barra com a contagem e os dois botões, e a fila com a coluna de marcar. */
-.fila-form { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-2); }
 .fila-barra {
   position: sticky; top: var(--fila-topo, 0px); z-index: 2;
   display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1) var(--esp-2);

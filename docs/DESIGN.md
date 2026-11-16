@@ -193,7 +193,8 @@ Classes que estão nos templates só para um script ou um teste as acharem, sem 
 `aba-vazia` (o painel ainda não carregado da página Formulários, que o `hx-trigger` procura),
 `campo-qtd` (a quantidade do resultado da busca, que o `pedidos.js` escuta), `recibo-pedido` (a
 coluna "Pedido" do recibo, que os testes leem), `menu-acoes-botao` (o `summary` do ⋮, que os testes
-leem) e `material-substitui` (o "substitui …" do de/para na busca da saída avulsa).
+leem) `material-substitui` (o "substitui …" do de/para na busca da saída avulsa) e `confirmar-nao-lancar`
+(o "Não lançar…" das travas, uma `acao-recolhida`, que os testes leem).
 `scripts/conferir_classes.py` (fora da suíte) lista as classes dos templates sem regra de CSS e fora
 desta lista.
 
