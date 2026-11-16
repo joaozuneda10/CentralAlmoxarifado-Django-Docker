@@ -49,6 +49,10 @@ ESPERA_ESCOLHA_MS = 30000  # a janela "Escolha os Itens" e as linhas dela
 # A espera da janela "Pesquisa de empenhos" depois do Confirmar dos itens (nem sempre abre).
 ESPERA_EMPENHOS_MS = 5_000
 
+# O rádio "1- Nº Pedido" de "Pesquisa por" em "Pesquisa Pedido de Compra". Âncoras para não pegar
+# "12- Nº Pedido (Exer. Ant.)" nem "13- Nº Pedido (Origem)".
+PESQUISA_POR_PEDIDO = re.compile(r"^\s*1-\s*N.?\s*Pedido\s*$", re.I)
+
 # Colunas de "Escolha os Itens", pelo texto do cabeçalho (SCPI, 12/11/2026): `exato` para os nomes
 # que são prefixo de outros ("Qtd." também comeca "Qtd. Já Entrou"). R25: confirmar "Qtd. Saldo".
 COLUNAS_TELA = (
@@ -120,6 +124,14 @@ def _clicar(botao, *, espera_ms: int = 4000) -> None:
 def _qtd_br(quantidade) -> str:
     """12 → "12"; 1.5 → "1,5": a quantidade como o SCPI a mostra e aceita."""
     return format(quantidade.normalize(), "f").replace(".", ",")
+
+
+def _marcar_pesquisa_por_pedido(pesquisa) -> None:
+    """Marca "Pesquisa por: 1- Nº Pedido". O SCPI lembra a última opção usada: em 16/11/2026 a
+    janela abriu em "7- Por Produto (Código)" e o número do pedido foi digitado na máscara do
+    código do produto (`005.022.6__`), sem nenhuma linha na grade. O `check()` confere que o rádio
+    ficou marcado e levanta erro se não ficou."""
+    pesquisa.get_by_role("radio", name=PESQUISA_POR_PEDIDO).check()
 
 
 def _numero_pedido(rec: RecebimentoParaLancar) -> tuple[str, str]:
@@ -261,9 +273,11 @@ class NavegadorEntradas(Sessao):
             ).first.click()
             pesquisa = frame.get_by_label(re.compile("Pesquisa Pedido de Compra", re.I))
             pesquisa.wait_for(state="visible", timeout=TIMEOUT)
-            # "Pesquisa por: 1- Nº Pedido" já vem marcado. Os dois campos de texto são, na ordem, o
+            # "Pesquisa por" não vem sempre em "1- Nº Pedido" (o SCPI lembra a última opção): marca
+            # antes de digitar. Os dois campos de texto são, na ordem, o
             # pedido (máscara ____/__: número e ano de dois dígitos) e o ano da pesquisa (SCPI,
             # 12/11/2026; R25: o que o ano da pesquisa faz com um pedido do exercício anterior).
+            _marcar_pesquisa_por_pedido(pesquisa)
             campos = pesquisa.locator('input[type="text"]').filter(visible=True)
             pedido_digitado = f"{numero}{rec.pedido_ano % 100:02d}"
             campos.nth(0).click()

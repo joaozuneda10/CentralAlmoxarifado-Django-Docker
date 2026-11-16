@@ -129,3 +129,32 @@ def test_o_numero_do_pedido_vai_com_5_digitos_e_o_ano():
         (),
     )
     assert lancador_entradas._numero_pedido(rec) == ("00514", "2026")
+
+
+ROTULOS_PESQUISA_POR = [
+    "1- Nº Pedido", "2- Data", "3- Fornecedor (Nome)", "4- Centro de Custo (Nome)",
+    "5- Nº Empenho", "6- Centro de Custo (Código)", "7- Por Produto (Código)",
+    "8- Nº Licitação", "9- Nº Licitação Avulsa", "10- Unidade / Setor (Código)",
+    "11- Unidade / Setor (Descr.)", "12- Nº Pedido (Exer. Ant.)", "13- Nº Pedido (Origem)",
+    "14- Nº Cotação", "15- Observação", "16- Contrato", "17- Nº Solicitação",
+    "18- Proc. Administrativo", "19- Ficha", "20- Desdobro", "21- Fornecedor (CNPJ/CPF)",
+    "22- Interessado/Resp./Req.", "23- Data (Período)", "24- Valor",
+]  # fmt: skip
+
+
+def test_rotulo_da_pesquisa_por_pedido_acha_so_o_rotulo_1():
+    """O SCPI lembra a última opção de "Pesquisa por" (em 16/11/2026 abriu em "7- Por Produto" e
+    o número do pedido foi digitado na máscara do código do produto)."""
+    achados = [r for r in ROTULOS_PESQUISA_POR if lancador_entradas.PESQUISA_POR_PEDIDO.search(r)]
+    assert achados == ["1- Nº Pedido"]
+
+
+def test_marca_a_pesquisa_por_pedido_antes_de_digitar():
+    from unittest.mock import MagicMock
+
+    pesquisa = MagicMock()
+    lancador_entradas._marcar_pesquisa_por_pedido(pesquisa)
+    pesquisa.get_by_role.assert_called_once_with(
+        "radio", name=lancador_entradas.PESQUISA_POR_PEDIDO
+    )
+    pesquisa.get_by_role.return_value.check.assert_called_once_with()
