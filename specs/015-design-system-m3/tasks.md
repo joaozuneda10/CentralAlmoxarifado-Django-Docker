@@ -347,7 +347,7 @@ lateral, com os testes dela verdes; Q-4.1 a Q-4.6.
 
 - [X] T075 Tirar de `docs/DESIGN.md` as últimas marcas de "entrega N", conferir que todo componente descrito existe no código e que todo componente do código está descrito
 - [X] T076 [P] Conferir que nenhuma classe usada nos templates fica sem regra em CSS, exceto as que só servem de gancho a script ou a teste, documentadas como tal em `docs/DESIGN.md`. Usar um comando de conferência à parte, fora da suíte
-- [ ] T077 [P] Conferir o tamanho do CSS: as linhas de `interface/static/interface/css/*.css` e do CSS das apps não crescem mais que 30% sobre a base de T004 (plan.md, "Performance Goals"). Medido: 2014 → 2685 linhas (+33%, +34% sem comentários); a entrega 4 soma 21 linhas e o excesso vem das entregas 1 a 3
+- [x] T077 [P] Conferir o tamanho do CSS: as linhas de `interface/static/interface/css/*.css` e do CSS das apps não crescem mais que 30% sobre a base de T004 (plan.md, "Performance Goals"). Medido: 2014 → 2685 linhas (+33%); depois de enxugar os comentários longos e tirar duas regras sem efeito (`.tabela .tabela-numero`, sem uso, e a repetição de `.recibo-itens th:first-child` no `@media print`), 2587 linhas (+28%). Sem os comentários, 1547 → 2070 linhas de regra (+34%): o limite vale para o total, e as regras cresceram com os componentes das entregas 1 a 3. As capturas de tela e de impressão antes e depois saíram iguais (só a faixa da barra de rolagem varia, como entre duas execuções iguais)
 - [ ] T078 Rodar `scripts/capturar_telas.py` com todas as telas-chave e todo o `specs/015-design-system-m3/quickstart.md`, para a revisão visual final do chefe (SC-008). Rodar os portões e preparar o PR da entrega 4 (só abrir com o pedido do usuário)
 
 ---

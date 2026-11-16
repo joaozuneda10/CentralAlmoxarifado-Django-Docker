@@ -76,7 +76,6 @@
 @media (max-width: 640px) { .formularios { grid-template-columns: minmax(0, 1fr); } }
 
 /* Histórico: o erro técnico e os avisos ficam recolhidos; a coluna não espreme a tabela. */
-.tabela .tabela-numero { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .historico-tipo { white-space: nowrap; }
 .historico-tipo .texto-secundario { display: block; }
 .historico-resultado { min-width: 14rem; }
