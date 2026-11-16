@@ -46,13 +46,13 @@
   </section>
 
   {% if pode_alterar %}
-  <section class="cartao" aria-labelledby="titulo-acoes">
+  <section class="cartao pilha" aria-labelledby="titulo-acoes">
     <h2 class="cartao-titulo" id="titulo-acoes">Ações</h2>
     <div class="acoes">
       <a class="botao botao-secundario" href="{% url 'compras:editar_recebimento' recebimento.pk %}">{% include "interface/_icone.html" with nome="lapis" %}Editar</a>
     </div>
-    <details class="cancelar">
-      <summary>Cancelar este recebimento</summary>
+    <details class="acao-recolhida">
+      <summary class="botao botao-texto botao-perigo">Cancelar este recebimento…</summary>
       <form method="post" action="{% url 'compras:cancelar_recebimento' recebimento.pk %}" class="pilha-larga">
         {% csrf_token %}
         <input type="hidden" name="confirmado" value="1">

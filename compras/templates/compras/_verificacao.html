@@ -59,8 +59,8 @@ falta. Com um robô rodando, a resolução fica indisponível (o servidor recusa
         <label class="campo-check"><input type="checkbox" name="conferi" value="1"><span>Conferi no SCPI: a entrada não foi gravada</span></label>
         <button type="submit" class="botao botao-secundario"{% if not v.pode_liberar %} disabled{% endif %}>Liberar para relançar</button>
       </form>
-      <details class="cancelar-entrada">
-        <summary>Cancelar o recebimento</summary>
+      <details class="acao-recolhida">
+        <summary class="botao botao-texto botao-perigo">Cancelar o recebimento…</summary>
         <form method="post" action="{% url 'automacoes:resolver_entrada' r.pk %}" class="pilha-curta">
           {% csrf_token %}
           <input type="hidden" name="acao" value="cancelar">

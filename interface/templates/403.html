@@ -6,12 +6,10 @@ O Django passa só `exception`; quem abre o painel é decidido aqui pelas permis
 {% endcomment %}
 {% block heading %}Sem acesso{% endblock %}
 {% block page %}
-<section class="cartao">
-  <div class="vazio">
-    {% include "interface/_icone.html" with nome="cadeado" %}
-    <p class="vazio-titulo">{{ exception|default:"Seu usuário não tem acesso a esta ação." }}</p>
-    <p>Se precisar, fale com o administrador do almoxarifado.</p>
-    {% if perms.contas.atender_pedidos %}<a class="botao botao-secundario" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a>{% endif %}
-  </div>
+<section class="recusa">
+  <span class="recusa-icone">{% include "interface/_icone.html" with nome="cadeado" %}</span>
+  <h2 class="recusa-titulo">{{ exception|default:"Seu usuário não tem acesso a esta ação." }}</h2>
+  <p class="recusa-texto">Se precisar, fale com o administrador do almoxarifado.</p>
+  {% if perms.contas.atender_pedidos %}<div class="acoes"><a class="botao botao-suave" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a></div>{% endif %}
 </section>
 {% endblock %}

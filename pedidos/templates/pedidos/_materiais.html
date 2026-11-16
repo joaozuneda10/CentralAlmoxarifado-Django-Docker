@@ -23,7 +23,7 @@ pedido" ficam lado a lado; senão, um embaixo do outro.
 <dialog id="folha" class="folha" aria-labelledby="folha-titulo"><div id="folha-conteudo"></div></dialog>
 {% endif %}
 <div class="busca-area" data-busca-area>
-<div id="busca-materiais" class="busca-materiais{% if not filtros %} busca-materiais-sem-filtro{% endif %}">
+<div id="busca-materiais" class="busca-materiais">
   {% if filtros %}
   {# Secundário à busca: recolhido num <details>; o resumo mostra o grupo escolhido e o pedidos.js o fecha depois da escolha. #}
   {# O "Limpar" só aparece com um grupo escolhido e o filtro fechado (pedidos.css); aberto, a árvore já tem "Todos os grupos". #}
