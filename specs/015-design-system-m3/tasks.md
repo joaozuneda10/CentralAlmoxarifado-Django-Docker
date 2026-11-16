@@ -337,7 +337,7 @@ lateral, com os testes dela verdes; Q-4.1 a Q-4.6.
 - [X] T071 [P] [US4] Reestilizar a Curva ABC e a página Formulários (`catalogo/templates/catalogo/curva.html`, `_curva_*.html`, `formularios*.html`, `_formularios_*.html`, `_centros_acoes.html`, `_material_estado.html`, `_material_info.html`, `_volta.html`) com as regras em `catalogo/static/catalogo/css/catalogo.css`
 - [X] T072 [P] [US4] Reestilizar a Segurança do Trabalho (`pedidos/templates/pedidos/autorizacoes.html`, `autorizacao.html`, `_autorizacao.html`), conferindo que o menu dela mostra só Autorizações
 - [X] T073 [P] [US4] Reestilizar `interface/templates/interface/acesso_negado.html` e `interface/templates/403.html`
-- [ ] T074 [US4] Gerar as capturas das telas internas e conferir Q-4.1 a Q-4.6. Rodar os portões. Feito: as capturas a 375, 768 e 1280px (sem rolagem lateral) e os portões; Q-4.1 a Q-4.6 ficam para a conferência no navegador com dados reais
+- [x] T074 [US4] Gerar as capturas das telas internas e conferir Q-4.1 a Q-4.6. Rodar os portões. Feito: as capturas a 375, 768 e 1280px (sem rolagem lateral) e os portões; Q-4.1 a Q-4.6 conferidos pelo usuário no navegador em 2026-11-16, no banco local, com pedidos de EPI, pedidos de compra e recebimentos criados pelos serviços e pelo robô de entradas sobre o SCPI simulado, e o robô do lançamento simulado (trava e execução sem fim) para a edição do Q-4.2
 
 **Checkpoint**: todas as telas no desenho novo.
 
