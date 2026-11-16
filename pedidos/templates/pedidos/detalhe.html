@@ -59,7 +59,7 @@
   {% endif %}
 
   {% if atendivel %}
-  <section class="cartao nao-imprimir atendimento">
+  <section class="cartao nao-imprimir">
     <h2 class="cartao-titulo">{% if editando %}Dados da saída{% else %}Confirmar atendimento{% endif %}</h2>
     <form id="form-atendimento" method="post" action="{% if editando %}{% url 'pedidos:editar' pedido.numero %}{% else %}{% url 'pedidos:atender' pedido.numero %}{% endif %}" class="pilha-larga"{% if editando %} data-editando{% endif %}>
       {% csrf_token %}

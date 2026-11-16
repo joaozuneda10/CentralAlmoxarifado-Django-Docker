@@ -326,18 +326,18 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
 **Independent Test**: cada tela a 375, 768 e 1280px só com o vocabulário documentado, sem rolagem
 lateral, com os testes dela verdes; Q-4.1 a Q-4.6.
 
-- [ ] T066 [US4] Com a entrega 3 integrada, criar `claude/design-telas-internas` a partir de `develop` atualizada
+- [X] T066 [US4] Com a entrega 3 integrada, criar `claude/design-telas-internas` a partir de `develop` atualizada
 
 ### Implementation for User Story 4
 
-- [ ] T067 [US4] Reestilizar o detalhe, o atendimento e a edição (`pedidos/templates/pedidos/detalhe.html`, `_campos_saida.html`, `_entrega_formas.html`, `_adicionado.html`, `_alteracoes.html`, `_edicao_faixa.html`, `_edicao_aviso.html`, `_itens_pedidos.html`, `_nao_gravadas.html`, `_saldo_antigos.html`, `_recibo.html` e `_recibo_item.html` na tela) com as regras em `pedidos/static/pedidos/css/pedidos.css`. Ficam sem mudança os `data-*` da confirmação das quantidades, da troca, do acréscimo e do "Entregar tudo", e a impressão (T020)
-- [ ] T068 [P] [US4] Reestilizar `pedidos/templates/pedidos/avulsa.html`
-- [ ] T069 [US4] Reestilizar Automações: `automacoes/templates/automacoes/pagina.html`, `_historico.html`, `_filtros_historico.html`, `catalogo/templates/catalogo/_situacao.html`, `_robo.html`, `_saude.html`, `_selo_fonte.html`, `pedidos/templates/pedidos/_lancamentos.html`, `_andamento.html`, `_andamento_falha.html`, `_andamento_selo.html` e `conciliacao/templates/conciliacao/*.html`. Mantém as regiões recarregadas pelo `HX-Target`, a pasta das abas e o recolhimento do `filtros.js` no histórico
-- [ ] T070 [US4] Reestilizar Compras e a aba Entradas (`compras/templates/compras/*.html`). Dar regra às cinco classes sem CSS (`filtros-veredito`, `conferir-cabecalho`, `lista-travas`, `acoes-trava`, `cancelar-entrada`) em `pedidos/static/pedidos/css/pedidos.css`, igual à das equivalentes das saídas (`conciliacao-filtros` e afins), ou trocá-las por essas classes, sem mudar comportamento (FR-029). `tests/test_compras_telas.py` continua verde
-- [ ] T071 [P] [US4] Reestilizar a Curva ABC e a página Formulários (`catalogo/templates/catalogo/curva.html`, `_curva_*.html`, `formularios*.html`, `_formularios_*.html`, `_centros_acoes.html`, `_material_estado.html`, `_material_info.html`, `_volta.html`) com as regras em `catalogo/static/catalogo/css/catalogo.css`
-- [ ] T072 [P] [US4] Reestilizar a Segurança do Trabalho (`pedidos/templates/pedidos/autorizacoes.html`, `autorizacao.html`, `_autorizacao.html`), conferindo que o menu dela mostra só Autorizações
-- [ ] T073 [P] [US4] Reestilizar `interface/templates/interface/acesso_negado.html` e `interface/templates/403.html`
-- [ ] T074 [US4] Gerar as capturas das telas internas e conferir Q-4.1 a Q-4.6. Rodar os portões
+- [X] T067 [US4] Reestilizar o detalhe, o atendimento e a edição (`pedidos/templates/pedidos/detalhe.html`, `_campos_saida.html`, `_entrega_formas.html`, `_adicionado.html`, `_alteracoes.html`, `_edicao_faixa.html`, `_edicao_aviso.html`, `_itens_pedidos.html`, `_nao_gravadas.html`, `_saldo_antigos.html`, `_recibo.html` e `_recibo_item.html` na tela) com as regras em `pedidos/static/pedidos/css/pedidos.css`. Ficam sem mudança os `data-*` da confirmação das quantidades, da troca, do acréscimo e do "Entregar tudo", e a impressão (T020)
+- [X] T068 [P] [US4] Reestilizar `pedidos/templates/pedidos/avulsa.html`
+- [X] T069 [US4] Reestilizar Automações: `automacoes/templates/automacoes/pagina.html`, `_historico.html`, `_filtros_historico.html`, `catalogo/templates/catalogo/_situacao.html`, `_robo.html`, `_saude.html`, `_selo_fonte.html`, `pedidos/templates/pedidos/_lancamentos.html`, `_andamento.html`, `_andamento_falha.html`, `_andamento_selo.html` e `conciliacao/templates/conciliacao/*.html`. Mantém as regiões recarregadas pelo `HX-Target`, a pasta das abas e o recolhimento do `filtros.js` no histórico
+- [X] T070 [US4] Reestilizar Compras e a aba Entradas (`compras/templates/compras/*.html`). Dar regra às cinco classes sem CSS (`filtros-veredito`, `conferir-cabecalho`, `lista-travas`, `acoes-trava`, `cancelar-entrada`) em `pedidos/static/pedidos/css/pedidos.css`, igual à das equivalentes das saídas (`conciliacao-filtros` e afins), ou trocá-las por essas classes, sem mudar comportamento (FR-029). `tests/test_compras_telas.py` continua verde
+- [X] T071 [P] [US4] Reestilizar a Curva ABC e a página Formulários (`catalogo/templates/catalogo/curva.html`, `_curva_*.html`, `formularios*.html`, `_formularios_*.html`, `_centros_acoes.html`, `_material_estado.html`, `_material_info.html`, `_volta.html`) com as regras em `catalogo/static/catalogo/css/catalogo.css`
+- [X] T072 [P] [US4] Reestilizar a Segurança do Trabalho (`pedidos/templates/pedidos/autorizacoes.html`, `autorizacao.html`, `_autorizacao.html`), conferindo que o menu dela mostra só Autorizações
+- [X] T073 [P] [US4] Reestilizar `interface/templates/interface/acesso_negado.html` e `interface/templates/403.html`
+- [ ] T074 [US4] Gerar as capturas das telas internas e conferir Q-4.1 a Q-4.6. Rodar os portões. Feito: as capturas a 375, 768 e 1280px (sem rolagem lateral) e os portões; Q-4.1 a Q-4.6 ficam para a conferência no navegador com dados reais
 
 **Checkpoint**: todas as telas no desenho novo.
 
@@ -345,9 +345,9 @@ lateral, com os testes dela verdes; Q-4.1 a Q-4.6.
 
 ## Phase 8: Polish & Cross-Cutting Concerns (entrega 4)
 
-- [ ] T075 Tirar de `docs/DESIGN.md` as últimas marcas de "entrega N", conferir que todo componente descrito existe no código e que todo componente do código está descrito
-- [ ] T076 [P] Conferir que nenhuma classe usada nos templates fica sem regra em CSS, exceto as que só servem de gancho a script ou a teste, documentadas como tal em `docs/DESIGN.md`. Usar um comando de conferência à parte, fora da suíte
-- [ ] T077 [P] Conferir o tamanho do CSS: as linhas de `interface/static/interface/css/*.css` e do CSS das apps não crescem mais que 30% sobre a base de T004 (plan.md, "Performance Goals")
+- [X] T075 Tirar de `docs/DESIGN.md` as últimas marcas de "entrega N", conferir que todo componente descrito existe no código e que todo componente do código está descrito
+- [X] T076 [P] Conferir que nenhuma classe usada nos templates fica sem regra em CSS, exceto as que só servem de gancho a script ou a teste, documentadas como tal em `docs/DESIGN.md`. Usar um comando de conferência à parte, fora da suíte
+- [ ] T077 [P] Conferir o tamanho do CSS: as linhas de `interface/static/interface/css/*.css` e do CSS das apps não crescem mais que 30% sobre a base de T004 (plan.md, "Performance Goals"). Medido: 2014 → 2685 linhas (+33%, +34% sem comentários); a entrega 4 soma 21 linhas e o excesso vem das entregas 1 a 3
 - [ ] T078 Rodar `scripts/capturar_telas.py` com todas as telas-chave e todo o `specs/015-design-system-m3/quickstart.md`, para a revisão visual final do chefe (SC-008). Rodar os portões e preparar o PR da entrega 4 (só abrir com o pedido do usuário)
 
 ---

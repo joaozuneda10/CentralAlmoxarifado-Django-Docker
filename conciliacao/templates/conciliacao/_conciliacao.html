@@ -9,9 +9,9 @@ links (`?veredito=`, que fica na URL): as divergências primeiro, os comprovados
   {% include "conciliacao/_conferir.html" %}
 
   <nav aria-label="Filtrar as requisições lançadas pelo veredito">
-    <ul class="conciliacao-filtros">
+    <ul class="chips-links">
       {% for chave, rotulo, quantos in conciliacao.filtros %}
-      <li><a class="conciliacao-filtro" href="?aba=lancamento&amp;veredito={{ chave }}#conciliacao"{% if chave == conciliacao.filtro %} aria-current="page"{% endif %}>{{ rotulo }} <span class="conciliacao-filtro-numero">{{ quantos }}</span></a></li>
+      <li><a class="chip-link" href="?aba=lancamento&amp;veredito={{ chave }}#conciliacao"{% if chave == conciliacao.filtro %} aria-current="page"{% endif %}>{% include "interface/_icone.html" with nome="check" %}{{ rotulo }} <span class="conciliacao-filtro-numero">{{ quantos }}</span></a></li>
       {% endfor %}
     </ul>
   </nav>

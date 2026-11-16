@@ -262,6 +262,9 @@ textarea.campo-linha:focus { height: 84px; }
   padding: var(--recheio-cartao);
 }
 .cartao-titulo { margin-bottom: var(--esp-2); }
+/* Na área interna, o que vem depois dos dados ou de um aviso num cartão (outro aviso, as ações, a
+   tabela) fica a 16px dele, sem o cartão precisar ser uma pilha. */
+.ritmo-almox .cartao:not(.pilha, .pilha-larga) > :is(.dados, .aviso) + :is(.dados, .aviso, .acoes, .tabela-rolagem) { margin-top: var(--esp-2); }
 .cartao-sutil { background: var(--superficie-media); border-color: transparent; box-shadow: none; }
 .cartao-opcao {
   display: grid; gap: var(--esp-1); color: inherit; text-decoration: none;
@@ -280,7 +283,7 @@ textarea.campo-linha:focus { height: 84px; }
 /* Abas (abas.js): pasta. A aba ativa é branca e se funde ao primeiro cartão do painel, que vira o
    corpo da pasta; os demais cartões do painel ficam embaixo, soltos. Sem JavaScript, os painéis
    ficam todos à vista, empilhados, e a lista de abas não aparece. */
-.abas { display: grid; gap: var(--esp-4); }
+.abas { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-4); }
 .abas-lista { display: none; }
 .js .abas { gap: 0; }
 /* A lista desce 1px sobre o cartão: a aba ativa cobre a borda de cima dele. O recuo (maior que o raio
@@ -373,6 +376,14 @@ textarea.campo-linha:focus { height: 84px; }
   font-size: 13px; font-weight: 500; color: var(--texto-secundario); border-bottom: 1px solid var(--borda);
 }
 .tabela td { padding: var(--celula-v) var(--celula-h); border-bottom: 1px solid var(--borda); vertical-align: top; }
+/* Coluna de marcar (a fila do robô, os itens a receber): a caixa de 20px com a área de toque de 44px; a
+   linha com caixa fica centrada na vertical. */
+.tabela .celula-marca { width: 1%; padding: 0; }
+.tabela:has(.celula-marca) td { vertical-align: middle; }
+.celula-marca label { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.celula-marca input { width: 20px; height: 20px; margin: 0; accent-color: var(--destaque); cursor: pointer; }
+.celula-marca input:disabled { cursor: not-allowed; }
+.celula-marca input:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: var(--raio-campo); }
 .tabela tbody tr { transition: background-color var(--transicao); }
 .tabela tbody tr:hover { background: var(--superficie); }
 .tabela tbody tr:last-child td { border-bottom: 0; }
@@ -624,7 +635,7 @@ html:not(.js) .filtros-alternar { display: none; }
 /* Estado vazio */
 .vazio { display: grid; justify-items: center; gap: var(--esp-1); padding: var(--esp-6) var(--esp-3); text-align: center; color: var(--texto-secundario); }
 .vazio-titulo { font-family: var(--fonte-titulo); font-weight: 600; color: var(--texto); }
-/* Recusa numa tela pública (login bloqueado, página só da equipe): bloco tonal com o ícone num
+/* Recusa (login bloqueado, página só da equipe, sem acesso na área interna): bloco tonal com o ícone num
    círculo, o texto e a saída; o estado vai no título da página e no texto, nunca só na cor. O
    círculo é neutro; `recusa-aviso` o põe no tom de aviso. */
 .recusa { display: grid; justify-items: start; gap: var(--esp-2); padding: var(--esp-4); border-radius: var(--raio-bloco); background: var(--superficie); }
@@ -632,6 +643,9 @@ html:not(.js) .filtros-alternar { display: none; }
 .recusa-aviso .recusa-icone { background: var(--aviso-superficie); color: var(--aviso-texto); }
 .recusa-icone .icone { width: 28px; height: 28px; }
 .recusa-texto { max-width: 32em; font-size: 17px; color: var(--texto); }
+.recusa-titulo { font-size: 20px; }
+.recusa-titulo + .recusa-texto { margin-top: calc(-1 * var(--esp-1)); color: var(--texto-secundario); }
+.ritmo-almox .recusa-texto { font-size: 15px; }
 .recusa .acoes { margin-top: var(--esp-1); }
 @media (max-width: 600px) { .recusa { padding: 20px var(--esp-2); border-radius: 24px; } }
 
@@ -642,6 +656,12 @@ html:not(.js) .filtros-alternar { display: none; }
 
 /* Ações de formulário */
 .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
+/* Ação em dois passos (`details.acao-recolhida`): o `summary` é um botão (em geral `botao botao-texto
+   botao-perigo`, "Cancelar…"); aberto, o que confirma fica embaixo, depois de um filete. Sem JavaScript. */
+.acao-recolhida > summary { list-style: none; width: fit-content; cursor: pointer; }
+.acao-recolhida > summary::-webkit-details-marker { display: none; }
+.acao-recolhida[open] > summary.botao-perigo { background: var(--erro-superficie); }
+.acao-recolhida > :not(summary) { margin-top: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 
 @media (max-width: 640px) {
   .botao, .campo-entrada, .paginacao-link { min-height: 44px; }
@@ -731,6 +751,23 @@ label.chip::after { content: ""; position: absolute; inset: -6px 0; }
 .chip-entrada:checked + .chip-texto { padding-left: 10px; }
 .chip-entrada:checked + .chip-texto .icone { display: inline-block; }
 .chip-entrada:focus-visible + .chip-texto { box-shadow: var(--anel-foco); }
+
+/* Chips em links: o filtro que vai na URL (o veredito da conferência, o formulário da página
+   Formulários). O mesmo desenho do chip de rádio; o atual (`aria-current`) em tonal, com o check. */
+.chips-links { display: flex; flex-wrap: wrap; gap: 12px var(--esp-1); margin: 0; padding: 0; list-style: none; }
+.chip-link {
+  position: relative; display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 6px 14px;
+  border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
+  color: var(--texto-secundario); font-size: 13.5px; font-weight: 500; line-height: 1.2; text-decoration: none;
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
+}
+.chip-link::after { content: ""; position: absolute; inset: -6px 0; }
+.chip-link .icone { display: none; flex: none; width: 16px; height: 16px; }
+.chip-link:hover { background: var(--superficie); color: var(--texto); }
+.chip-link[aria-current], .chip-link[aria-current]:hover {
+  padding-left: 10px; border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
+}
+.chip-link[aria-current] .icone { display: inline-block; }
 
 /* Chip com lista: o `<details data-menu>` (menus.js) com o campo do filtro num painel flutuante. */
 .chip-menu { position: relative; display: inline-flex; }

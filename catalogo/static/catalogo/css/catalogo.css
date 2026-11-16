@@ -121,15 +121,11 @@
 .aviso .campo-dica { display: block; margin-top: 2px; }
 .aviso[hidden] { display: none; }
 
-/* Formulários (spec 009): o seletor de formulário em botões que quebram de linha, e a tabela de
-   materiais com a informação do material embaixo do nome. */
-.formularios-seletor { display: grid; gap: var(--esp-2); }
+/* Formulários (spec 009): o seletor de formulário em chips (`chips-links`), com o rótulo em cima e o
+   aviso de só consulta embaixo, e a tabela de materiais com a informação do material embaixo do nome. */
+.formularios-seletor { display: grid; gap: var(--esp-1); }
 .formularios-seletor .rotulo-secao { margin: 0; }
-/* Botões iguais em grade: no celular ficam em duas colunas (não empilham cinco botões largos) e o
-   texto longo quebra dentro do botão. */
-.formularios-seletor-lista { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(8.5rem, 1fr)); gap: var(--esp-1); }
-.formularios-seletor-lista .botao { width: 100%; height: 100%; text-align: center; white-space: normal; }
-.formularios-seletor .aviso { margin: 0; }
+.formularios-seletor .aviso { margin: var(--esp-1) 0 0; }
 .tabela td .material-info { margin-top: var(--esp-meio); }
 /* Contraste: o cinza "suave" do design (2,5:1 sobre branco) não serve para o que se lê aqui (cabeçalhos,
    códigos, placas, origem); estas tabelas e o rótulo do seletor usam o cinza secundário (5,6:1). */

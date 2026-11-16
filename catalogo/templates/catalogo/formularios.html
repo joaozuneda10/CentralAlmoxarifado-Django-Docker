@@ -17,11 +17,11 @@ vista, o vazio com um link para a aba, e cada ação é um formulário comum com
 alterar vê tudo, sem os controles; o servidor recusa a gravação de qualquer forma.
 {% endcomment %}
 <div class="pilha-larga">
-  <nav class="cartao cartao-sutil formularios-seletor" aria-label="Formulários">
+  <nav class="formularios-seletor" aria-label="Formulários">
     <p class="rotulo-secao">Formulário</p>
-    <ul class="formularios-seletor-lista">
+    <ul class="chips-links">
       {% for valor, rotulo in lista_de_formularios %}
-      <li><a class="botao {% if valor == formulario %}botao-primario{% else %}botao-secundario{% endif %}" href="{% url 'catalogo:formularios' %}?formulario={{ valor }}&aba={{ aba }}"{% if valor == formulario %} aria-current="page"{% endif %}>{{ rotulo }}</a></li>
+      <li><a class="chip-link" href="{% url 'catalogo:formularios' %}?formulario={{ valor }}&aba={{ aba }}"{% if valor == formulario %} aria-current="page"{% endif %}>{% include "interface/_icone.html" with nome="check" %}{{ rotulo }}</a></li>
       {% endfor %}
     </ul>
     {% if not pode_alterar_algo %}
