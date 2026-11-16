@@ -25,6 +25,20 @@ def ler_bool(nome: str, padrao: bool) -> bool:
     raise ImproperlyConfigured(f"{nome}: valor inválido {valor!r}; use 1 ou 0.")
 
 
+def ler_int(nome: str, padrao: int) -> int:
+    """Inteiro positivo de `nome`; ausente ou vazio devolve `padrao`."""
+    valor = (os.environ.get(nome) or "").strip()
+    if not valor:
+        return padrao
+    try:
+        numero = int(valor)
+    except ValueError:
+        numero = 0
+    if numero < 1:
+        raise ImproperlyConfigured(f"{nome}: valor inválido {valor!r}; use um número inteiro ≥ 1.")
+    return numero
+
+
 def ler_lista(nome: str) -> list[str]:
     """Lista separada por vírgulas de `nome`, sem itens vazios."""
     return [item.strip() for item in (os.environ.get(nome) or "").split(",") if item.strip()]

@@ -23,6 +23,17 @@ from catalogo.curva import INICIO_DADOS_CONFIAVEIS
 from catalogo.forms import ROBOS, ROBOS_POR_CHAVE
 from catalogo.models import Importacao
 from catalogo.saude import resumo_do_erro, situacao_do_catalogo
+from compras.consultas import (
+    FILTROS_VEREDITO,
+    fila_entradas,
+    ultima_extracao_entradas,
+    vereditos,
+    verificacoes_entradas,
+)
+from compras.forms import LancamentoEntradasForm
+from compras.models import TravaPedido
+from compras.robo import lancamento_real_liberado
+from compras.servicos import destravar_pedido, resolver_recebimento
 from conciliacao.consultas import conciliacao_da_aba, ultima_extracao, verificacoes
 from interface.htmx import regiao_pedida, render_regiao
 from pedidos import andamento
@@ -39,13 +50,16 @@ from scpi.disparo import (
     guardar_csv_enviado,
     iniciar_atualizacao,
     iniciar_conciliacao,
+    iniciar_conciliacao_entradas,
     iniciar_importacao,
     iniciar_lancamento,
+    iniciar_lancamento_entradas,
 )
 
 ABAS = [
     ("visao-geral", "Visão geral"),
     ("lancamento", "Lançamento no SCPI"),
+    ("entradas", "Entradas no SCPI"),
     *((robo.chave, robo.rotulo) for robo in ROBOS),
 ]
 CHAVES_ABAS = [chave for chave, _ in ABAS]
@@ -135,8 +149,11 @@ def _andamento_no_topo(execucao, agora, em_andamento: bool) -> bool:
 def contexto_lancamento() -> dict:
     """Lançamento das saídas no SCPI: botões, fila, andamento do robô e travas."""
     agora = timezone.now()
-    execucao = ExecucaoRobo.objects.select_related("iniciada_por").first()
-    em_andamento = ExecucaoRobo.em_andamento(agora).exists()
+    saidas = ExecucaoRobo.Robo.SAIDAS
+    execucao = ExecucaoRobo.objects.filter(robo=saidas).select_related("iniciada_por").first()
+    em_andamento = ExecucaoRobo.em_andamento(agora, robo=saidas).exists()
+    # Qualquer robô rodando segura a trava do lançamento: as saídas não começam (a dica diz qual).
+    qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
     fila = fila_do_robo()
     travados = lotes_travados()
     por_lote = verificacoes(trava.lote for trava in travados if trava.conferir)
@@ -159,9 +176,10 @@ def contexto_lancamento() -> dict:
         "acomp": andamento.acompanhamento(execucao, agora, interrompida) if execucao else None,
         "andamento_no_topo": _andamento_no_topo(execucao, agora, em_andamento),
         "lancamento_em_andamento": em_andamento,
+        "entradas_lancando": qualquer_robo and not em_andamento,
         "log_recente": "\n".join(execucao.log.splitlines()[-LINHAS_DO_LOG:]) if execucao else "",
         "fila": fila,
-        "pode_executar": bool(fila.total) and not em_andamento,
+        "pode_executar": bool(fila.total) and not qualquer_robo,
         "travados": travados,
         "lancamento_real": settings.LANCAMENTO_REAL,
         **_linha_do_lancamento(
@@ -174,14 +192,106 @@ def contexto_lancamento() -> dict:
     }
 
 
+def contexto_conferencia_entradas(request=None) -> dict:
+    """A região "Conferência" da aba Entradas no SCPI: a última extração e o veredito atual de cada
+    recebimento lançado, com o filtro `?veredito_entradas=` e a página `?pagina_veredito=`."""
+    filtro = (request.GET.get("veredito_entradas", "") if request else "") or "divergencias"
+    if filtro not in dict(FILTROS_VEREDITO):
+        filtro = "divergencias"
+    extracao = ultima_extracao_entradas()
+    falha = extracao is not None and extracao.importacao.situacao == Importacao.Situacao.FALHA
+    motivo = ""
+    if ExecucaoRobo.em_andamento().exists():
+        motivo = "Há um lançamento em andamento. Confira quando ele terminar."
+    elif Importacao.em_andamento().filter(tipo=Importacao.Tipo.ENTRADAS).exists():
+        motivo = "A conferência das entradas está em andamento."
+    elif Importacao.em_andamento().exists():
+        motivo = "Há uma importação em andamento. Confira quando ela terminar."
+    return {
+        "ultima_extracao_entradas": extracao,
+        "erro_extracao_entradas": resumo_do_erro(extracao.importacao.erro) if falha else "",
+        "conferir_entradas_motivo": motivo,
+        "filtros_veredito": FILTROS_VEREDITO,
+        "filtro_veredito": filtro,
+        "pagina_vereditos": vereditos(
+            filtro, request.GET.get("pagina_veredito", 1) if request else 1
+        ),
+    }
+
+
+def contexto_travas_entradas() -> dict:
+    """A região "Pedidos travados": por pedido, as travas abertas e a data da última importação."""
+    abertas = (
+        TravaPedido.objects.filter(destravada_em__isnull=True)
+        .select_related("pedido", "recebimento")
+        .order_by("pedido_id", "-criada_em")
+    )
+    por_pedido: dict[int, dict] = {}
+    for trava in abertas:
+        por_pedido.setdefault(trava.pedido_id, {"pedido": trava.pedido, "travas": []})[
+            "travas"
+        ].append(trava)
+    from compras.consultas import ultima_importacao_pedidos
+
+    for item in por_pedido.values():
+        item["ultima_importacao"] = ultima_importacao_pedidos(item["pedido"].exercicio)
+    return {"pedidos_travados": list(por_pedido.values())}
+
+
+def contexto_entradas() -> dict:
+    """Entradas no SCPI (spec 014): botões, fila de recebimentos e andamento do robô de entradas.
+    Qualquer robô rodando segura a trava do lançamento: a dica diz qual."""
+    agora = timezone.now()
+    entradas = ExecucaoRobo.Robo.ENTRADAS
+    # A que está rodando vem antes da mais recente: um comando disparado durante o lançamento
+    # cria outra execução, que a trava encerra como falha, e ela não pode esconder o andamento.
+    # Com a trava ocupada, uma execução antiga que morreu sem registrar o fim também conta como
+    # em andamento: entre as duas, vale a mais nova, que é a dona da trava.
+    rodando = ExecucaoRobo.em_andamento(agora, robo=entradas).select_related("iniciada_por")
+    em_andamento = rodando.exists()
+    execucao = (
+        rodando.order_by("-inicio").first()  # a mais nova: uma antiga, interrompida, fica atrás
+        or ExecucaoRobo.objects.filter(robo=entradas).select_related("iniciada_por").first()
+    )
+    qualquer_robo = ExecucaoRobo.em_andamento(agora).exists()
+    fila = fila_entradas()
+    interrompida = bool(execucao and execucao.interrompida)
+    resumo = None
+    if execucao:
+        resumo = {
+            "frase": andamento.frase(execucao, agora, interrompida),
+            "interrompida": interrompida,
+            "contadores": andamento.contadores(execucao.resumo, execucao.simulacao, entradas=True),
+            "duracao": andamento.duracao(execucao.inicio, execucao.fim),
+            "precisa_conferir": andamento.precisa_conferir(execucao),
+            "falha": andamento.explicar_falha(execucao),
+        }
+    return {
+        "execucao_entradas": execucao,
+        "andamento_entradas": resumo,
+        "acomp_entradas": (
+            andamento.acompanhamento(execucao, agora, interrompida) if execucao else None
+        ),
+        "entradas_no_topo": _andamento_no_topo(execucao, agora, em_andamento),
+        "entradas_em_andamento": em_andamento,
+        "saidas_lancando": qualquer_robo and not em_andamento,
+        "log_entradas": "\n".join(execucao.log.splitlines()[-LINHAS_DO_LOG:]) if execucao else "",
+        "fila_entradas": fila,
+        "verificacoes_entradas": verificacoes_entradas(),
+        "pode_executar_entradas": bool(fila.aptos) and not qualquer_robo,
+        "lancamento_real_entradas": lancamento_real_liberado(),
+    }
+
+
 def _lancamento_resumido() -> dict:
     """Só o que a situação lê do lançamento, sem a fila inteira nem o andamento da aba: a recarga
     da situação não paga o contexto da aba Lançamento no SCPI."""
-    execucao = ExecucaoRobo.objects.first()
+    saidas = ExecucaoRobo.Robo.SAIDAS
+    execucao = ExecucaoRobo.objects.filter(robo=saidas).first()
     return _linha_do_lancamento(
         execucao,
         interrompida=bool(execucao and execucao.interrompida),
-        em_andamento=ExecucaoRobo.em_andamento(timezone.now()).exists(),
+        em_andamento=ExecucaoRobo.em_andamento(timezone.now(), robo=saidas).exists(),
         pendentes=lotes_pendentes(),
         travados=contar_lotes_travados(),
     )
@@ -268,6 +378,9 @@ def contexto_pagina(request, aba: str, formularios: dict | None = None) -> dict:
     return {
         **_contexto_historico(request),
         **situacao,
+        **contexto_entradas(),
+        **contexto_conferencia_entradas(request),
+        **contexto_travas_entradas(),
         "conciliacao": conciliacao_da_aba(
             request.GET.get("veredito", ""), request.GET.get("pagina_conciliacao", 1)
         ),
@@ -275,6 +388,16 @@ def contexto_pagina(request, aba: str, formularios: dict | None = None) -> dict:
         "robos": robos,
         "aba": aba,
         "abas": [(chave, rotulo, estados.get(chave)) for chave, rotulo in ABAS],
+    }
+
+
+def _contexto_regiao_entradas(request) -> dict:
+    """A aba Entradas no SCPI inteira: a fila, os pedidos travados e a conferência, com os
+    filtros da URL, como na página (a recarga não pode perder as duas últimas)."""
+    return {
+        **contexto_entradas(),
+        **contexto_conferencia_entradas(request),
+        **contexto_travas_entradas(),
     }
 
 
@@ -288,6 +411,7 @@ def _contexto_regiao_historico(request) -> dict:
 REGIOES = {
     "section#situacao-catalogo": ("catalogo/_situacao.html", _contexto_situacao),
     "section#lancamentos": ("pedidos/_lancamentos.html", lambda request: contexto_lancamento()),
+    "section#entradas-no-scpi": ("compras/_entradas.html", _contexto_regiao_entradas),
     "div#historico": ("automacoes/_historico.html", _contexto_regiao_historico),
     "div#conferir-agora": ("conciliacao/_conferir.html", lambda request: _contexto_conferir()),
 }
@@ -402,6 +526,86 @@ def lancar(request):
         )
         texto += f" {', '.join(lotes)}."
         messages.success(request, texto)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def lancar_entradas(request):
+    destino = url_da_aba("entradas")
+    form = LancamentoEntradasForm(request.POST)
+    if not form.is_valid():
+        for erros in form.errors.values():
+            messages.error(request, " ".join(erros))
+        return redirect(destino)
+    simulacao = form.cleaned_data["modo"] == "simular"
+    recebimentos = form.cleaned_data["recebimentos"]
+    if (
+        iniciar_lancamento_entradas(request.user, simulacao=simulacao, recebimentos=recebimentos)
+        is None
+    ):
+        messages.warning(request, "Já há um lançamento em andamento. Aguarde terminar.")
+    else:
+        texto = (
+            "Simulação iniciada: o robô preenche cada recebimento no SCPI, sem salvar."
+            if simulacao
+            else "Lançamento iniciado. Acompanhe o andamento abaixo."
+        )
+        texto += f" {', '.join(recebimentos)}."
+        messages.success(request, texto)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def conferir_entradas(request):
+    """ "Conferir agora" das entradas: extração e conciliação fora do lançamento."""
+    destino = url_da_aba("entradas")
+    if ExecucaoRobo.em_andamento().exists():
+        messages.warning(request, "Há um lançamento em andamento. Confira quando ele terminar.")
+    elif not iniciar_conciliacao_entradas():
+        messages.warning(request, JA_EM_ANDAMENTO)
+    else:
+        messages.success(
+            request,
+            "Conferência iniciada: o robô extrai as entradas do SCPI e confere os recebimentos. "
+            "Recarregue a aba em alguns instantes.",
+        )
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def destravar_pedido_entradas(request, pk):
+    """Destrava um pedido (todas as travas abertas), com o motivo e uma importação posterior."""
+    destino = url_da_aba("entradas")
+    if ExecucaoRobo.em_andamento().exists():
+        messages.warning(request, "Há um lançamento em andamento. Destrave quando ele terminar.")
+        return redirect(destino)
+    resposta = destravar_pedido(pk, request.user, motivo=request.POST.get("motivo", ""))
+    (messages.success if resposta.ok else messages.error)(request, resposta.mensagem)
+    return redirect(destino)
+
+
+@login_required
+@require_POST
+def resolver_entrada(request, pk):
+    """Resolve um recebimento em verificação (spec 014, US3): "É esta", liberar ou cancelar."""
+    destino = url_da_aba("entradas")
+    try:
+        requisicao_id = int(request.POST.get("requisicao_id") or 0) or None
+    except ValueError:
+        requisicao_id = None
+    resposta = resolver_recebimento(
+        pk,
+        request.user,
+        acao=request.POST.get("acao", ""),
+        requisicao_id=requisicao_id,
+        conferi=bool(request.POST.get("conferi")),
+        motivo=request.POST.get("motivo", ""),
+        confirmado=request.POST.get("confirmado") == "1",
+    )
+    (messages.success if resposta.ok else messages.error)(request, resposta.mensagem)
     return redirect(destino)
 
 

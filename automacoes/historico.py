@@ -116,7 +116,10 @@ def _modo_da_importacao(imp: Importacao) -> str:
         if imp.periodo_de:
             return f"Só os novos ({_periodo(imp.periodo_de, imp.periodo_ate)})"
         return "Recarga completa"
-    if imp.tipo in (Importacao.Tipo.SAIDAS, Importacao.Tipo.REQUISICOES) and imp.periodo_de:
+    if (
+        imp.tipo in (Importacao.Tipo.SAIDAS, Importacao.Tipo.REQUISICOES, Importacao.Tipo.ENTRADAS)
+        and imp.periodo_de
+    ):
         return f"Período {_periodo(imp.periodo_de, imp.periodo_ate)}"
     if imp.tipo == Importacao.Tipo.ESTOQUE:
         return "Saldos"
@@ -166,7 +169,7 @@ def linha_de_execucao(exe: ExecucaoRobo, em_andamento: set) -> LinhaHistorico:
     falha = andamento.explicar_falha(exe)
     quem = exe.iniciada_por
     return LinhaHistorico(
-        robo="Lançamento no SCPI",
+        robo="Entradas no SCPI" if exe.robo == ExecucaoRobo.Robo.ENTRADAS else "Lançamento no SCPI",
         modo="Simulação" if exe.simulacao else "Lançamento real",
         inicio=exe.inicio,
         duracao=andamento.duracao(exe.inicio, exe.fim),

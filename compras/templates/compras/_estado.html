@@ -1,0 +1,2 @@
+{# O estado do pedido em texto, com o selo: nunca só por cor. Espera `estado` e `estado_texto`. #}
+<span class="selo {% if estado == 'disponivel' %}selo-ok{% elif estado == 'precisa_conferencia' or estado == 'travado' %}selo-aviso{% else %}selo-neutro{% endif %}">{{ estado_texto }}</span>

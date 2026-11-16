@@ -257,7 +257,7 @@ def test_painel_mostra_cartao_de_lancamentos(client, usuario_logado):
     criar_pedido(atendido=True, linhas=[("PENDENTE", "")])
     criar_pedido(atendido=True, linhas=[("ERRO", "")])
     texto = client.get(reverse("pedidos:painel")).text
-    assert "requisição aguardando o robô" in texto and "1 para conferir" in texto
+    assert "Requisições no robô" in texto and "1 para conferir" in texto
     assert reverse("automacoes:lancar") in texto and LANCAMENTOS in texto
 
 
@@ -316,9 +316,9 @@ def test_nao_lancar_vem_num_segundo_passo_com_formulario_proprio(client, usuario
     p = criar_pedido(atendido=True, linhas=[("VERIFICAR", "")])
     html = client.get(LANCAMENTOS).text
     assert "every 3s" not in html
-    confirmar = re.search(r'<details class="confirmar-nao-lancar">.*?</details>', html, re.S).group(
-        0
-    )
+    confirmar = re.search(
+        r'<details class="acao-recolhida confirmar-nao-lancar">.*?</details>', html, re.S
+    ).group(0)
     assert re.search(r"<summary[^>]*>\s*Não lançar", confirmar)
     assert (
         f'A requisição de <span class="mono">{p.numero}</span> não será lançada no SCPI.'

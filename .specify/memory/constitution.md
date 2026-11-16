@@ -1,10 +1,23 @@
+<!--
+Sync Impact Report
+- Versão: 2.1.0 → 2.2.0 (MINOR: Princípio VI ampliado, spec 015, troca do design system Clean pela
+  linguagem visual do Material 3, o Tonal).
+- Princípio VI: "segue o design system Clean (`docs/DESIGN.md`)" passa a "segue o design system do
+  projeto (`docs/DESIGN.md`)". Redefinição compatível: nenhuma garantia cai (pt-BR, estado nunca só
+  por cor, códigos em mono, sem dependência externa, CSRF), e a referência fica mais geral, sem
+  amarrar o princípio ao nome de um estilo.
+- Nenhum princípio removido ou redefinido de forma incompatível.
+- Documentos conferidos: specs/015-design-system-m3 (plan, research R16, tasks T023 a T027),
+  docs/DESIGN.md, CLAUDE.md e a skill .claude/skills/design-tonal/.
+-->
+
 # Central Almoxarifado (Django) Constitution
 
 ## Core Principles
 
 ### I. Regras de negócio puras, com o próprio sistema como referência
 
-- Regras de negócio ficam em funções puras, sem ORM (`pedidos/regras.py`, `scpi/leitura.py`,
+- Regras de negócio ficam em funções puras, sem ORM (`pedidos/regras.py`, `compras/regras.py`, `scpi/leitura.py`,
   `scpi/requisicoes.py`), testáveis sem banco.
 - O Central Almoxarifado é a referência das próprias regras: valem o código, os testes e as
   specs vigentes. O Apps Script e as planilhas de onde vieram são histórico, não requisito: não
@@ -24,6 +37,11 @@ antigo, então reproduzi-lo só limitaria a evolução.
 - Envio repetido NÃO PODE duplicar: o identificador do envio decide se é o mesmo pedido.
 - Fora de `servicos.py`, só o robô de lançamento grava em `pedidos`, e só nos campos `status`,
   `requisicao_scpi`, `lancado_em` e `mensagem` das `LinhaSaida`.
+- `compras/servicos.py` é o único lugar que grava recebimentos (entradas por pedido de compra) e
+  travas de pedido, com transação e `select_for_update` no pedido de compra. Fora dele, só o robô de
+  entradas grava em recebimentos, e só nos campos `status`, `requisicao_scpi`, `lancado_em`,
+  `mensagem`, `via` e `visivel_desde`; a trava do pedido ele grava pela função do serviço. O reenvio
+  igual de um recebimento não duplica: o identificador do envio decide.
 - Efeito externo (como o aviso no Telegram) sai depois do commit e nunca desfaz a gravação.
 
 Motivo: com uma porta só, as garantias de concorrência e de idempotência valem em todo lugar.
@@ -31,11 +49,12 @@ Motivo: com uma porta só, as garantias de concorrência e de idempotência vale
 ### III. Nunca lançar duas vezes no SCPI (INEGOCIÁVEL)
 
 - O estado `EM_LANCAMENTO` DEVE estar confirmado no banco antes do clique em Salvar.
-- Qualquer falha depois do clique vira `VERIFICAR`, nunca `PENDENTE`. Na dúvida, a linha fica
-  travada.
-- O número da requisição vai para o journal antes de ir para o banco; se o banco recusar, a
-  execução para com o lote travado.
-- Uma execução de cada robô por vez (`GET_LOCK`).
+- Qualquer falha depois do clique vira `VERIFICAR`, nunca `PENDENTE`. Na dúvida, a linha (ou o
+  recebimento) fica travada.
+- O número da requisição vai para o journal antes de ir para o banco; cada robô tem o seu journal.
+  Se o banco recusar, a execução para com o lote ou o recebimento travado.
+- Uma execução de lançamento por vez, de saídas ou de entradas, com a mesma trava (`GET_LOCK`).
+- Nas entradas, a tela do SCPI é conferida contra o esperado antes do Salvar; se mudou, nada é salvo.
 - O lançamento real só roda com `LANCAMENTO_REAL` ligado; o padrão é desligado.
 
 Motivo: uma requisição duplicada no SCPI é um erro contábil que o sistema não consegue desfazer.
@@ -68,7 +87,7 @@ de verdade.
 ### VI. Interface em pt-BR, acessível e sem dependências externas
 
 - Nomes de código, textos de interface, mensagens e commits em português (pt-BR).
-- A interface segue o design system Clean (`docs/DESIGN.md`). Estado nunca só por cor; códigos
+- A interface segue o design system do projeto (`docs/DESIGN.md`). Estado nunca só por cor; códigos
   (CADPRO, matrícula, placa) em fonte mono.
 - Nenhuma dependência do Google, de CDN ou de npm: fontes, ícones e HTMX ficam no repositório.
 - Requisição que grava leva CSRF; logout só por POST.
@@ -108,4 +127,4 @@ Motivo: o público é o almoxarifado e os funcionários da operação, e o servi
 - Todo plano tem uma verificação de conformidade com estes princípios. Exceção a um princípio
   só com justificativa escrita no plano; o Princípio III não admite exceção.
 
-**Version**: 2.0.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-10-22
+**Version**: 2.2.0 | **Ratified**: 2026-10-12 | **Last Amended**: 2026-11-13

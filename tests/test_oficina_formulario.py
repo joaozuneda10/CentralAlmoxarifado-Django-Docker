@@ -18,6 +18,7 @@ from pedidos.telegram import texto_aviso
 from tests.cenario import saida
 from tests.oficina_cenario import FILTRO, FITA, OFICINA, OLEO, PNEU, enviar, montar_oficina
 from tests.paginas import texto
+from tests.papeis import dar_papeis
 
 pytestmark = pytest.mark.django_db
 
@@ -40,7 +41,9 @@ def test_a_pagina_inicial_lista_o_formulario(client):
 def test_o_formulario_abre_sem_campos_dos_outros(client):
     html = client.get(URL).text
     assert "Ex.: filtro de óleo, pneu" in html
-    assert 'placeholder="Oficina mecânica ou placa da viatura"' in html
+    assert (
+        '<p id="destino-dica" class="campo-dica">Oficina mecânica ou placa da viatura</p>' in html
+    )
     assert 'name="ocorrencia"' not in html and "Preencher a lista de peças" not in html
 
 
@@ -97,7 +100,9 @@ def test_material_retirado_da_escolha_antes_do_envio_e_recusado(client):
 def test_painel_e_aviso(client):
     enviar(client, [(FILTRO, "2")])
     pedido = Pedido.objects.get()
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     filtrado = client.get(reverse("pedidos:painel"), {"origem": ORIGEM}).text
     assert pedido.numero in filtrado and 'title="Oficina mecânica">Oficina<' in filtrado
     assert pedido.numero not in client.get(reverse("pedidos:painel"), {"origem": "AB"}).text
@@ -107,7 +112,7 @@ def test_painel_e_aviso(client):
 def test_o_atendimento_gera_as_linhas_de_saida(client):
     enviar(client, [(FILTRO, "2"), (OLEO, "1,5")])
     pedido = Pedido.objects.get()
-    usuario = get_user_model().objects.create_user(username="12345", password="x")
+    usuario = dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
     r = confirmar_atendimento(
         pedido.id,
         uuid.uuid4(),

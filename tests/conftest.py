@@ -11,6 +11,7 @@ from pedidos.regras import LIMPEZA, EnvioSaida
 from pedidos.servicos import confirmar_atendimento, registrar_saida_avulsa
 from tests.cenario import envio_limpeza, itens, montar_cenario, registrar, saida
 from tests.epis_cenario import usuarios as usuarios_epis
+from tests.papeis import dar_papeis
 from tests.scpi_simulado import SCPISimulado
 
 HOJE = date(2026, 10, 9)
@@ -45,7 +46,8 @@ def dois_lotes():
 
 @pytest.fixture
 def usuario_logado(client):
-    usuario = get_user_model().objects.create_user(username="12345", password="x")
+    """Um usuário do almoxarifado logado, com os dois papéis (spec 012)."""
+    usuario = dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
     client.force_login(usuario)
     return usuario
 
@@ -111,3 +113,14 @@ def trava_ocupada():
         yield
     finally:
         outra.close()
+
+
+@pytest.fixture(autouse=True)
+def navegador_fechado(monkeypatch):
+    """Os testes nunca abrem o navegador do SCPI: um teste que chegasse ao Playwright de verdade
+    entraria no SCPI real com as credenciais do .env. Quem precisa do SCPI usa o simulado."""
+
+    def nunca(*args, **kwargs):
+        raise AssertionError("Os testes nunca abrem o navegador do SCPI (use o SCPI simulado).")
+
+    monkeypatch.setattr("playwright.sync_api.sync_playwright", nunca)

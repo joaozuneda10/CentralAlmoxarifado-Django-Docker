@@ -1,5 +1,6 @@
 /*
- * Clean — fundação visual do Central Almoxarifado (docs/DESIGN.md; skill clean-design).
+ * Tonal — fundação visual do Central Almoxarifado (docs/DESIGN.md; skill design-tonal), na
+ * linguagem do Material 3: superfícies tonais, contêineres, raios maiores e elevação.
  * Tokens, fontes, tipografia, ritmos e utilitários. Só tema claro.
  */
 
@@ -12,26 +13,35 @@
 @font-face { font-family: "Geist Mono"; src: url("../fonts/geist-mono-latin-500-normal.woff2") format("woff2"); font-weight: 500; font-style: normal; font-display: swap; }
 
 :root {
+  /* Cores (specs/015-design-system-m3/contracts/tokens.md; contraste em tests/test_contraste_tokens.py). */
   --fundo: #ffffff;
-  --superficie: #f7f6f2;
-  --texto: #0f0e0c;
-  --texto-secundario: #6b6760;
-  --texto-suave: #a8a49f;
-  --borda: #e8e6e1;
+  --superficie: #f5f6fa;
+  --superficie-media: #eef0f5;
+  --superficie-alta: #e8eaf0;
+  --superficie-maxima: #e1e4eb;
+  --texto: #1a1c21;
+  --texto-secundario: #4a4d57;
+  --texto-suave: #666975;
+  --borda: #e2e4ea;
+  --contorno: #7a7d88;
   --destaque: #2563eb;
   --destaque-hover: #1d4ed8;
   --destaque-texto: #ffffff;
-  --destaque-superficie: #eff4ff;
-  --ok-superficie: #ecf7ee;
-  --ok-texto: #1e6b34;
-  --aviso-superficie: #fdf4e3;
-  --aviso-texto: #8a5a00;
-  --erro-superficie: #fcedec;
-  --erro-texto: #a3261d;
+  --destaque-superficie: #dce6ff;
+  --destaque-superficie-texto: #0f2a6b;
+  --secundario-superficie: #e2e7f3;
+  --secundario-superficie-texto: #1b2540;
+  --ok-superficie: #d8f0de;
+  --ok-texto: #1d5e30;
+  --aviso-superficie: #fcebc9;
+  --aviso-texto: #6a4600;
+  --erro-superficie: #fbe3e1;
+  --erro-texto: #8c1d17;
+  --erro-forte: #b3261e;
   --info-superficie: var(--destaque-superficie);
-  --info-texto: var(--destaque-hover);
-  --neutro-superficie: var(--superficie);
-  --neutro-texto: var(--texto-secundario);
+  --info-texto: var(--destaque-superficie-texto);
+  --neutro-superficie: #ecedf2;
+  --neutro-texto: #4a4d57;
 
   --fonte-titulo: "Geist", "DM Sans", sans-serif;
   --fonte-texto: "DM Sans", sans-serif;
@@ -47,24 +57,29 @@
   --esp-12: 96px;
   --esp-16: 128px;
 
-  --raio-cartao: 12px;
+  --raio-campo: 4px;
+  --raio-selo: 6px;
   --raio-controle: 8px;
+  --raio-cartao: 16px;
+  --raio-bloco: 28px;
   --raio-pilula: 100px;
 
-  --sombra-cartao: 0 1px 3px rgba(0, 0, 0, 0.05), 0 1px 2px rgba(0, 0, 0, 0.04);
-  --sombra-hover: 0 6px 20px rgba(0, 0, 0, 0.08);
-  --sombra-elevada: 0 8px 30px rgba(0, 0, 0, 0.09);
+  --sombra-cartao: 0 1px 2px rgba(16, 24, 40, 0.06), 0 1px 3px rgba(16, 24, 40, 0.08);
+  --sombra-hover: 0 2px 6px rgba(16, 24, 40, 0.08), 0 4px 12px rgba(16, 24, 40, 0.08);
+  --sombra-elevada: 0 4px 8px rgba(16, 24, 40, 0.1), 0 8px 24px rgba(16, 24, 40, 0.12);
   --anel-foco: 0 0 0 2px var(--fundo), 0 0 0 4px var(--destaque);
-  --transicao: 0.18s ease;
+  --transicao: 0.15s ease;
 
-  /* Ritmo: os valores mudam com .ritmo-publico / .ritmo-almox no <body>. */
+  /* Ritmo: os valores mudam com .ritmo-publico / .ritmo-almox no <body>. A altura do controle é
+     também a área de toque mínima (FR-011): 48px no público, 44px na área interna. */
   --texto-corpo: 16px;
   --titulo-1: 32px;
   --recheio-cartao: var(--esp-3);
   --entre-blocos: var(--esp-4);
   --celula-v: 12px;
   --celula-h: 16px;
-  --altura-controle: 44px;
+  --altura-controle: 48px;
+  --altura-campo: 56px;
 }
 
 .ritmo-publico {
@@ -81,7 +96,8 @@
   --entre-blocos: var(--esp-3);
   --celula-v: 10px;
   --celula-h: 12px;
-  --altura-controle: 40px;
+  --altura-controle: 44px;
+  --altura-campo: var(--altura-controle);
 }
 
 *, *::before, *::after { box-sizing: border-box; }

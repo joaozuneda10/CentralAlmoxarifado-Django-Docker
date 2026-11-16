@@ -27,6 +27,11 @@ MENSAGEM_TOKEN_INVALIDO = (
     "toque em Enviar de novo."
 )
 MENSAGEM_RAPIDO = "Aguarde alguns segundos e toque em Enviar de novo."
+# Spec 013: o formulário aberto com uma conta, enviado sem ela (sessão que terminou) ou com outra.
+MENSAGEM_SESSAO_TERMINOU = (
+    "Sua sessão terminou. Entre de novo (abre em outra aba), volte aqui e toque em Enviar; "
+    "os materiais continuam aqui."
+)
 
 
 @dataclass(frozen=True)
@@ -34,13 +39,24 @@ class Envio:
     id: uuid.UUID
     aberto_em: float
     token: str
+    # A conta do solicitante com que a página abriu (spec 013); None no formulário anônimo.
+    conta: int | None = None
 
 
-def emitir(envio_id: uuid.UUID | None = None, aberto_em: float | None = None) -> Envio:
+def emitir(
+    envio_id: uuid.UUID | None = None,
+    aberto_em: float | None = None,
+    conta_id: int | None = None,
+) -> Envio:
+    """O token do formulário. Com `conta_id`, a página abriu com essa conta, e o envio só vale com
+    ela logada (spec 013): a assinatura impede trocar a conta, e a sessão que termina no meio nunca
+    transforma o pedido em anônimo."""
     envio_id = envio_id or uuid.uuid4()
     aberto_em = time.time() if aberto_em is None else aberto_em
-    token = signing.dumps({"id": str(envio_id), "aberto_em": aberto_em}, salt=SALT)
-    return Envio(envio_id, aberto_em, token)
+    token = signing.dumps(
+        {"id": str(envio_id), "aberto_em": aberto_em, "conta": conta_id}, salt=SALT
+    )
+    return Envio(envio_id, aberto_em, token, conta_id)
 
 
 def ler(token: str) -> Envio | None:
@@ -48,7 +64,14 @@ def ler(token: str) -> Envio | None:
     validade: o identificador é único e o reenvio de um pedido igual só o confirma."""
     try:
         dados = signing.loads(token or "", salt=SALT)
-        return Envio(uuid.UUID(dados["id"]), float(dados["aberto_em"]), token)
+        # O token de antes da spec 013 não tem a chave: vale como formulário anônimo.
+        conta = dados.get("conta")
+        return Envio(
+            uuid.UUID(dados["id"]),
+            float(dados["aberto_em"]),
+            token,
+            int(conta) if conta is not None else None,
+        )
     except (signing.BadSignature, KeyError, TypeError, ValueError):
         return None
 

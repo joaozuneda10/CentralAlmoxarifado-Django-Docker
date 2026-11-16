@@ -152,6 +152,10 @@ def _tipos() -> list[Importacao.Tipo]:
     tipos = list(IMPORTACOES_DO_SCPI)
     if Importacao.objects.filter(tipo=Importacao.Tipo.DEPARA).exists():
         tipos.append(Importacao.Tipo.DEPARA)
+    # As fontes da entrada por pedido (spec 014) entram na visão geral depois da primeira execução.
+    for tipo in (Importacao.Tipo.PEDIDOS_COMPRA, Importacao.Tipo.ENTRADAS):
+        if Importacao.objects.filter(tipo=tipo).exists():
+            tipos.append(tipo)
     return tipos
 
 
@@ -528,9 +532,11 @@ def _demais(
         )
     else:
         saude += _destinos_e_excecoes(ab, catalogos)
+    from compras.saude import avisos as avisos_das_compras  # o app depende deste
     from conciliacao.saude import avisos as avisos_da_conciliacao  # o app depende deste
 
     saude += avisos_da_conciliacao(agora)
+    saude += avisos_das_compras(agora)
     return saude
 
 
@@ -581,6 +587,15 @@ def _resumo_da_fonte(tipo: str, ultima: Importacao, total: int, ocultos: int) ->
             else ""
         )
         return f"{numero(ultima.linhas)} saídas", periodo
+    if tipo == Importacao.Tipo.PEDIDOS_COMPRA:
+        return f"{numero(ultima.linhas)} itens", ""
+    if tipo == Importacao.Tipo.ENTRADAS:
+        periodo = (
+            f"de {ultima.periodo_de:%d/%m/%Y} a {ultima.periodo_ate:%d/%m/%Y}"
+            if ultima.periodo_de and ultima.periodo_ate
+            else ""
+        )
+        return f"{numero(ultima.linhas)} requisições de entrada", periodo
     return f"{numero(ultima.linhas)} pares", ""
 
 

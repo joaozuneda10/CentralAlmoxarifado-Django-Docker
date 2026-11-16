@@ -29,10 +29,31 @@ def test_atualizar_roda_os_tres_e_segue_depois_de_uma_falha(monkeypatch, capsys,
         "importar_estoque",
         "importar_saidas_scpi",
         "conciliar_lancamentos",
+        "conciliar_entradas",
+        "importar_pedidos_compra",
     ]
     assert "Cadastro: o CSV não tem nenhum material" in capsys.readouterr().err
     assert any(
         r.name == "scpi" and "importar_cadastro" in r.getMessage() and r.levelname == "ERROR"
+        for r in caplog.records
+    )
+
+
+def test_atualizar_segue_depois_de_uma_excecao_inesperada(monkeypatch, capsys, caplog):
+    feitos = []
+
+    def falso(nome, *args, **kwargs):
+        feitos.append(nome)
+        if nome == "conciliar_entradas":
+            raise RuntimeError("o banco caiu")  # não é CommandError
+
+    monkeypatch.setattr("scpi.management.commands.atualizar_catalogo.call_command", falso)
+    with pytest.raises(CommandError, match=r"^Falharam: conciliar_entradas\.$"):
+        call_command("atualizar_catalogo")
+    assert feitos[-1] == "importar_pedidos_compra"  # o passo seguinte rodou
+    assert "conciliar_entradas: falha inesperada" in capsys.readouterr().err
+    assert any(
+        r.name == "scpi" and "conciliar_entradas" in r.getMessage() and r.exc_info
         for r in caplog.records
     )
 
@@ -120,7 +141,16 @@ def test_carga_inicial_pede_o_cadastro_inteiro_e_as_saidas_desde_o_inicio(monkey
         ("importar_estoque", {}),
         ("importar_saidas_scpi", {"desde": "01/01/2026"}),
         ("conciliar_lancamentos", {"diaria": True}),
+        ("conciliar_entradas", {"diaria": True}),
+        ("importar_pedidos_compra", {}),
     ]
     chamados.clear()
     call_command("atualizar_catalogo")
-    assert [extras for _, extras in chamados] == [{}, {}, {}, {"diaria": True}]
+    assert [extras for _, extras in chamados] == [
+        {},
+        {},
+        {},
+        {"diaria": True},
+        {"diaria": True},
+        {},
+    ]

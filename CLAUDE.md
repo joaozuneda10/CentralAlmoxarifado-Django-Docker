@@ -112,9 +112,14 @@ DE/PARA CONSOLIDADO (carga única). No servidor os comandos rodam no container
 (`docker compose ... exec web python manage.py ...`), não pelo `uv run`, sempre com o projeto e os
 arquivos do ambiente explícitos (`deploy/AMBIENTES.md`). Em produção, só a pedido do usuário.
 
-Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`)
-e `atualizar_catalogo` (os três em sequência e, por último, `conciliar_lancamentos --diaria`, a
-extração diária das requisições com a conciliação e a limpeza de 60 dias, num navegador só; com
+Os comandos `importar_cadastro`, `importar_estoque`, `importar_saidas_scpi` (`--desde`/`--ate`),
+`importar_pedidos_compra` (07.13, `--forcar`), `conciliar_entradas` e `atualizar_catalogo` (os três
+em sequência e, depois, três passos da conciliação: `conciliar_lancamentos --diaria`, a extração
+diária das requisições de saída com a conciliação e a limpeza de 60 dias; `conciliar_entradas
+--diaria`, o mesmo para as entradas por pedido (`compras/limpeza.py`: o bruto e as requisições sem
+ligação de mais de 60 dias, sem apagar a requisição de uma `EntradaForaDoCentral`); e, por último, o
+`importar_pedidos_compra`, que reflete tudo no saldo; seis passos num navegador só, e um que falha não
+impede os seguintes; com
 `--carga-inicial`, o cadastro inteiro e as saídas desde `curva.INICIO_DADOS_CONFIAVEIS`, também no
 botão "Carga inicial completa" da página Automações; o `deploy/crontab` o roda às 07:15, porque o
 SCPI só é estável das 7h às 17h) abrem o SCPI pelo Playwright; com `--arquivo`
@@ -122,7 +127,11 @@ leem um CSV já baixado. Os testes nunca abrem o navegador.
 
 O pytest usa `config.settings_test` (definido no `pyproject.toml`) e cria o banco
 `test_almoxarifado`. Testes rodam contra MySQL/MariaDB, nunca SQLite: `select_for_update` e
-transações precisam se comportar como no servidor.
+transações precisam se comportar como no servidor. A migration `contas/0004_papeis` roda também no
+banco de teste: o usuário que loga numa rota interna precisa dos papéis (fixture `usuario_logado` e
+`tests/papeis.py`, `dar_papeis`/`usuario_com`), senão recebe 403. O solicitante dos testes vem de
+`tests/solicitantes.py` (`criar_solicitante`, `token`, `postar`). O `client.login` não funciona com o
+django-axes (exige o `request`): use `force_login` ou o POST no formulário de entrar.
 
 ## Servidor de desenvolvimento e verificação no navegador
 
@@ -166,9 +175,80 @@ transações precisam se comportar como no servidor.
 - `contas.Usuario` é o `AUTH_USER_MODEL`: `AbstractUser` com o `username` rotulado
   "matrícula". O login (`/painel/entrar/`) e o login do admin usam formulários próprios
   (`contas/forms.py`) só para a recusa sair em português correto.
-- `interface` é só apresentação (sem modelos nem regras), no design system Clean (skill
-  `.claude/skills/clean-design/`; regras e vocabulário de classes em `docs/DESIGN.md`):
-  `clean.css` (tokens, fontes, tipografia e os ritmos `ritmo-publico`/`ritmo-almox`),
+- **Papéis de acesso da área interna** (spec `specs/012-papeis-de-acesso/`): o código pergunta por
+  quatro permissões do `Meta` de `contas.Usuario` (`contas.atender_pedidos`, `operar_automacoes`,
+  `ver_curva`, `ver_formularios`; constantes em `contas/acesso.py`), nunca pelo nome do papel; os
+  grupos **Atendimento** (painel, pedido, recibos, atendimento, edição e saída avulsa) e **Gestão**
+  (Automações inteira, Curva ABC e página Formulários) as reúnem e se dão no formulário do usuário no
+  admin. `contas.acesso.REGRAS_POR_ROTA` é a fonte única de quem abre cada rota nomeada (`Regra` com
+  as permissões, o `exige_staff` e o motivo da recusa, ou as categorias `PUBLICA`, `ADMIN`, o
+  namespace do admin inteiro, e `SEGURANCA`, que as views da spec 008 decidem); o
+  `contas.middleware.ExigirPermissao`, logo depois do da Segurança do Trabalho, a aplica em
+  `process_view` e **nega por padrão** a rota fora dela (só o superusuário passa; anônimo vai ao
+  login). **Rota nova entra nessa tabela no mesmo PR**: `tests/test_papeis_acesso.py` percorre todas
+  as rotas nomeadas (`tests/rotas.py`) e falha com rota interna fora dela. A recusa é a página
+  `interface/acesso_negado.html` (403, sem cache, o motivo da regra; o usuário sem papel algum vê
+  "Seu usuário ainda não tem acesso"); os `PermissionDenied` das views usam o `403.html`. Sem a
+  permissão, a recusa vem antes do método (GET numa rota só de POST dá 403, não 405). Toda recusa vira
+  uma linha do logger `contas.acesso` (`registrar_recusa`: matrícula, rota nomeada, método e o que
+  faltou; nunca o caminho com parâmetros, o corpo nem nomes), também no filtro da Segurança do
+  Trabalho (fora do GET), no `exige` da spec 009, nas views de autorização e no disparo. O
+  `scpi.disparo.iniciar_lancamento` confere `operar_automacoes` de novo antes de criar a execução. O
+  menu (`interface.navegacao`, `pode_abrir`) e os atalhos do painel e do detalhe para Automações
+  (`{% if perms.contas.operar_automacoes %}`) só mostram o que a rota abre. A migration
+  `contas/0004_papeis` criou as permissões e os dois grupos e os deu a todo usuário ativo fora da
+  Segurança do Trabalho, conferindo no fim (ninguém perdeu acesso no deploy); o administrador
+  restringe pelo admin. O superusuário passa em toda permissão, menos na decisão de EPI.
+- **Contas de solicitante** (spec `specs/013-contas-solicitantes/`): o funcionário que pede material
+  pode ter uma conta, **criada só no admin** (sem cadastro aberto), no grupo `Solicitante`, sem
+  permissão nenhuma. Quem é solicitante é `contas.acesso.eh_solicitante`: o grupo **e** nada da equipe
+  (nem `is_staff`, `is_superuser`, permissão interna ou a Segurança do Trabalho); a conta misturada
+  vale como equipe. O `UsuarioAdmin` (`contas/admin.py`, formulários em `contas/forms.py`) recusa
+  Solicitante junto com papel da equipe, staff ou superusuário, e sem nome completo (o nome vai nos
+  pedidos). **Troca obrigatória da senha**: `Usuario.trocar_senha` (migration `contas/0005`, padrão
+  falso: ninguém que já existia é obrigado) é ligada ao criar o usuário e no "Alterar senha" do
+  admin, e o `contas.middleware.ExigirTrocaDeSenha` (depois do `ExigirPermissao`) prende o
+  solicitante com ela à `trocar_senha` (`/painel/senha/`, `contas.views.TrocarSenha`, de qualquer
+  usuário logado) e ao Sair; a equipe não é obrigada. Na tabela de rotas, duas categorias novas:
+  `SOLICITANTE` (`pedidos:meus_pedidos`, `pedidos:meu_pedido`: anônimo ao login, equipe ao
+  `ponto_de_partida`) e `LOGADO` (`trocar_senha`, também na lista da Segurança do Trabalho). O
+  solicitante numa rota interna recebe a recusa no layout público (`acesso_negado_publico.html`). O
+  login é `contas.views.Entrar`: o solicitante vai a "Meus pedidos", a equipe ao
+  `LOGIN_REDIRECT_URL`. O `base_publico.html` mostra "Entrar" a quem não está logado e "Meus pedidos"
+  e "Sair" ao solicitante (`solicitante_logado` do context processor; o único Sair da página).
+  **Pedido com conta**: `Pedido.conta` (migration `pedidos/0006`, `PROTECT`, nula no pedido anônimo e
+  no da equipe) só é gravado por `registrar_pedido(conta=...)`, e o reenvio confere também a conta. O
+  token do formulário (`protecao.emitir(conta_id=...)`) leva a conta com que a página abriu: com
+  conta, o nome é o da conta (`regras.nome_da_conta`, campo `readonly`, o enviado é ignorado), o
+  destino vem do último pedido da conta naquele formulário (`servicos.destino_sugerido`), o `<form>`
+  tem `data-com-conta` (o `pedidos.js` não usa o `localStorage` do aparelho) e a tela de sucesso leva
+  a "Meus pedidos". Aberto com uma conta e enviado sem ela (sessão que terminou) ou com outra:
+  recusa `MENSAGEM_SESSAO_TERMINOU`, nada gravado, carrinho mantido e "Entrar" numa aba nova; como o
+  login troca o segredo do CSRF, o `pedidos.js` copia o cookie `csrftoken` para o formulário com
+  conta antes de cada envio (sem isso a aba antiga daria 403). A página com conta leva também a
+  marca escondida `com_conta=1`, sem assinatura de propósito (só torna o envio mais exigente): com o
+  token inválido, a conta de origem se perde, e a marca impede o pedido anônimo sem solicitante
+  logado. Aberto sem conta e enviado logado: anônimo, com o aviso. "Meus pedidos" (`pedidos/views/solicitante.py`, `never_cache`, 20 por
+  página) filtra pela conta; o pedido de outra conta ou anônimo é 404, igual ao inexistente. O
+  template só recebe o dicionário de `pedidos.minhas` (situação pelo texto da consulta pública,
+  `situacao_para_solicitante`, que a consulta também usa; pedida, entregue e "trocado por"), nunca o
+  `Pedido`: nada de quem atendeu, recebedor, centro, placa, tipo, SCPI ou acrescentado. A consulta
+  pública (spec 011) não abre pedido com conta (`conta__isnull=True`). **Limite de tentativas** com o
+  django-axes nas duas portas de login: `AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]`
+  (matrícula e origem juntas), `LOGIN_TENTATIVAS` e `LOGIN_BLOQUEIO_MINUTOS` do `.env` (5 e 15),
+  `AXES_RESET_ON_SUCCESS`, `AXES_DISABLE_ACCESS_LOG` (não guarda todo login), a página
+  `contas/bloqueado.html` (429) e o desbloqueio apagando a tentativa no admin. Sem proxy, a origem é
+  o `REMOTE_ADDR` (falta conferir no servidor se é o do aparelho). O axes exige o `request` no
+  `authenticate`: nos testes, `client.login` falha; entre pelo formulário ou use `force_login`.
+- `interface` é só apresentação (sem modelos nem regras), no design system Tonal, a linguagem
+  visual do Material 3 sobre o CSS do projeto (spec `specs/015-design-system-m3/`, que trocou o
+  Clean; skill `.claude/skills/design-tonal/`; regras, tokens, combinações de cor permitidas e
+  vocabulário de classes em `docs/DESIGN.md`): `fundacao.css` (tokens, fontes, tipografia e os
+  ritmos `ritmo-publico`/`ritmo-almox`; o contraste das combinações declaradas é conferido por
+  `tests/test_contraste_tokens.py`), o selo com o ícone pelo tom no `::before` (o neutro sem ícone,
+  o selo com `svg` próprio sem o segundo, sem ícone no papel), o recibo impresso idêntico ao de
+  antes (a `.folha-recibo` redefine no `@media print` os tokens que usa) e as capturas para a
+  revisão visual em `scripts/capturar_telas.py` (fora da suíte; `capturas/` fica fora do Git),
   `componentes.css` e `layouts.css`, ícones Lucide em `_icone.html`, fontes `.woff2` locais
   (Geist, DM Sans, Geist Mono), HTMX 4.0.0 vendorizado, parciais e template tags. Só tema
   claro; o `shell.js` só cuida do menu móvel. O `dropdown.js` troca todo `select.campo-entrada` e
@@ -180,11 +260,33 @@ transações precisam se comportar como no servidor.
   elemento original fica escondido e continua guardando o valor e disparando `change` (script
   que troca o valor de um `select` precisa disparar `change`). O `abas.js` (`[data-abas]`, `?aba=` na URL) dá as abas em pasta: a ativa se funde ao primeiro cartão
   do painel. O `filtros.js` recolhe o painel de
-  um `form[data-filtros]` (filtros do painel de pedidos e do histórico de Automações): botão com a contagem, estado lembrado no
-  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. Dois layouts: `base_publico.html` (sem login,
+  um `form[data-filtros]` (filtros do histórico de Automações): botão com a contagem, estado lembrado no
+  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. No
+  `form[data-filtros-estado]` (o painel de pedidos, sempre à vista, em chips) ele só mantém a tela em
+  dia: depois de cada troca concluída da lista, refaz os rótulos dos chips com lista
+  (`data-chip-nome`, "Origem: Limpeza") e o `aria-current` dos indicadores pelo que foi enviado, e
+  guarda isso como a última troca aplicada; na falha da requisição (não no cancelamento pelo
+  `hx-sync="this:replace"`), devolve a ela os campos que ainda estão como foram enviados, sem envio
+  novo (o `select` só redesenha o gatilho, pelo evento `dropdown:atualizar` do `dropdown.js`). O
+  `menus.js` atende todo `details[data-menu]` (o ⋮ das linhas e os chips com lista): abrir um fecha
+  os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha, e escolher num `select`
+  de um chip o fecha; sem JavaScript o `<details>` abre e fecha sozinho. Dois layouts: `base_publico.html` (sem login,
   pensado para o celular) e `base_almoxarifado.html` (barra lateral), os dois com o bloco `voltar`
   (`link-voltar`, acima do rótulo; no almoxarifado, "Voltar ao painel" por padrão, vazio no painel). Cada subprojeto
-  acrescenta seus destinos (com ícone) a `ITENS_MENU` em `interface/navegacao.py`. Scripts
+  acrescenta seus destinos (com ícone) a `ITENS_MENU` em `interface/navegacao.py`; o menu só
+  mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Acima de 1286px a
+  barra lateral é o menu estreito de 88px (a marca num quadrado tonal, ícone sobre rótulo e, no pé,
+  só o Sair com o ícone), e a área interna é branca com a barra do topo (`app-topo`: o nome, a busca
+  da página no bloco `topo_busca` e o usuário com as iniciais), como no protótipo do painel; até
+  1286px, o cabeçalho com o botão de menu de sempre, e a barra do topo só com a busca. Dois itens têm
+  contador (`_CONTADORES`, só para quem abre o item e nunca com zero; o número `aria-hidden` e o texto
+  escondido ", 2 para atender"): o Painel, com os pedidos aguardando atendimento, e Automações, com as
+  travas a conferir, as requisições travadas mais os recebimentos travados, cada um sem o
+  `EM_LANCAMENTO` enquanto o robô do seu tipo roda (aí é o robô trabalhando; a conferência da
+  execução só roda com algum em lançamento). As parcelas vêm de `navegacao.contadores(request)`
+  (`Contadores`, uma vez por requisição e só quando lidas: o trecho do HTMX não conta nada), a mesma
+  memória que o painel usa nos cartões; o cartão do robô conta as requisições travadas com o
+  `EM_LANCAMENTO`, como antes, e não soma as entradas. Scripts
   ficam no `<head>` com `defer`, nunca no `<body>` (o HTMX re-executa scripts do corpo ao
   restaurar o histórico).
 - `pedidos/regras.py` guarda as regras de negócio: funções puras, sem ORM. Vieram de
@@ -242,7 +344,12 @@ transações precisam se comportar como no servidor.
   "Materiais AB", e o rótulo do Telegram é o da origem (`get_origem_display`). `regras.Erro` tem
   `campo` (`solicitante`, `destino`, `obs`, `ocorrencia`) nos erros de um campo:
   a view monta `erros_por_campo`, e o formulário mostra o resumo no topo (focado pelo `pedidos.js`,
-  com link para o campo) e o erro embaixo do próprio campo. No celular, a gaveta do pedido envia
+  com link para o campo) e o erro embaixo do próprio campo. Nome, destino e ocorrência (e os campos
+  da consulta, do login e da troca de senha) têm o rótulo flutuante do M3 (`campo-flutuante`, spec 015,
+  `contracts/campos-publicos.md`): `placeholder=" "` no campo (o CSS sabe se está vazio), o rótulo
+  dentro da caixa só com o campo vazio, sem foco e sem erro, e o exemplo no `campo-dica` embaixo; com
+  erro, a dica sai do HTML e o `aria-describedby` aponta só para o erro (na troca de senha, o
+  `FormularioTrocaSenha.full_clean` o fixa no widget). No celular, a gaveta do pedido envia
   (`data-carrinho-enviar`, que aciona o botão do fim do formulário por `requestSubmit`; esse botão
   fica escondido com JavaScript), também na saída avulsa, com os textos da
   saída (`Fluxo.rotulo_carrinho` e afins: "Materiais da saída", "Revisar e registrar"). O "Nome completo" é texto livre, sem sugestões de nomes. O `pedidos.js`
@@ -276,7 +383,24 @@ transações precisam se comportar como no servidor.
   concordam), detalhe com o atendimento, saída avulsa e recibos (`_recibo.html`, que nunca
   mostra quem registrou). Não há página de recibos: o "Imprimir recibo" do detalhe imprime a própria
   página (`data-imprimir`, escondido sem JavaScript) e, depois, mostra ali a confirmação de impresso
-  (`marcar_impressos`); o atalho do painel filtra os não impressos (`?recibo=pendente`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
+  (`marcar_impressos`); o cartão Recibos do painel filtra os não impressos (`?recibo=pendente`). O
+  "Imprimir recibo" do ⋮ da lista abre o detalhe com `?imprimir=1`: o botão ganha
+  `data-imprimir-ao-abrir` só com atendimento e recibo não impresso, o `pedidos.js` o aciona uma vez
+  no `load` e tira o parâmetro da barra (`history.replaceState`), e o `voltar` da confirmação vem da
+  view sem ele (`voltar_sem_imprimir`), para não imprimir de novo. Nada é marcado sem a confirmação.
+  O painel (spec 015, `contracts/painel.md`, no desenho do protótipo): a busca `q` em pílula na barra do topo, fora do formulário e
+  ligada a ele por `form="filtros-painel"` (o gatilho do HTMX tem `input delay:400ms from:#id_q`);
+  os quatro indicadores (Atendimento, com o envio mais antigo, `regras.texto_envio_mais_antigo`, e
+  "+N aguardando autorização"; Recibos; Lançamento no SCPI, só com `operar_automacoes`, com o
+  formulário do "Lançar no SCPI" e levando à aba do lançamento, não a um filtro; Catálogo, erros mais
+  avisos, levando a `#saude`), numa seção que nunca fica dentro do formulário de filtros; o
+  formulário com a situação em chips de rádio (`RadioSelect`: o valor vale em todo envio), o
+  material, os chips com lista de Origem, SCPI, Recibo, Autorização e Período
+  (`FiltrosPainel.rotulos_dos_chips`) e o "Filtrar" como primeiro botão de envio, sem `name`; a
+  lista com Situação (e "Recibo não impresso") e SCPI em colunas separadas e o ⋮ de cada linha (Abrir
+  pedido; com atendimento, Imprimir recibo; e Editar atendimento ou Editar saída quando
+  `regras.edicao_permitida` deixa, pelas linhas já pré-carregadas); e a saída avulsa no botão
+  flutuante (`fab`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
   `NAO_LANCAR` com a opção marcada): é o contrato com o robô do subprojeto 4. Na área interna a
   unidade é a do cadastro do SCPI (`consultas.unidades_scpi`), nunca a unidade exibida do
   formulário de limpeza (`ItemPedido.unidade`, que só vale para código fora do cadastro), e vai
@@ -350,7 +474,7 @@ transações precisam se comportar como no servidor.
 - Formulário da oficina mecânica (spec `specs/007-formulario-oficina-mecanica/`): o formulário
   público `FLUXOS["oficina"]` (origem `OFICINA`, `/pedido/oficina/`), pedido de autopeças e insumos
   da oficina, sem folha nem ocorrência; o único campo novo no `Fluxo` é `exemplo_destino`, o
-  placeholder do destino (antes deduzido de `fluxo.centros`). O catálogo
+  texto de apoio do destino, embaixo do campo (`campo-dica`; antes deduzido de `fluxo.centros`). O catálogo
   (`catalogos.formulario_oficina`) são os materiais visíveis dos grupos da lista `Opcao`
   `GRUPO_OFICINA` ("Grupos (oficina)", comparados por `_grupo`, como os ocultos do AB; lista vazia =
   nenhum grupo) mais os avulsos (exceções da configuração, spec 009: antes um cadastro
@@ -426,7 +550,7 @@ transações precisam se comportar como no servidor.
   página no servidor), o **lote em duas telas** (`formularios_lote`: prévia com número exato, POST com o
   `total` visto, recusa se o filtro mudou, "ciente" sem filtro), a consulta **por material**
   (`formularios_material`) e as gravações em POST, mensagem e redirecionamento. **Permissões**: ver é
-  de todo usuário do almoxarifado; gravar exige `is_staff` mais `catalogo.change_centrocusto` (centros)
+  do papel Gestão (`contas.ver_formularios`, spec 012); gravar exige também `is_staff` mais `catalogo.change_centrocusto` (centros)
   ou `catalogo.change_excecaomaterial` (materiais), recusado com 403 no servidor
   (`catalogo/acesso.py`); a Segurança do Trabalho é negada pelo middleware (rotas fora da lista). A
   migration `catalogo/0007` (a 0006 é só o esquema, separada porque o DDL do MySQL não é transacional)
@@ -718,6 +842,158 @@ transações precisam se comportar como no servidor.
   pode estar apontando para o bruto) e a da conciliação (nenhuma liga uma requisição no meio da
   exclusão); com alguma ocupada, fica para a próxima. Uma falha da conciliação, prevista ou não, não
   impede a limpeza, e as duas falhas saem juntas no erro do comando.
+- Entrada de materiais por pedido de compra (spec `specs/014-entrada-por-pedido/`, entregue em PRs
+  empilhados; o plano diz o que cada um traz). O app `compras` (PR 1) guarda os **pedidos de compra
+  do SCPI**: `PedidoCompra` (exercício, ano e número do `NUMPED` `00514/26`, fornecedor, e o
+  `ausente_desde`) e `ItemPedidoCompra` (quantidade, anulado, `ja_entrou` e o `ja_entrou_anterior`,
+  nulo na primeira importação, que é a base; `saldo_scpi`, `controle` `Q`/`T`). A fonte é o **07.13**
+  "Relação de Pedidos (Condição da Entrega)", Analítico, "Apenas com saldo a entregar"
+  (`scpi.relatorios.baixar_pedidos_compra`, perfil `pedidos_compra`): **nunca o 01.08.03 Imprimir
+  Pedidos**, que grava a Data Emissão e um contador no pedido. `scpi.leitura.ler_pedidos_compra` é
+  pura e tudo ou nada (`QTDFALTA` conferido nos itens `Q`, item repetido, dois fornecedores no
+  pedido, `NUMPED` fora de `00000/00` e relatório cortado são `ErroImportacao`).
+  `compras.importacao.importar` roda sobre `scpi.execucao.executar` (tipo `PEDIDOS_COMPRA`, trava
+  própria): cria e atualiza, e o pedido e o item que somem ficam com `ausente_desde` (volta a nulo
+  se reaparecem), nunca são apagados; marcar ausentes mais de 20% dos itens presentes aborta sem
+  `--forcar` (Princípio IV, como o cadastro). O exercício é o ano corrente e o pedido de outro
+  exercício nunca é tocado. `compras/regras.py` (puro) tem `chave_pedido`, `rotulo_pedido` e
+  `disponibilidade` (o motivo em pt-BR de o item não poder ser recebido, ou `None`: controle `Q`,
+  código no cadastro e visível, pedido do exercício atual e presente, até 3 casas e saldo > 0).
+  `importar_pedidos_compra [--arquivo] [--apagar-arquivo] [--forcar]` e a aba "Pedidos de compra" de
+  Automações (`catalogo.forms.RoboPedidosCompraForm`, com a caixa "Gravar mesmo que muitos itens
+  sumam") a rodam; o admin de `PedidoCompra` é só leitura e `compras.saude` avisa importação com
+  falha ou sem sucesso há mais de um dia útil.
+  **Recebimento da NF (PR 2)**: a permissão `contas.receber_compras` (constante `RECEBER`, migration
+  `contas/0007`, dada aos grupos Atendimento e Gestão e conferida no fim) abre a área Compras
+  (`/painel/compras/`, item "Compras" do menu: `compras:pedidos`, `pedido`, `receber`,
+  `recebimento`, `editar_recebimento` e `cancelar_recebimento`, todas em `REGRAS_POR_ROTA`).
+  `Recebimento` é uma NF de um pedido (estados `PREPARADO`, `ERRO`, `EM_LANCAMENTO`, `VERIFICAR`,
+  `LANCADO`, `CANCELADO`; rótulo `RC-0001`), com `ItemRecebimento` (até 3 casas, > 0) e `TravaPedido`.
+  A NF é única por fornecedor pela `chave_nf` (`"<codif>:<nf>"`, única e **nula** no cancelamento sem
+  tentativa: o MySQL/MariaDB não têm índice único parcial); o número é guardado sem zeros à
+  esquerda. O **saldo livre** é o saldo do SCPI menos o reservado (`regras.saldo_livre`, `reserva_de`:
+  preparado, com erro, em lançamento e em verificação reservam; o lançado reserva até uma importação
+  de pedidos começada depois do `visivel_desde`), nunca negativo; reservado maior que o saldo do SCPI
+  é "precisa de conferência". **`compras/servicos.py` é a porta única** (Princípio II): cada
+  operação trava o `PedidoCompra` (`select_for_update`) e refaz o saldo livre dentro da trava
+  (`preparar_recebimento`, `editar_recebimento`, `cancelar_recebimento`, `travar_pedido`,
+  `destravar_pedido`). O `envio` (UUID gerado quando o formulário abre) decide o reenvio: igual
+  devolve o mesmo recebimento, diferente é "divergente"; a edição confere a `versao` (concorrência
+  otimista) e recria os itens; edição e cancelamento recusam o recebimento com tentativa do robô.
+  Destravar exige motivo e uma importação de pedidos começada depois da trava.
+  **Formulário do "total"**: `?modo=total` abre com os itens e as quantidades travados
+  (`form[data-total-travado]`, `compras/static/compras/js/receber.js`): só se alteram pelo botão
+  "Alterar itens e quantidades", e "Voltar ao total" restaura o sugerido. O servidor só trava o
+  formulário que é exatamente o total (`FormularioRecebimento.eh_o_total`): a recusa devolvida com
+  uma quantidade editada abre livre; sem JavaScript, os campos ficam livres; o recebimento não
+  guarda o modo, e a edição (`compras:editar_recebimento`) não trava.
+  **Registro oficial das entradas (PR 3)**: cada extração da "Relação de Requisições" de Entrada
+  (`scpi.relatorios.baixar_entradas(de, ate)`, rádio "Requisições de Entrada", o período filtra a
+  `DATAE`; só lê o SCPI, e a função das saídas não muda) é uma `Importacao` do tipo `ENTRADAS` com
+  uma `compras.ExtracaoEntradas` (motivo, execução do robô quando houver, o bruto em gzip com a
+  impressão SHA-256 e o `mesmo_arquivo_que`, `maior_requisicao`) e as `RequisicaoEntradaOficial` e
+  `ItemEntradaOficial` lidas, uma foto por extração (espelha a `conciliacao.ExtracaoOficial`; a
+  quantidade do item é decimal(18,6) como a do pedido). `compras.extracao.extrair` é a única camada
+  que a grava, também na falha (sem requisições, `maior_requisicao` nulo, bruto guardado se chegou a
+  ser baixado); "Nada a exibir" é extração sem requisições, salvo com recebimento lançado no
+  período, que faz falhar. `scpi.leitura.ler_entradas` é tudo ou nada: `REQUI` fora do formato,
+  `NUMPED` inválido, `QUAN1` ilegível, negativo ou com mais de 6 casas (o zero é dado do SCPI e vale) e cabeçalho (`CABECALHO_ENTRADA`)
+  que varia dentro da requisição são `ErroImportacao`; o `DOCUM` perde os zeros à esquerda (o que
+  não é número fica como veio) e `NUMPED` e `DOCUM` vazios são permitidos. A marca do recebimento
+  nas Observações é "Central Almoxarifado RC-0042" (`compras.regras.texto_observacoes`, escrita
+  pelo robô do PR 4, e `recebimento_observado`, que a lê; o `conciliacao.regras.lote_observado` não
+  lê `RC-`, nem este o `P-`/`AV-`). `conciliar_entradas [--arquivo] [--desde --ate] [--diaria]
+  [--sem-limpeza]` só extrai neste PR (período sem datas: do dia anterior ao menor entre hoje − 9
+  dias, a data dos lançados dos últimos 9 dias e a dos recebimentos em verificação, até amanhã;
+  recusa com qualquer lançamento ou importação em andamento); a conciliação e a limpeza vêm nos
+  PRs seguintes. `TravaPedido.extracao` (FK nula) já existe para a trava `FORA_DO_CENTRAL`.
+  **Robô de entradas (PR 4)**: `scpi/lancamento_entradas.py`, paralelo a `scpi/lancamento.py` (que
+  não muda), com a mesma ordem das gravações (Princípio III) sobre `compras.Recebimento`:
+  `selecionar` (`compras.robo`: só `PREPARADO`, com o pedido do exercício, presente, sem trava e sem
+  outro recebimento `EM_LANCAMENTO`/`VERIFICAR`; `motivo_de_bloqueio` confere de novo antes de abrir
+  cada pedido), extração de antes (3 tentativas; sem ela nada muda, `ExtracaoAntesFalhou`), e, para
+  cada recebimento, `abrir_pedido` (lê "Escolha os Itens"), `compras.regras.conferir_tela` (pura: o
+  "Já Entrou" e o saldo esperados, que somam o lançado do Central ainda não refletido na importação
+  de pedidos; divergência → `ERRO`, pedido travado `TELA`, nada salvo), `preencher`, `_travar` (numa
+  transação com `select_for_update` no recebimento e no pedido: `EM_LANCAMENTO` e a
+  `TentativaEntrada` `VERIFICAR` com a foto e a tela lida; fecha antes do clique), journal
+  `lancar_entradas_journal.jsonl`, `salvar` (qualquer exceção → `VERIFICAR`, crítico) e o número
+  → `LANCADO` (`via=ROBO`, `visivel_desde=lancado_em`, crítico: o banco que recusa para a execução
+  com `FalhaCritica` e o número está no journal). O journal de antes do Salvar e o do número são
+  críticos e a execução para sem conseguir gravá-los, mas o estado difere: sem o de antes do Salvar
+  (nada foi clicado), o recebimento fica `EM_LANCAMENTO` e a tentativa a `VERIFICAR`; sem o do número
+  (o Salvar já aconteceu), o número ainda vai ao banco e ao log, o recebimento fica `LANCADO` e só
+  então a execução para. A extração de antes também barra o recebimento cuja NF e fornecedor (ou a
+  marca) ela já achou numa requisição (`compras.robo.ja_no_scpi`: `ERRO`, nada salvo), e o `ERRO`
+  de antes do Salvar só é gravado se o recebimento continua `PREPARADO` na versão selecionada. O
+  `_travar` trava o pedido e depois o recebimento, a ordem de `compras.servicos`. Roda sob `TRAVA_LANCAMENTO` **e** a trava da
+  importação de pedidos (nenhuma importação de pedidos durante o lançamento); o
+  `importar_pedidos_compra` recusa com uma execução de entradas em andamento. A simulação
+  (`--dry-run`) abre, confere, preenche e cancela, sem tentativa, estado nem extração (a divergência
+  da tela só entra no resumo). `ExecucaoRobo.robo` (`SAIDAS` padrão, `ENTRADAS`; migration
+  `pedidos/0007`, `em_andamento(agora, robo=None)`): a aba Lançamento no SCPI, a visão geral e o
+  histórico filtram `SAIDAS` onde mostram "a última" e "o andamento"; as recusas (`iniciar_lancamento`,
+  `resolver_lote`, o disparo) continuam sem filtro, porque a trava é uma só. O cartão de andamento é o
+  mesmo (`pedidos.andamento`, com `para_entradas`: "recebimento", masculino, só na execução
+  `ENTRADAS`). `compras.TentativaEntrada` (migration `compras/0005`) é o registro de cada tentativa
+  (`LANCADA`, `VERIFICAR`, `ERRO`, `IGNORADA`); `servicos.tem_tentativa` vale pelo estado ou por uma
+  tentativa `LANCADA`/`VERIFICAR`. O comando `lancar_entradas --recebimento RC-0001 [--dry-run]`
+  recusa o lançamento real sem `LANCAMENTO_REAL` **e** `LANCAMENTO_REAL_ENTRADAS` (a trava própria
+  das entradas, desligada por padrão; `compras.robo.lancamento_real_liberado`; as condições para
+  ligá-la estão em `deploy/AMBIENTES.md`) antes de criar a execução; a aba **Entradas no
+  SCPI** (`automacoes`, `compras/_entradas.html`, `contexto_entradas`, rota `automacoes:lancar_entradas`
+  em `REGRAS_POR_ROTA`) tem a fila (`compras.consultas.fila_entradas`: aptos com caixa, bloqueados com
+  o motivo), Simular e Lançar (com confirmação) e o andamento, e o `fila-robo.js` a atende pelos
+  atributos `data-fila-*` do formulário. O Playwright (`scpi/lancador_entradas.py`) **ainda não foi
+  exercitado no SCPI real**: os pontos incertos estão marcados "R25" e o primeiro `--dry-run`
+  (quickstart, passo 4) os confirma. Nos testes, `tests/scpi_entradas_simulado.py`
+  (`SCPIEntradasSimulado`: pedidos, falhas e os dois relatórios).
+  **Recebimento em verificação (PR 5)**: `compras/conciliacao.py` (`conciliar_verificar`, sob a trava
+  `almoxarifado:conciliacao_entradas`; roda depois da extração de depois e no `conciliar_entradas`;
+  `ARQUIVO` nunca confere) grava, para cada recebimento `VERIFICAR`/`EM_LANCAMENTO` coberto, uma
+  `ConferenciaRecebimento` `VERIFICAR` (só se a extração começou depois da tentativa mais recente;
+  sem tentativa, `SEM_TENTATIVA`) com o intervalo (`conciliacao.regras.intervalo`, o piso é o
+  `maior_requisicao` da extração de antes) e as `CandidataEntrada`. A **candidata** é a que tem a
+  marca `RC-…` ou a NF e o fornecedor do recebimento, em qualquer número ("é esta"), ou a que está no
+  intervalo, é **do mesmo pedido** e não tem a marca de outro recebimento (`regras.candidatas`: sem o
+  filtro do pedido, toda entrada manual do dia bloquearia a liberação). **Liberar** e **cancelar** um
+  recebimento em verificação exigem as três provas (`consultas.liberacao` sobre `regras.tres_provas`:
+  extração de entradas posterior que não seja de arquivo, nenhuma candidata em nenhuma conferência
+  da tentativa e o "Já Entrou" da tela antes do Salvar, gravado na foto, igual na importação de
+  pedidos posterior, que tem de ser lida do SCPI na hora: a de um CSV, `Importacao.de_arquivo`,
+  migration `catalogo/0011`, não prova nada enquanto for a última). O recebimento liberado e depois
+  cancelado pelo serviço comum mantém a NF reservada. `servicos.resolver_recebimento` (ações `e_esta`, `liberar`, `cancelar`; sob a
+  `TRAVA_LANCAMENTO`, recusa com robô rodando) liga a candidata como `LANCADO` (`via=ROBO`,
+  `visivel_desde` = início da extração), devolve **o mesmo** recebimento a `PREPARADO` com
+  `versao + 1` e a NF ainda reservada (a tentativa antiga passa a `IGNORADA`, para não travar a
+  edição) ou cancela sem liberar a NF. A aba Entradas no SCPI ganha a região "Em verificação e com
+  erro" (`compras/_verificacao.html`, rota `automacoes:resolver_entrada` em `REGRAS_POR_ROTA`).
+  Os testes nunca abrem o navegador: o `conftest` troca o `sync_playwright` por um erro.
+  **Vereditos e entradas fora do Central (PR 6)**: `regras.veredito_entrada` (pura) usa três vínculos,
+  o número gravado, a marca `RC-…` e a NF com o fornecedor: marca ou NF em duas requisições, ou o número
+  numa requisição com a marca de outro recebimento, é Duplicado (mesmo sem a marca do Central); dois
+  vínculos em requisições diferentes, Conflito; nenhum vínculo, Não encontrado só com número maior no
+  relatório (ou uma conferência anterior que já a achou), senão Aguardando; os achados na mesma
+  requisição vão à `comparar_entrada` (fornecedor, NF, pedido, `DATAE` contra a data do recebimento
+  e a **soma por código** com `norm_u` e `Decimal` exato; nunca a `DTLAN` nem o empenho; vínculo que
+  falta, como a marca, vira nota). `compras.conciliacao.conciliar` (trava própria, cada etapa isolada,
+  `ConciliacaoIncompleta` no fim) roda em verificar, `conciliar_fora` e `conciliar_lancados` (primeira
+  conclusiva `LANCAMENTO`, depois `REVISAO` com `alterado_depois`; `ARQUIVO` só dá o primeiro
+  veredito; o recebimento lançado nunca muda). **Entrada fora do Central**: a requisição de um pedido
+  conhecido, sem a marca, ainda não ligada e com número **acima do marco** (`consultas.marco`, o
+  `maior_requisicao` da primeira extração bem-sucedida, ou `MARCO_VAZIO` se ela veio sem entradas) liga à mão o recebimento aberto com a mesma NF
+  e o mesmo fornecedor (`servicos.ligar_a_mao`, `via=MANUAL`) ou vira `EntradaForaDoCentral`
+  (reserva o saldo por código até a importação a refletir e trava o pedido `FORA_DO_CENTRAL`); a marca
+  de um recebimento não lançado trava `MARCA_SEM_LANCAMENTO`. A importação de pedidos explica o "Já
+  Entrou" por (pedido, código) (`regras.ja_entrou_explicado`: os lançados pelo robô entre as duas
+  importações mais, opcionalmente, um subconjunto dos incertos) e trava `JA_ENTROU` sem explicação,
+  inclusive com delta negativo; cada incerto (somado por código) explica um aumento uma vez só
+  (`IncertoConsumido`, migration `compras/0008`), e a troca de código do item compara o antigo e o novo. A aba Entradas no SCPI ganha "Pedidos travados" (destravar com
+  motivo), "Conferência" (`?veredito_entradas=`, "Conferir agora", "Atualizar pedidos") e o pedido
+  mostra as entradas de fora; `compras/saude.py` avisa travas, verificação e erro, falha da extração e
+  entradas de fora; as fontes "Pedidos de compra" e "Entradas" entram na visão geral depois da
+  primeira execução. A rotina diária (PR 7) é o `atualizar_catalogo`, que ganhou `conciliar_entradas
+  --diaria` e `importar_pedidos_compra`, nessa ordem; o `deploy/crontab` não muda.
 - `implantacao` (sem modelos nem migrations) guarda o backup, o `robos_em_andamento` e a carga
   do de/para. A migração única das planilhas do Apps Script (`importar_planilhas`, com
   `conversao.py` e `migracao.py`) foi feita e removida; o código fica na tag `v1.0.1`. Do que ela
@@ -830,12 +1106,11 @@ transações precisam se comportar como no servidor.
 - Logout só por POST com CSRF, num único formulário por página. Requisição HTMX que grava vai
   dentro de um `<form>` com `{% csrf_token %}`.
 - Estado nunca só por cor; códigos (CADPRO, matrícula, placa) em fonte mono (`.mono`).
-- Todo ajuste de UI/UX usa três skills juntas: `clean-design` (no repositório) com o
+- Todo ajuste de UI/UX usa três skills juntas: `design-tonal` (no repositório) com o
   `docs/DESIGN.md`, que são a referência fixa de estilo e vencem as outras duas;
   `ui-ux-pro-max` (plugin), para conferir usabilidade e acessibilidade pelo buscador; e
   `frontend-design` (plugin), para hierarquia, contenção, textos de interface e a conferência
-  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não refazer o
-  questionário inicial da `clean-design` (o projeto já o respondeu) nem gerar ou gravar um
-  design system novo das skills sem pedido.
+  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não gerar nem
+  gravar um design system novo das skills sem pedido.
 - O servidor está em produção com dados reais: mudança de modelo ganha **migration nova**,
   nunca regenerada (nem `migrate <app> zero`).

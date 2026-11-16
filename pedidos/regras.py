@@ -766,6 +766,12 @@ def nome_confere(digitado: str, solicitante: str) -> bool:
     return bool(digitado_u and gravado_u) and digitado_u[0] == gravado_u[0]
 
 
+def nome_da_conta(nome: str, sobrenome: str) -> str:
+    """O nome completo da conta do solicitante (spec 013), como vai no pedido: o nome e o
+    sobrenome do cadastro, com um espaço só entre as palavras."""
+    return " ".join(f"{texto(nome)} {texto(sobrenome)}".split())
+
+
 @dataclass(frozen=True)
 class ConsultaPublica:
     """O que a consulta pública diz ao solicitante (spec 011, seção 3): o selo, a frase e, na
@@ -857,6 +863,17 @@ def data_hora(momento: datetime) -> str:
     if timezone.is_aware(momento):
         momento = timezone.localtime(momento)
     return momento.strftime("%d/%m/%Y %H:%M")
+
+
+def texto_envio_mais_antigo(data_envio: date, hoje: date) -> str:
+    """Nota do cartão "Aguardando atendimento" (spec 015, FR-018b): há quanto tempo o pedido
+    aguardando mais antigo foi enviado, em dias de calendário entre a data do envio e hoje."""
+    dias = (hoje - data_envio).days
+    if dias <= 0:
+        return "enviado hoje"
+    if dias == 1:
+        return "enviado ontem"
+    return f"há {dias} dias"
 
 
 def lote_todo_sem_lancar(status: Iterable[str]) -> bool:

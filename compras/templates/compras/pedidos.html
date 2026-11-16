@@ -1,0 +1,58 @@
+{% extends "interface/base_almoxarifado.html" %}
+{% block title %}Compras — Central Almoxarifado{% endblock %}
+{% block rotulo %}Compras{% endblock %}
+{% block heading %}Pedidos de compra{% endblock %}
+{% block sub %}Pedidos do exercício com material a receber. Prepare o recebimento de uma nota fiscal; o robô a lança no SCPI.{% endblock %}
+
+{% block page %}
+<div class="pilha-larga">
+  <section class="cartao" aria-labelledby="titulo-busca">
+    <h2 class="cartao-titulo" id="titulo-busca">Buscar</h2>
+    <form method="get" class="pilha-larga">
+      <div class="campo">
+        <label class="campo-rotulo" for="q">Pedido, fornecedor ou código do material</label>
+        <input id="q" class="campo-entrada" type="search" name="q" value="{{ busca }}" autocomplete="off" placeholder="514, 00514/26, 19502 ou 006.011.020">
+      </div>
+      <fieldset class="grupo-opcoes">
+        <legend class="campo-rotulo">Mostrar</legend>
+        {% for valor, rotulo in filtros %}<label class="campo-check"><input type="radio" name="filtro" value="{{ valor }}"{% if filtro == valor %} checked{% endif %}><span>{{ rotulo }}</span></label>{% endfor %}
+      </fieldset>
+      <div class="acoes"><button type="submit" class="botao botao-primario">{% include "interface/_icone.html" with nome="busca" %}Buscar</button></div>
+    </form>
+  </section>
+
+  <section class="cartao" aria-labelledby="titulo-lista">
+    <h2 class="cartao-titulo" id="titulo-lista">Pedidos</h2>
+    <p class="texto-secundario texto-pequeno">{% if ultima_importacao %}Saldos do SCPI de {{ ultima_importacao.inicio|date:"d/m/Y H:i" }}.{% else %}Os pedidos ainda não foram importados: use a aba Pedidos de compra, em Automações.{% endif %}</p>
+    {% if pagina.paginator.count %}
+    <div class="tabela-rolagem">
+      <table class="tabela tabela-pedidos">
+        <thead>
+          <tr>
+            <th scope="col">Pedido</th>
+            <th scope="col">Data</th>
+            <th scope="col">Fornecedor</th>
+            <th scope="col">Situação</th>
+            <th scope="col">Recebimentos abertos</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for p in pagina %}
+          <tr>
+            <td class="col-numero"><a href="{% url 'compras:pedido' p.pk %}"><span class="mono">{{ p.rotulo }}</span></a></td>
+            <td class="tabela-data col-data">{{ p.data|date:"d/m/Y" }}</td>
+            <td data-rotulo="Fornecedor"><span class="mono">{{ p.fornecedor_codigo }}</span> {{ p.fornecedor_nome }}</td>
+            <td data-rotulo="Situação">{% include "compras/_estado.html" with estado=p.estado estado_texto=p.estado_texto %}{% if p.tem_trava %} <span class="selo selo-aviso">Com trava</span>{% endif %}</td>
+            <td data-rotulo="Recebimentos abertos">{% if p.tem_aberto %}Sim{% else %}—{% endif %}</td>
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% include "interface/_paginacao.html" with pagina=pagina parametro="pagina" rotulo="Paginação dos pedidos" rotulo_item="pedido" rotulo_item_plural="pedidos" %}
+    {% else %}
+    <div class="vazio"><p class="vazio-titulo">Nenhum pedido encontrado.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}

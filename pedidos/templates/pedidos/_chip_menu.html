@@ -1,0 +1,13 @@
+{% comment %}
+Um chip com lista do painel (spec 015): o `<details data-menu>` (menus.js fecha os outros, o Esc e o
+clique fora) com o `select` do FiltrosPainel dentro, que o dropdown.js monta. O rótulo mostra o valor
+escolhido ("Origem: Limpeza"); o filtros.js o refaz pelo `data-chip-nome` depois de cada troca da lista.
+Recebe `campo` (o BoundField) e `chip` (de `FiltrosPainel.rotulos_dos_chips`).
+{% endcomment %}
+<details class="chip-menu" data-menu>
+  <summary class="chip{% if chip.ativo %} chip-ativo{% endif %}"><span class="chip-menu-rotulo" data-chip-nome="{{ chip.nome }}">{{ chip.texto }}</span>{% include "interface/_icone.html" with nome="seta-baixo" %}</summary>
+  <div class="chip-menu-painel painel-flutuante">
+    <label class="campo-rotulo" for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+    {{ campo }}
+  </div>
+</details>

@@ -40,6 +40,17 @@ class Pedido(models.Model):
         on_delete=models.PROTECT,
         related_name="saidas_registradas",
     )
+    # A conta do solicitante que fez o pedido logado (spec 013); vazia no pedido anônimo e no da
+    # equipe. Só `servicos.registrar_pedido` a grava, e nunca muda. `PROTECT`: a conta com pedidos
+    # se desativa, nunca se apaga (apagada, o pedido viraria anônimo e abriria na consulta pública).
+    conta = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.PROTECT,
+        related_name="pedidos_feitos",
+        verbose_name="conta do solicitante",
+    )
     # Endereço de origem do envio público: base dos limites contra abuso.
     ip = models.GenericIPAddressField(null=True, blank=True, db_index=True)
     # Soma 1 a cada edição salva do atendimento: o formulário de edição a leva, e o salvar
@@ -359,7 +370,7 @@ TOLERANCIA_INICIO = timedelta(seconds=60)
 
 
 class ExecucaoRobo(models.Model):
-    """Registro de cada execução do robô que lança as saídas no SCPI (ou só a simula)."""
+    """Registro de cada execução de um robô que lança no SCPI (saídas ou entradas), ou a simula."""
 
     class Situacao(models.TextChoices):
         ANDAMENTO = "ANDAMENTO", "Em andamento"
@@ -367,6 +378,11 @@ class ExecucaoRobo(models.Model):
         ATENCAO = "ATENCAO", "Concluída com pendências"
         FALHA = "FALHA", "Falhou"
 
+    class Robo(models.TextChoices):
+        SAIDAS = "SAIDAS", "Saídas"
+        ENTRADAS = "ENTRADAS", "Entradas"
+
+    robo = models.CharField(max_length=10, choices=Robo.choices, default=Robo.SAIDAS)
     simulacao = models.BooleanField("simulação", default=False)
     iniciada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL,
@@ -390,7 +406,8 @@ class ExecucaoRobo(models.Model):
         verbose_name_plural = "execuções do robô"
 
     def __str__(self):
-        return f"{'Simulação' if self.simulacao else 'Lançamento'} #{self.pk}"
+        tipo = "Simulação" if self.simulacao else "Lançamento"
+        return f"{tipo}{' de entradas' if self.robo == self.Robo.ENTRADAS else ''} #{self.pk}"
 
     @staticmethod
     def trava_ocupada() -> bool:
@@ -400,11 +417,15 @@ class ExecucaoRobo(models.Model):
             return cursor.fetchone()[0] is not None
 
     @classmethod
-    def em_andamento(cls, agora=None):
+    def em_andamento(cls, agora=None, robo=None):
         """Execuções em andamento de verdade: com a trava do lançamento ocupada, todas as que
         não terminaram; sem ela, só as criadas há menos de `TOLERANCIA_INICIO` (o processo
-        ainda está subindo). As demais morreram sem registrar o fim (interrompidas)."""
+        ainda está subindo). As demais morreram sem registrar o fim (interrompidas). Com `robo`,
+        só as desse robô; sem ele, de qualquer um (a trava é uma só, e qualquer robô rodando
+        recusa os outros)."""
         andamento = cls.objects.filter(situacao=cls.Situacao.ANDAMENTO)
+        if robo is not None:
+            andamento = andamento.filter(robo=robo)
         if cls.trava_ocupada():
             return andamento
         agora = agora or timezone.now()

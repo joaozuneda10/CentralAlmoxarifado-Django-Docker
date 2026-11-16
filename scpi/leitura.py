@@ -8,8 +8,9 @@ import csv
 import io
 from dataclasses import dataclass, field
 from datetime import date, datetime
-from decimal import Decimal, InvalidOperation
+from decimal import ROUND_HALF_UP, Decimal, InvalidOperation
 
+from compras.regras import CONTROLE_QUANTIDADE, CONTROLES, chave_pedido
 from conciliacao.regras import chave
 from pedidos.regras import norm_u
 from scpi.normalizadores import registros_produtos, registros_saidas
@@ -72,6 +73,18 @@ def decimal_br(texto: str) -> Decimal:
     return valor
 
 
+def _preco_que_cabe(valor: Decimal) -> Decimal:
+    """O preço unitário do 07.13 arredondado a 4 casas (meio para cima). O SCPI o escreve com mais
+    casas (1,66651 no pedido 00060/25, 12/11/2026), mas o preço só informa: nada do saldo nem do
+    recebimento depende dele, então arredondar não vale uma importação recusada."""
+    if abs(valor) >= TETO_QUANTIDADE:
+        raise ValueError(f"preço fora do limite: {valor}")
+    arredondado = valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE), rounding=ROUND_HALF_UP)
+    if abs(arredondado) >= TETO_QUANTIDADE:  # 9999999999,99995 sobe para 10000000000,0000
+        raise ValueError(f"preço fora do limite: {valor}")
+    return arredondado
+
+
 def data_br(texto: str) -> date:
     """'12/01/2026' (com ou sem hora depois) → date(2026, 1, 12). Inválida: ValueError."""
     return datetime.strptime((texto or "").strip()[:10], "%d/%m/%Y").date()
@@ -125,13 +138,16 @@ def _tabela(
     *,
     opcionais: tuple[str, ...] = (),
     completos: bool = False,
+    exatos: bool = False,
 ):
     """Linhas do CSV como dicionários {coluna pedida → texto}. Aceita o CSV do SCPI (";") e o
     mesmo relatório salvo por uma planilha (",").
 
     `opcionais` são colunas lidas quando existem (vazias quando faltam). Com `completos`, um
     registro com menos campos que o cabeçalho (relatório cortado) é `ErroImportacao`; sem ele, os
-    campos que faltam viram vazios."""
+    campos que faltam viram vazios. Com `exatos`, o registro com campos a mais também é
+    `ErroImportacao`: a recolagem juntou dois registros (o segundo sem o começo que a separa) ou
+    um texto livre trouxe o separador, e nos dois casos as colunas não são mais confiáveis."""
     try:
         texto = conteudo.decode("utf-8-sig")
     except UnicodeDecodeError:
@@ -166,6 +182,14 @@ def _tabela(
             raise ErroImportacao(
                 f"{rotulo}: o relatório está cortado no registro {numero} "
                 f"({len(linha)} de {len(cabecalho)} campos); nada foi gravado."
+            )
+        # A posição sem nome no cabeçalho (o `;` final do SCPI) também tem de vir vazia.
+        sobras = [c for nome, c in zip(cabecalho, linha, strict=False) if not nome]
+        if exatos and any(c.strip() for c in (*sobras, *linha[len(cabecalho) :])):
+            raise ErroImportacao(
+                f"{rotulo}: o registro {numero} tem {len(linha)} campos e o cabeçalho, "
+                f"{len(cabecalho)} (dois registros colados ou um texto com o separador); "
+                "nada foi gravado."
             )
         registro = {c: (linha[i].strip() if i < len(linha) else "") for c, i in indices.items()}
         registro.update({c: "" for c in opcionais if c not in indices})
@@ -288,15 +312,23 @@ CASAS_QUANTIDADE = 4
 TETO_QUANTIDADE = Decimal(10) ** (14 - CASAS_QUANTIDADE)
 
 
-def _quantidade_que_cabe(valor: Decimal) -> Decimal:
+# Limite de `compras.ItemPedidoCompra` (18 dígitos com 6 casas): o 07.13 traz quantidades com 5
+# casas (1,66651 no pedido 00060/25, 12/11/2026), que não cabem nos 4 das requisições.
+CASAS_QUANTIDADE_PEDIDO = 6
+TETO_QUANTIDADE_PEDIDO = Decimal(10) ** (18 - CASAS_QUANTIDADE_PEDIDO)
+
+
+def _quantidade_que_cabe(
+    valor: Decimal, casas: int = CASAS_QUANTIDADE, teto: Decimal = TETO_QUANTIDADE
+) -> Decimal:
     """A quantidade como veio, se cabe exata no campo do banco; senão, ValueError.
 
-    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado a 4 casas é exato
+    Primeiro a magnitude, depois a precisão: comparar com o valor quantizado às `casas` é exato
     (o `normalize()` arredondaria pela precisão do contexto e aceitaria uma fração longa)."""
-    if abs(valor) >= TETO_QUANTIDADE:
+    if abs(valor) >= teto:
         raise ValueError(f"quantidade fora do limite: {valor}")
-    if valor != valor.quantize(Decimal(1).scaleb(-CASAS_QUANTIDADE)):
-        raise ValueError(f"quantidade com mais de {CASAS_QUANTIDADE} casas: {valor}")
+    if valor != valor.quantize(Decimal(1).scaleb(-casas)):
+        raise ValueError(f"quantidade com mais de {casas} casas: {valor}")
     return valor
 
 
@@ -404,3 +436,316 @@ def ler_requisicoes(conteudo: bytes) -> Leitura:
             )
         )
     return Leitura(requisicoes, [])
+
+
+@dataclass(frozen=True)
+class LinhaPedidoCompra:
+    """Um item de um pedido de compra, como o 07.13 o traz (spec 014)."""
+
+    ano: int
+    numero: int
+    data: date
+    fornecedor_codigo: str
+    fornecedor_nome: str
+    item: int
+    codigo: str
+    unidade: str
+    controle: str
+    quantidade: Decimal
+    anulado: Decimal
+    ja_entrou: Decimal
+    pedida: Decimal
+    saldo: Decimal
+    preco: Decimal
+
+
+def ler_pedidos_compra(conteudo: bytes) -> Leitura:
+    """07.13 "Relação de Pedidos (Condição da Entrega)" → `LinhaPedidoCompra`, uma por item.
+
+    Tudo ou nada (contrato `specs/014-entrada-por-pedido/contracts/relatorios-scpi.md`): relatório
+    cortado, número ilegível, item repetido, mais de um fornecedor por pedido, controle de saldo
+    desconhecido ou `QTDFALTA` fora da conta num item de quantidade é `ErroImportacao`, e nada da
+    leitura é aproveitado."""
+    rotulo = "Pedidos de compra do SCPI"
+    obrigatorias = [
+        "NUMPED",
+        "DATPED",
+        "CODIF",
+        "NOME",
+        "ITEM",
+        "CADPRO",
+        "UNID1",
+        "TPCONTROLE_SALDO",
+        "QTD",
+        "PRCUNT",
+        "QTDANU",
+        "QTDENT",
+        "QTDFALTA",
+        "QTDPEDIDA",
+    ]
+    tabela = _tabela(conteudo, rotulo, registros_saidas, "GRUPO", obrigatorias, completos=True)
+    if not tabela:
+        raise ErroImportacao(f"{rotulo}: o relatório não tem nenhum item; nada foi gravado.")
+
+    linhas: list[LinhaPedidoCompra] = []
+    vistos: set[tuple[int, int, int]] = set()
+    cabecalho_do_pedido: dict[tuple[int, int], tuple[str, date, str]] = {}
+    for posicao, r in enumerate(tabela, start=1):
+        try:
+            ano, numero = chave_pedido(r["NUMPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: número de pedido inválido na linha {posicao} ('{r['NUMPED']}')."
+            ) from None
+        try:
+            item = int(r["ITEM"])
+            data = data_br(r["DATPED"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: item ou data inválidos no pedido {r['NUMPED']} (linha {posicao})."
+            ) from None
+        if (ano, numero, item) in vistos:
+            raise ErroImportacao(
+                f"{rotulo}: o item {item} do pedido {r['NUMPED']} está repetido no relatório."
+            )
+        vistos.add((ano, numero, item))
+        for coluna in ("CODIF", "CADPRO"):
+            if not r[coluna].strip():
+                raise ErroImportacao(
+                    f"{rotulo}: {coluna} vazio no item {item} do pedido {r['NUMPED']}; "
+                    "nada foi gravado."
+                )
+        primeiro = cabecalho_do_pedido.setdefault((ano, numero), (r["CODIF"], data, r["NOME"]))
+        if primeiro[0] != r["CODIF"]:
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem mais de um fornecedor no relatório."
+            )
+        if primeiro[1:] != (data, r["NOME"]):
+            raise ErroImportacao(
+                f"{rotulo}: o pedido {r['NUMPED']} tem data ou nome de fornecedor diferentes "
+                f"entre os itens (item {item}); nada foi gravado."
+            )
+        controle = r["TPCONTROLE_SALDO"]
+        if controle not in CONTROLES:
+            raise ErroImportacao(
+                f"{rotulo}: TPCONTROLE_SALDO desconhecido ('{controle}') no item {item} do "
+                f"pedido {r['NUMPED']}; esperado Q ou T."
+            )
+        valores: dict[str, Decimal] = {}
+        for coluna in ("QTD", "QTDANU", "QTDENT", "QTDPEDIDA", "QTDFALTA", "PRCUNT"):
+            try:
+                lido = decimal_br(r[coluna])
+                valores[coluna] = (
+                    _preco_que_cabe(lido)
+                    if coluna == "PRCUNT"
+                    else _quantidade_que_cabe(lido, CASAS_QUANTIDADE_PEDIDO, TETO_QUANTIDADE_PEDIDO)
+                )
+            except ValueError as exc:
+                raise ErroImportacao(
+                    f"{rotulo}: {coluna} inválido no item {item} do pedido {r['NUMPED']} ({exc})."
+                ) from None
+        quantidade, anulado, ja_entrou, pedida, saldo, preco = (
+            valores[c] for c in ("QTD", "QTDANU", "QTDENT", "QTDPEDIDA", "QTDFALTA", "PRCUNT")
+        )
+        if controle == CONTROLE_QUANTIDADE and saldo != quantidade - anulado - ja_entrou - pedida:
+            raise ErroImportacao(
+                f"{rotulo}: QTDFALTA do item {item} do pedido {r['NUMPED']} é {saldo}, mas "
+                f"QTD − QTDANU − QTDENT − QTDPEDIDA dá "
+                f"{quantidade - anulado - ja_entrou - pedida}; "
+                "nada foi gravado."
+            )
+        linhas.append(
+            LinhaPedidoCompra(
+                ano=ano,
+                numero=numero,
+                data=data,
+                fornecedor_codigo=r["CODIF"],
+                fornecedor_nome=r["NOME"],
+                item=item,
+                codigo=r["CADPRO"],
+                unidade=r["UNID1"],
+                controle=controle,
+                quantidade=quantidade,
+                anulado=anulado,
+                ja_entrou=ja_entrou,
+                pedida=pedida,
+                saldo=saldo,
+                preco=preco,
+            )
+        )
+    return Leitura(linhas, [])
+
+
+# Colunas do cabeçalho de uma entrada: repetidas em cada linha, iguais em todas.
+CABECALHO_ENTRADA = (
+    "ID_REQUI",
+    "DATAE",
+    "DTLAN",
+    "CODIF",
+    "DOCUM",
+    "NUMPED",
+    "SAID",
+    "TPREQUI",
+    "OBS_CABECALHO",
+)
+
+
+@dataclass(frozen=True)
+class ItemEntradaLido:
+    """Um item de uma requisição de entrada, na ordem do relatório."""
+
+    codigo: str
+    quantidade: Decimal
+    unidade: str
+
+
+@dataclass(frozen=True)
+class EntradaLida:
+    """Uma requisição de entrada da "Relação de Requisições" de Entrada (spec 014)."""
+
+    requisicao: str  # número visível, 003492/26
+    ano: int
+    numero: int
+    id_requi: int
+    data_entrada: date  # DATAE, a data pela qual o relatório filtra e a que se compara
+    data_requisicao: date  # DTLAN, guardada, nunca comparada
+    fornecedor_codigo: str
+    nf: str  # DOCUM sem os zeros à esquerda; vazio sem NF
+    pedido_ano: int | None
+    pedido_numero: int | None
+    com_saida: bool  # SAID = S
+    tipo: str
+    observacoes: str
+    responsavel: str
+    itens: tuple[ItemEntradaLido, ...]
+
+
+def _nf_do_relatorio(documento: str) -> str:
+    """`000000000501` → `501`. Só dígitos perde os zeros à esquerda (zero puro é sem NF); o que
+    não é número (uma entrada antiga com texto no DOCUM) fica como veio, sem derrubar a leitura."""
+    texto = (documento or "").strip()
+    return texto.lstrip("0") if texto.isascii() and texto.isdigit() else texto
+
+
+def _observacoes_da_entrada(cabecalho: str, linhas: list[dict]) -> str:
+    """As observações da entrada: a do cabeçalho e a de cada item (coluna `OBS`), sem repetir. Numa
+    entrada por pedido o campo do cabeçalho é bloqueado, e o robô escreve a marca `RC-…` na
+    observação de cada item (SCPI, 12/11/2026); a leitura da marca olha as duas."""
+    partes = [cabecalho.strip(), *(linha.get("OBS", "").strip() for linha in linhas)]
+    vistas: list[str] = []
+    for parte in partes:
+        if parte and parte not in vistas:
+            vistas.append(parte)
+    return "\n".join(vistas)
+
+
+def ler_entradas(conteudo: bytes) -> Leitura:
+    """ "Relação de Requisições" de Entrada → `EntradaLida`, uma por número.
+
+    Tudo ou nada (contrato `specs/014-entrada-por-pedido/contracts/relatorios-scpi.md`): linha
+    ilegível, relatório cortado, número fora do formato, quantidade ilegível ou cabeçalho que varia
+    dentro de uma requisição é `ErroImportacao`, e nada da leitura é aproveitado."""
+    rotulo = "Entradas do SCPI"
+    obrigatorias = [
+        "REQUI",
+        "ID_REQUI",
+        "DATAE",
+        "DTLAN",
+        "CODIF",
+        "DOCUM",
+        "NUMPED",
+        "SAID",
+        "TPREQUI",
+        "OBS_CABECALHO",
+        "CADPRO",
+        "QUAN1",
+    ]
+    tabela = _tabela(
+        conteudo,
+        rotulo,
+        registros_saidas,
+        "GRUPO",
+        obrigatorias,
+        opcionais=("UNID1", "RESPONSA", "OBS"),
+        completos=True,
+        exatos=True,
+    )
+    if not tabela:
+        raise ErroImportacao(f"{rotulo}: o relatório não tem nenhuma entrada; nada foi gravado.")
+
+    grupos: dict[str, list[dict]] = {}
+    for posicao, r in enumerate(tabela, start=1):
+        try:
+            chave(r["REQUI"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: número de requisição inválido na linha {posicao} ('{r['REQUI']}')."
+            ) from None
+        grupos.setdefault(r["REQUI"], []).append(r)
+
+    entradas = []
+    for numero_visivel, linhas in grupos.items():
+        primeira = linhas[0]
+        for coluna in CABECALHO_ENTRADA:
+            if any(linha.get(coluna, "") != primeira.get(coluna, "") for linha in linhas):
+                raise ErroImportacao(
+                    f"{rotulo}: a entrada {numero_visivel} tem valores diferentes de {coluna} "
+                    "entre as suas linhas."
+                )
+        try:
+            id_requi = int(primeira["ID_REQUI"])
+            data_entrada = data_br(primeira["DATAE"])
+            data_requisicao = data_br(primeira["DTLAN"])
+        except ValueError:
+            raise ErroImportacao(
+                f"{rotulo}: identificador ou data inválidos na entrada {numero_visivel}."
+            ) from None
+        pedido_ano = pedido_numero = None
+        if primeira["NUMPED"].strip():
+            try:
+                pedido_ano, pedido_numero = chave_pedido(primeira["NUMPED"])
+            except ValueError:
+                raise ErroImportacao(
+                    f"{rotulo}: número de pedido inválido na entrada {numero_visivel} "
+                    f"('{primeira['NUMPED']}')."
+                ) from None
+        itens = []
+        for linha in linhas:
+            try:
+                quantidade = _quantidade_que_cabe(
+                    decimal_br(linha["QUAN1"]), CASAS_QUANTIDADE_PEDIDO, TETO_QUANTIDADE_PEDIDO
+                )
+            except ValueError:
+                raise ErroImportacao(
+                    f"{rotulo}: quantidade inválida na entrada {numero_visivel}, "
+                    f"{linha['CADPRO']} ('{linha['QUAN1']}')."
+                ) from None
+            if quantidade < 0:
+                # Zero existe no SCPI (entrada 003726/26, 005.000.001, em 12/11/2026): é dado, não
+                # erro. Só o negativo recusa a leitura inteira.
+                raise ErroImportacao(
+                    f"{rotulo}: quantidade negativa na entrada {numero_visivel}, "
+                    f"{linha['CADPRO']} ('{linha['QUAN1']}')."
+                )
+            itens.append(ItemEntradaLido(linha["CADPRO"], quantidade, linha["UNID1"]))
+        ano, numero = chave(numero_visivel)
+        entradas.append(
+            EntradaLida(
+                requisicao=numero_visivel,
+                ano=ano,
+                numero=numero,
+                id_requi=id_requi,
+                data_entrada=data_entrada,
+                data_requisicao=data_requisicao,
+                fornecedor_codigo=primeira["CODIF"],
+                nf=_nf_do_relatorio(primeira["DOCUM"]),
+                pedido_ano=pedido_ano,
+                pedido_numero=pedido_numero,
+                com_saida=primeira["SAID"].strip().upper() == "S",
+                tipo=primeira["TPREQUI"],
+                observacoes=_observacoes_da_entrada(primeira["OBS_CABECALHO"], linhas),
+                responsavel=primeira["RESPONSA"],
+                itens=tuple(itens),
+            )
+        )
+    return Leitura(entradas, [])

@@ -59,6 +59,12 @@ que a pessoa digitou; o estado de andamento é atualizado pelo importacoes.js a 
   </div>
   {% endif %}
   {% endif %}
+  {% if robo.chave == "pedidos_compra" %}
+  <div class="aviso aviso-atencao" data-robo-risco>
+    {% include "interface/_icone.html" with nome="alerta" %}
+    <label class="campo-check">{{ form.forcar }}<span><strong>{{ form.forcar.label }}</strong><span class="campo-dica">Se o relatório não trouxer mais de 20% dos itens que já estavam nos pedidos, a importação é recusada, porque o arquivo pode ter vindo cortado. Marque esta caixa só se for isso mesmo que se espera: os itens que sumirem ficam como ausentes, sem apagar nada.</span></span></label>
+  </div>
+  {% endif %}
 
   <fieldset class="grupo-opcoes">
     <legend class="campo-rotulo">{{ form.origem.label }}</legend>

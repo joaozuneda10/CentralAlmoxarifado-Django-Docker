@@ -19,6 +19,7 @@ from catalogo.models import Importacao, Material
 from pedidos.forms import LancamentoForm
 from scpi.disparo import guardar_csv_enviado, iniciar_importacao, iniciar_lancamento
 from tests.cenario import criar_pedido
+from tests.papeis import dar_papeis
 
 pytestmark = pytest.mark.django_db
 
@@ -164,7 +165,7 @@ def test_csv_enviado_fica_na_pasta_de_uploads(settings, tmp_path):
 
 
 def test_lancamento_passa_cada_lote_ao_robo(processos):
-    usuario = get_user_model().objects.create_user(username="99")
+    usuario = dar_papeis(get_user_model().objects.create_user(username="99"))
     iniciar_lancamento(usuario, simulacao=True, lotes=["P-0001", "AV-0002"])
     assert argumentos(processos[0])[-5:] == ["--dry-run", "--lote", "P-0001", "--lote", "AV-0002"]
     assert "--limite" not in processos[0]
@@ -203,14 +204,16 @@ def test_automacoes_tem_uma_aba_por_robo(client, usuario_logado):
     assert re.findall(r'role="tab"[^>]*data-aba="([\w-]+)"', texto) == [
         "visao-geral",
         "lancamento",
+        "entradas",
         "cadastro",
         "estoque",
         "saidas",
+        "pedidos_compra",
     ]
-    for robo in ("cadastro", "estoque", "saidas"):
+    for robo in ("cadastro", "estoque", "saidas", "pedidos_compra"):
         assert f'action="{reverse("automacoes:importar", args=[robo])}"' in texto
     ids = re.findall(r'\sid="([^"]+)"', texto)
-    assert len(ids) == len(set(ids))  # os três formulários não repetem ids
+    assert len(ids) == len(set(ids))  # os formulários não repetem ids
 
 
 def test_aba_ativa_vem_da_url(client, usuario_logado):
@@ -306,7 +309,7 @@ def test_csv_enviado_e_descartado_se_o_disparo_quebra(
 def test_botoes_dos_robos_ficam_desabilitados_com_importacao_em_andamento(client, usuario_logado):
     Importacao.objects.create(tipo="CADASTRO")
     texto = client.get(reverse("automacoes:pagina")).text
-    assert len(re.findall(r"<button[^>]*data-robo-rodar[^>]*disabled", texto)) == 3
+    assert len(re.findall(r"<button[^>]*data-robo-rodar[^>]*disabled", texto)) == 4
     assert 'data-em-andamento="1"' in texto
 
 

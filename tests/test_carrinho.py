@@ -12,6 +12,7 @@ from pedidos.fluxos import FLUXOS, LIMITE_RESULTADOS, buscar, opcoes_filtro
 from pedidos.regras import estoque_inteiro
 from pedidos.servicos import catalogo_de
 from tests.cenario import dar_saldo, montar_cenario
+from tests.papeis import dar_papeis
 
 LIMPEZA_F = FLUXOS["limpeza"]
 AB_F = FLUXOS["ab"]
@@ -208,7 +209,11 @@ def test_carrinho_no_vocabulario_novo(client):
         {"adicionar": "016.005.010", "qtd-016.005.010": "3"},
     )
     assert 'class="carrinho"' in r.text and 'class="carrinho-linha"' in r.text
-    assert "Seu pedido (1)" in r.text
+    # O título e o contador numa pílula (spec 015, entrega 3).
+    assert (
+        '<span>Seu pedido</span><span class="carrinho-contador">1'
+        '<span class="visually-hidden"> material</span></span>' in r.text
+    )
 
 
 @pytest.mark.django_db
@@ -243,7 +248,9 @@ def test_resultados_marcaveis_pelo_codigo(client):
     # O "no pedido" vai no selo `data-selo-pedido` (escondido; o pedidos.js o mostra), não num
     # atributo da linha, também na saída avulsa.
     assert "data-no-pedido" not in r.text
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     avulsa = client.get(reverse("pedidos:avulsa_materiais"), {"q": "item"}).text
     assert "data-no-pedido" not in avulsa
 
@@ -421,14 +428,19 @@ def test_barra_e_gaveta_do_formulario_publico(client):
 def test_barra_e_gaveta_da_saida_avulsa_seguem_o_formulario_com_os_textos_da_saida(client):
     montar_cenario()
     dar_saldo("000.000.900")
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     r = client.post(
         reverse("pedidos:avulsa_carrinho"), {"adicionar": "000.000.900", "qtd-000.000.900": "1"}
     ).text
     barra = _barra(r)
     assert "Materiais da saída</span><span>1 material</span>" in barra
     assert "Revisar e registrar" in barra and "Seu pedido" not in r
-    assert "Materiais da saída (1)" in r
+    assert (
+        '<span>Materiais da saída</span><span class="carrinho-contador">1'
+        '<span class="visually-hidden"> material</span></span>' in r
+    )
     enviar = r[r.index("data-carrinho-enviar") :]
     assert "<span data-carrinho-enviar-rotulo>Registrar saída</span>" in enviar
     assert "data-carrinho-continuar>Adicionar mais materiais" in r
@@ -494,7 +506,9 @@ def test_estoque_na_linha_da_avulsa_e_da_limpeza():
 @pytest.mark.django_db
 def test_telas_mostram_o_estoque_entre_o_codigo_e_a_unidade(client):
     montar_cenario()
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     avulsa = client.get(reverse("pedidos:avulsa_materiais"), {"q": "fita"}).text
     assert '<span class="mono">016.005.010</span> · Estoque 10 · UN · REDES DE ÁGUA' in avulsa
     botina = client.get(reverse("pedidos:avulsa_materiais"), {"q": "botina"}).text
@@ -530,7 +544,9 @@ def test_codigo_so_aparece_no_carrinho_da_avulsa(client):
     ).text
     linha = r[r.index('<li class="carrinho-linha') : r.index("</li>")]
     assert "FITA VEDA ROSCA" in linha and "016.005.010</span>" not in linha
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     r = client.post(
         reverse("pedidos:avulsa_carrinho"), {"adicionar": "000.000.900", "qtd-000.000.900": "1"}
     ).text
@@ -573,7 +589,9 @@ def test_resultado_publico_adiciona_em_dois_passos(client):
 def test_resultado_da_avulsa_tambem_adiciona_em_dois_passos(client):
     montar_cenario()
     dar_saldo("000.000.900")
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     r = client.get(reverse("pedidos:avulsa_materiais"), {"q": "item"}).text
     assert '<div class="material-acao" data-adicionar>' in r
     assert "data-adicionar-abrir" in r and "data-adicionar-cancelar" in r
@@ -636,7 +654,9 @@ def test_quantidade_do_pedido_altera_em_dois_passos_no_formulario_publico(client
 def test_quantidade_do_pedido_na_avulsa_tambem_se_confirma(client):
     montar_cenario()
     dar_saldo("000.000.900")
-    client.force_login(get_user_model().objects.create_user(username="12345", password="x"))
+    client.force_login(
+        dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
+    )
     r = client.post(
         reverse("pedidos:avulsa_carrinho"), {"adicionar": "000.000.900", "qtd-000.000.900": "1"}
     ).text

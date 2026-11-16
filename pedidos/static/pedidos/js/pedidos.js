@@ -769,6 +769,22 @@
     revelarConfirmacao();
   });
 
+  // "Imprimir recibo" pelo ⋮ da lista do painel (spec 015): o detalhe abre com `?imprimir=1`, e o
+  // servidor marca o botão (`data-imprimir-ao-abrir`) só com o recibo ainda não impresso. No `load`
+  // (com as fontes já carregadas), ele é acionado uma vez, e o parâmetro sai da barra, mantendo o
+  // estado de histórico do HTMX: recarregar a página ou voltar a ela não imprime de novo.
+  window.addEventListener("load", function () {
+    var url = new URL(window.location.href);
+    if (url.searchParams.has("imprimir")) {
+      url.searchParams.delete("imprimir");
+      history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+    }
+    var botao = document.querySelector("[data-imprimir-ao-abrir]");
+    if (!botao) return;
+    botao.removeAttribute("data-imprimir-ao-abrir");
+    botao.click();
+  });
+
   // O pedido em montagem só existe na página: sair dela (link, voltar, fechar) com material no
   // pedido pede confirmação. O envio sem HTMX (sem JavaScript não há aviso) e a tela de sucesso,
   // que já não tem o carrinho, saem direto. A saída avulsa não tem `data-formulario-pedido`.
@@ -795,6 +811,9 @@
   // novo preenche os campos que estiverem vazios (o destino só se ainda estiver na lista). Cada campo
   // tem o seu "Limpar" (`data-limpar-campo`), visível enquanto ele tem valor, que apaga o campo e o
   // que ficou lembrado dele. Sem armazenamento (aba anônima, bloqueado), nada é lembrado.
+  // Spec 013: o formulário aberto com a conta do solicitante (`data-com-conta`) não lê nem grava
+  // nada aqui (o nome é o da conta e o destino vem do servidor), e não apaga o que já estava
+  // guardado, que pode ser de outra pessoa que usa este aparelho sem conta.
   var CHAVE_LEMBRADO = "almoxarifado.solicitante";
 
   function lerLembrado() {
@@ -829,6 +848,7 @@
     var form = document.querySelector("[data-formulario-pedido]");
     if (!form) return;
     mostrarLimpar(form);
+    if (form.hasAttribute("data-com-conta")) return;
     // Só no formulário novo: depois de um envio recusado, os campos ficam como a pessoa deixou.
     if (form.hasAttribute("data-lembrado-aplicado")) return;
     if (form.querySelector("[data-resumo-erros]")) return;
@@ -864,7 +884,7 @@
     var nome = e.target;
     var formulario = nome.closest && nome.closest("[data-formulario-pedido]");
     if (formulario) mostrarLimpar(formulario);
-    if (nome.id !== "solicitante" || !formulario) return;
+    if (nome.id !== "solicitante" || !formulario || formulario.hasAttribute("data-com-conta")) return;
     var dados = lerLembrado() || {};
     var valor = nome.value.trim();
     if (valor) dados.solicitante = valor;
@@ -887,12 +907,33 @@
     var campo = form && form.querySelector("#" + chave);
     if (!campo) return;
     preencher(campo, "");
+    campo.focus();
+    if (form.hasAttribute("data-com-conta")) return;
     var dados = lerLembrado() || {};
     delete dados[chave];
     if (dados.solicitante || dados.destino) gravarLembrado(dados);
     else esquecerLembrado();
-    campo.focus();
   });
+
+  // Spec 013: no formulário com conta, o envio leva o CSRF do cookie de agora. Quem entrou de novo
+  // noutra aba (a sessão tinha terminado) ganhou um segredo novo do Django, e o token gravado nesta
+  // página daria 403; o cookie é do próprio site e o Django aceita o segredo dele como token. Em
+  // captura, antes do HTMX montar o pedido (também no `requestSubmit` da gaveta do celular).
+  function csrfDoCookie() {
+    var partes = document.cookie ? document.cookie.split("; ") : [];
+    for (var i = 0; i < partes.length; i++) {
+      if (partes[i].indexOf("csrftoken=") === 0) return decodeURIComponent(partes[i].slice(10));
+    }
+    return "";
+  }
+
+  document.addEventListener("submit", function (e) {
+    var form = e.target;
+    if (!form.hasAttribute || !form.hasAttribute("data-com-conta")) return;
+    var valor = csrfDoCookie();
+    var campo = form.querySelector("input[name=csrfmiddlewaretoken]");
+    if (valor && campo) campo.value = valor;
+  }, true);
 
   // "Seu pedido" (_resumo_pedido.html, _carrinho.html). Sem largura para a coluna ao lado dos
   // passos (menos de 960px, o mesmo limite do @container de pedidos.css), uma barra fixa abre a
@@ -1242,7 +1283,7 @@
   // da tela (no celular, atrás da barra "Seu pedido"): em qualquer tela, a página rola para o
   // elemento ficar no topo, descontando a barra do almoxarifado quando ela é uma barra no topo (a
   // .app-lateral do celular; na tela larga ela é uma coluna). Só rola para baixo.
-  // Com "reduzir movimento", o clean.css zera as transições: a rolagem também não anima.
+  // Com "reduzir movimento", o fundacao.css zera as transições: a rolagem também não anima.
   function rolagemSuave() {
     var campo = document.querySelector(".campo-entrada");
     return !campo || parseFloat(getComputedStyle(campo).transitionDuration) >= 0.05;
@@ -1254,6 +1295,9 @@
     var barra = document.querySelector(".app-lateral");
     var noTopo = barra && barra.offsetWidth >= window.innerWidth / 2;
     if (noTopo && getComputedStyle(barra).position === "sticky") topo += barra.getBoundingClientRect().bottom;
+    // Nas telas públicas, o topo fica preso ao rolar (spec 015): o campo para logo abaixo dele.
+    var publico = document.querySelector(".publico-topo");
+    if (publico && getComputedStyle(publico).position === "sticky") topo += publico.offsetHeight;
     return topo;
   }
   function trazerAoTopo(el, depois) {

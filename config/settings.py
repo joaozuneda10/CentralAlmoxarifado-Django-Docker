@@ -5,11 +5,12 @@ sistema, que tem precedência). Com `DEBUG` desligado, valem as proteções de p
 """
 
 import os
+from datetime import timedelta
 from pathlib import Path
 
 from django.core.exceptions import ImproperlyConfigured
 
-from config.env import carregar_dotenv, ler_bool, ler_lista
+from config.env import carregar_dotenv, ler_bool, ler_int, ler_lista
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
@@ -44,6 +45,8 @@ INSTALLED_APPS = [
     "automacoes",
     "implantacao",
     "conciliacao",
+    "compras",
+    "axes",
 ]
 
 MIDDLEWARE = [
@@ -55,8 +58,14 @@ MIDDLEWARE = [
     "django.contrib.auth.middleware.AuthenticationMiddleware",
     # Depois da autenticação: a Segurança do Trabalho só abre as rotas da lista (spec 008).
     "contas.middleware.RestringirSegurancaTrabalho",
+    # Logo depois: a tabela de rotas da área interna, que nega por padrão (spec 012).
+    "contas.middleware.ExigirPermissao",
+    # Depois: o solicitante com a senha a trocar só abre a troca e o Sair (spec 013).
+    "contas.middleware.ExigirTrocaDeSenha",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
+    # Por último, como pede o django-axes: mostra a página de bloqueio do login (spec 013).
+    "axes.middleware.AxesMiddleware",
 ]
 
 ROOT_URLCONF = "config.urls"
@@ -99,6 +108,23 @@ AUTH_USER_MODEL = "contas.Usuario"
 LOGIN_URL = "login"
 LOGIN_REDIRECT_URL = "pedidos:painel"
 LOGOUT_REDIRECT_URL = "login"
+
+# Limite de tentativas de login (spec 013, django-axes): bloqueia a combinação de matrícula e origem
+# (nunca só a origem, que pode ser a mesma para um setor inteiro) nas duas portas, a página de
+# entrar e o login do admin. Sem proxy, a origem é o REMOTE_ADDR (o axes sem o `ipware` não lê
+# cabeçalho nenhum). O acerto zera as tentativas; apagar a tentativa no admin desbloqueia.
+AUTHENTICATION_BACKENDS = [
+    "axes.backends.AxesStandaloneBackend",
+    "django.contrib.auth.backends.ModelBackend",
+]
+AXES_LOCKOUT_PARAMETERS = [["username", "ip_address"]]
+AXES_FAILURE_LIMIT = ler_int("LOGIN_TENTATIVAS", 5)
+AXES_COOLOFF_TIME = timedelta(minutes=ler_int("LOGIN_BLOQUEIO_MINUTOS", 15))
+AXES_RESET_ON_SUCCESS = True
+AXES_LOCKOUT_TEMPLATE = "contas/bloqueado.html"
+# Sem registro de todo login bem-sucedido (matrícula, endereço e navegador, guardados para sempre):
+# fica só a tentativa errada, que é o que o bloqueio usa.
+AXES_DISABLE_ACCESS_LOG = True
 
 AUTH_PASSWORD_VALIDATORS = [
     {"NAME": "django.contrib.auth.password_validation.UserAttributeSimilarityValidator"},
@@ -155,6 +181,11 @@ SCPI_PERFIL_DIR = Path(os.environ.get("SCPI_PERFIL_DIR") or BASE_DIR / ".pw-prof
 # ambiente que lança de verdade (a produção): uma cópia de desenvolvimento ou de teste com as
 # mesmas saídas pendentes lançaria em dobro.
 LANCAMENTO_REAL = ler_bool("LANCAMENTO_REAL", False)
+# Trava própria do lançamento real das entradas por pedido (spec 014), além da de cima: as duas
+# ligadas liberam o robô de entradas. Fica desligada até as condições de `deploy/AMBIENTES.md`
+# ("Liberar o lançamento real das entradas") estarem cumpridas: a produção já tem a
+# `LANCAMENTO_REAL` ligada para as saídas, e as entradas não podem nascer liberadas no deploy.
+LANCAMENTO_REAL_ENTRADAS = ler_bool("LANCAMENTO_REAL_ENTRADAS", False)
 
 if not DEBUG:
     # Não use o nome HTTPS: é variável do CGI, e o wsgiref (runserver) a copia para a
@@ -212,4 +243,12 @@ LOGGING = {
         },
     },
     "root": {"handlers": ["console", "arquivo"], "level": "INFO"},
+    "loggers": {
+        # Recusas de acesso (spec 012): uma linha por recusa, com matrícula, rota e o que faltou.
+        "contas.acesso": {
+            "handlers": ["console", "arquivo"],
+            "level": "WARNING",
+            "propagate": False,
+        },
+    },
 }

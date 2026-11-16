@@ -13,7 +13,7 @@ em andamento, nunca ficam numa seção recarregada (perderiam o que o usuário d
   {% if andamento_no_topo %}{% include "pedidos/_andamento.html" %}{% endif %}
   <div class="cartao pilha">
     {# Um formulário só, com a fila: as requisições marcadas dizem o que o robô processa e o botão clicado diz o modo. Sem nenhuma marcada, os botões ficam desabilitados (fila-robo.js) e o servidor recusa o envio. A ação em destaque é a que dá para executar agora: "Simular" com o lançamento real bloqueado (LANCAMENTO_REAL), "Lançar no SCPI" com ele liberado. Bloqueado, o "Lançar no SCPI" fica aria-disabled e type="button", como no cartão do painel: continua no Tab e mostra o motivo numa dica, sem enviar nada. Com JavaScript, o lançamento real passa por uma confirmação (#dialogo-lancar). #}
-    <form method="post" action="{% url 'automacoes:lancar' %}" id="fila-form" class="fila-form" data-fila-robo>
+    <form method="post" action="{% url 'automacoes:lancar' %}" id="fila-form" class="pilha" data-fila-robo>
       {% csrf_token %}
       <div class="fila-barra">
         <p class="fila-contagem" data-fila-contagem aria-live="polite">{% if fila.total %}{{ fila.total }} {{ fila.total|pluralize:"requisição aguardando o robô,requisições aguardando o robô" }}<small>Marque na lista o que o robô deve processar.</small>{% else %}Nada aguardando o robô.{% endif %}</p>
@@ -28,7 +28,7 @@ em andamento, nunca ficam numa seção recarregada (perderiam o que o usuário d
           </span>
           {% endif %}
         </div>
-        {% if lancamento_em_andamento %}<p class="lancar-motivo">Há uma execução em andamento.</p>{% endif %}
+        {% if entradas_lancando %}<p class="lancar-motivo">O robô de entradas está lançando.</p>{% elif lancamento_em_andamento %}<p class="lancar-motivo">Há uma execução em andamento.</p>{% endif %}
       </div>
       <p class="campo-dica">A simulação preenche cada requisição no SCPI e não salva: nenhuma linha muda de estado.{% if not lancamento_real %} O lançamento real é liberado pelo LANCAMENTO_REAL no .env.{% endif %}</p>
       {# A fila do robô: é o que se confere antes de clicar. Sem nada nela, a frase da contagem é também o motivo de os botões estarem desabilitados. #}
@@ -140,9 +140,9 @@ em andamento, nunca ficam numa seção recarregada (perderiam o que o usuário d
         </div>
       </form>
       {# Tirar do lançamento vai em dois passos, também sem JavaScript: o <summary> só abre o aviso, e o formulário próprio (sem o nº nem o "Conferi") manda a confirmação. #}
-      <details class="confirmar-nao-lancar">
+      <details class="acao-recolhida confirmar-nao-lancar">
         <summary class="botao botao-texto botao-perigo">Não lançar…</summary>
-        <div class="confirmar-nao-lancar-painel">
+        <div class="pilha">
           <div class="aviso aviso-atencao">{% include "interface/_icone.html" with nome="alerta" %}<p>A requisição de <span class="mono">{{ trava.lote }}</span> não será lançada no SCPI. As linhas ficam marcadas como Não lançar.</p></div>
           <form method="post" action="{% url 'automacoes:resolver' trava.lote %}" class="acoes">
             {% csrf_token %}

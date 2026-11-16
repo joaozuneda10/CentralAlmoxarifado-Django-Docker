@@ -4,6 +4,13 @@
  * real liberado, o botão "Lançar no SCPI" abre antes a confirmação (#dialogo-lancar, dialogo.js).
  * Carregado no <head> com defer. Sem JavaScript, as caixas e os botões enviam o formulário e o
  * servidor recusa o envio sem requisição marcada ou com uma que já saiu da fila.
+ *
+ * Serve também à aba Entradas no SCPI (spec 014), pelos atributos do <form data-fila-robo>:
+ * `data-fila-campo` (o name das caixas, "lotes" por padrão), `data-fila-um` e `data-fila-varios`
+ * (o que está marcado: "requisição selecionada" / "requisições selecionadas"),
+ * `data-fila-conf-um` e `data-fila-conf-varios` (a frase da confirmação, com `{}` no lugar da
+ * lista) e `data-fila-dialogo` (o id do diálogo, "dialogo-lancar" por padrão). Sem eles, o
+ * comportamento é o das saídas.
  */
 (function () {
   "use strict";
@@ -12,8 +19,15 @@
     return n === 1 ? um : varios;
   }
 
+  function campoDe(form) {
+    return form.dataset.filaCampo || "lotes";
+  }
+
   function sincronizar(form) {
-    var caixas = Array.prototype.slice.call(form.querySelectorAll('tbody input[name="lotes"]'));
+    var campo = campoDe(form);
+    var caixas = Array.prototype.slice.call(
+      form.querySelectorAll('tbody input[name="' + campo + '"]')
+    );
     var marcadas = caixas.filter(function (c) { return c.checked; });
     var n = marcadas.length;
     caixas.forEach(function (c) {
@@ -28,8 +42,12 @@
     var contagem = form.querySelector("[data-fila-contagem]");
     if (contagem && caixas.length) {
       var texto = n
-        ? n + " de " + caixas.length + " " + plural(n, "requisição selecionada", "requisições selecionadas")
-        : "Nenhuma requisição selecionada";
+        ? n + " de " + caixas.length + " " + plural(
+            n,
+            form.dataset.filaUm || "requisição selecionada",
+            form.dataset.filaVarios || "requisições selecionadas"
+          )
+        : (form.dataset.filaNenhum || "Nenhuma requisição selecionada");
       var apoio = n ? "" : "Marque na lista o que o robô deve processar.";
       contagem.textContent = texto;
       if (apoio) {
@@ -42,14 +60,14 @@
     form.querySelectorAll("[data-requer-selecao]").forEach(function (b) {
       b.disabled = sem || n === 0;
     });
-    var confirmacao = document.querySelector("[data-fila-confirmacao]");
+    var dialogoDaFila = document.getElementById(form.dataset.filaDialogo || "dialogo-lancar");
+    var confirmacao = dialogoDaFila && dialogoDaFila.querySelector("[data-fila-confirmacao]");
     if (confirmacao) {
-      confirmacao.textContent = n
-        ? plural(n, "A requisição ", "As requisições ") +
-          marcadas.map(function (c) { return c.value; }).join(", ") +
-          plural(n, " será lançada", " serão lançadas") +
-          " de verdade no SCPI. Não dá para desfazer por aqui."
-        : "";
+      var lista = marcadas.map(function (c) { return c.value; }).join(", ");
+      var modelo = n === 1
+        ? form.dataset.filaConfUm || "A requisição {} será lançada de verdade no SCPI. Não dá para desfazer por aqui."
+        : form.dataset.filaConfVarios || "As requisições {} serão lançadas de verdade no SCPI. Não dá para desfazer por aqui.";
+      confirmacao.textContent = n ? modelo.replace("{}", lista) : "";
     }
   }
 
@@ -81,7 +99,7 @@
     var form = e.target.closest && e.target.closest("form[data-fila-robo]");
     if (!form) return;
     if (e.target.matches("[data-fila-todas]")) {
-      form.querySelectorAll('tbody input[name="lotes"]:not(:disabled)').forEach(function (c) {
+      form.querySelectorAll('tbody input[name="' + campoDe(form) + '"]:not(:disabled)').forEach(function (c) {
         c.checked = e.target.checked;
       });
     }
@@ -94,7 +112,8 @@
     if (!alvo.closest) return;
     var linha = alvo.closest("tr[data-fila-linha]");
     if (linha && !alvo.closest("a, label, input, button")) {
-      var caixa = linha.querySelector('input[name="lotes"]');
+      var formDaLinha = linha.closest("form[data-fila-robo]");
+      var caixa = linha.querySelector('input[name="' + (formDaLinha ? campoDe(formDaLinha) : "lotes") + '"]');
       if (caixa && !caixa.disabled) {
         caixa.checked = !caixa.checked;
         caixa.dispatchEvent(new Event("change", { bubbles: true }));
@@ -104,7 +123,10 @@
     // Lançamento real: confirma antes de enviar.
     var lancar = alvo.closest("[data-confirmar-lancamento]");
     if (lancar && !lancar.disabled) {
-      var dialogo = document.getElementById("dialogo-lancar");
+      var formDoBotao = lancar.closest("form[data-fila-robo]");
+      var dialogo = document.getElementById(
+        (formDoBotao && formDoBotao.dataset.filaDialogo) || "dialogo-lancar"
+      );
       if (dialogo && typeof dialogo.showModal === "function") {
         e.preventDefault();
         if (!dialogo.open) dialogo.showModal();
