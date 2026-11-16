@@ -7,7 +7,7 @@ do `docs/DESIGN.md`, e mostra as classes de template que não estão em nenhum d
 
     uv run python scripts/conferir_classes.py
 
-Sai com 1 se sobrar alguma, para o resultado ser fácil de usar num laço de conferência.
+Sai com 1 se sobrar alguma ou se algum atributo tiver combinações demais para conferir inteiro.
 """
 
 from __future__ import annotations
@@ -63,12 +63,18 @@ def _arvore(partes: list[str], i: int = 0, fim: tuple[str, ...] = ()) -> tuple[l
     return nos, i, ""
 
 
+class VariantesDemais(Exception):
+    """O atributo tem mais combinações de ramos do que `LIMITE_VARIANTES`."""
+
+
 def _variantes(nos: list) -> list[str]:
     """Os textos possíveis do atributo, cada `{% if %}` num dos seus ramos."""
     textos = [""]
     for no in nos:
         opcoes = [no] if isinstance(no, str) else [v for ramo in no for v in _variantes(ramo)]
-        textos = [t + o for t in textos for o in opcoes][:LIMITE_VARIANTES]
+        if len(textos) * len(opcoes) > LIMITE_VARIANTES:
+            raise VariantesDemais
+        textos = [t + o for t in textos for o in opcoes]
     return textos
 
 
@@ -80,20 +86,27 @@ def arquivos(sufixo: str) -> list[Path]:
     ]
 
 
-def classes_dos_templates() -> dict[str, set[str]]:
+def classes_dos_templates() -> tuple[dict[str, set[str]], list[str]]:
+    """As classes de cada template e os atributos que não deu para conferir inteiros."""
     encontradas: dict[str, set[str]] = {}
+    incompletos: list[str] = []
     for caminho in arquivos(".html"):
         # Cada ramo dos `{% if %}` do atributo vira um texto, colado aos vizinhos como no HTML
         # gerado: "selo-{% if a %}info{% else %}erro{% endif %}" dá "selo-info" e "selo-erro".
         for duplas, simples in ATRIBUTO_CLASSE.findall(caminho.read_text(encoding="utf-8")):
-            arvore, _, _ = _arvore(BLOCO_DJANGO.split(duplas or simples))
-            for texto in _variantes(arvore):
+            valor = duplas or simples
+            try:
+                textos = _variantes(_arvore(BLOCO_DJANGO.split(valor))[0])
+            except VariantesDemais:
+                incompletos.append(f'{caminho.relative_to(RAIZ)}: class="{valor[:60]}…"')
+                continue
+            for texto in textos:
                 # A variável vira "\0": o nome que ela completa (`selo-{{ nivel }}`) não é
                 # conferido.
                 for nome in VARIAVEL.sub("\0", texto).split():
                     if NOME_VALIDO.match(nome):
                         encontradas.setdefault(nome, set()).add(str(caminho.relative_to(RAIZ)))
-    return encontradas
+    return encontradas, incompletos
 
 
 def classes_do_css() -> set[str]:
@@ -113,13 +126,20 @@ def ganchos_documentados() -> set[str]:
 
 
 def main() -> int:
-    templates = classes_dos_templates()
+    templates, incompletos = classes_dos_templates()
     com_regra = classes_do_css() | ganchos_documentados()
     sobra = sorted(nome for nome in templates if nome not in com_regra)
     for nome in sobra:
         print(f"{nome}: {', '.join(sorted(templates[nome]))}")
     print(f"\n{len(sobra)} classe(s) sem regra de CSS nem registro de gancho.")
-    return 1 if sobra else 0
+    if incompletos:
+        print(
+            f"\nConferência incompleta: {len(incompletos)} atributo(s) com mais de "
+            f"{LIMITE_VARIANTES} combinações de ramos ficaram de fora:"
+        )
+        for linha in incompletos:
+            print(f"  {linha}")
+    return 1 if sobra or incompletos else 0
 
 
 if __name__ == "__main__":
