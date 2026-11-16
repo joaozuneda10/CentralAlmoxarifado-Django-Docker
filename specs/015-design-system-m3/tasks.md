@@ -271,36 +271,36 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
 **Independent Test**: um pedido de 3 materiais no celular com os mesmos toques e tempo igual ou menor
 (SC-005), e o pedido gravado idêntico; os testes dos formulários públicos passam; Q-3.1 a Q-3.5.
 
-- [ ] T052 [US3] Com a entrega 2 integrada, criar `claude/design-publico` a partir de `develop` atualizada
-- [ ] T053 [US3] Medir a base da SC-005 antes do deploy da entrega 3: 3 funcionários, um pedido de 3 materiais no celular, no sistema de hoje. Anotar no PR o tempo e o número de toques de cada um
+- [x] T052 [US3] Com a entrega 2 integrada, criar `claude/design-publico` a partir de `develop` atualizada
+- [ ] T053 [US3] Medir a base da SC-005 antes do deploy da entrega 3: 3 funcionários, um pedido de 3 materiais no celular, no sistema de hoje. Anotar no PR o tempo e o número de toques de cada um. Falta: só o usuário pode medir
 
 ### Tests for User Story 3
 
-- [ ] T054 [P] [US3] Criar `tests/test_campos_flutuantes.py` (`contracts/campos-publicos.md`, "Testes"):
+- [x] T054 [P] [US3] Criar `tests/test_campos_flutuantes.py` (`contracts/campos-publicos.md`, "Testes"):
   - em `_formulario.html` (nome, destino, ocorrência), `consulta.html`, `entrar.html` e `trocar_senha.html`: o `campo-flutuante`, o `placeholder=" "` e o `campo-dica` com o texto do antigo placeholder. No destino, o `exemplo_destino` de limpeza, viaturas, oficina e EPIs, e o padrão "Setor, posto ou placa" no AB;
   - sem erro, o `aria-describedby` com o id da dica; com erro, `aria-invalid="true"`, o `campo-erro`, nenhum `campo-dica` e o `aria-describedby` só com o id do erro;
   - os widgets de `FormularioEntrada` e `FormularioTrocaSenha` com `placeholder=" "`;
   - o `FormularioEntradaAdmin` sem mudança;
   - a busca de materiais com o `placeholder` do `fluxo.exemplo_busca`.
-- [ ] T055 [US3] Ajustar as asserções dos testes públicos que conferem o exemplo do destino no `placeholder` (`tests/test_formularios_publicos.py`, `tests/test_viaturas_formulario.py`, `tests/test_oficina_formulario.py`, `tests/test_epis_formulario.py`, `tests/test_solicitante_formulario.py`) para o texto de apoio, sem mudar o restante (SC-001)
+- [x] T055 [US3] Ajustar as asserções dos testes públicos que conferem o exemplo do destino no `placeholder` (`tests/test_formularios_publicos.py`, `tests/test_viaturas_formulario.py`, `tests/test_oficina_formulario.py`, `tests/test_epis_formulario.py`, `tests/test_solicitante_formulario.py`) para o texto de apoio, sem mudar o restante (SC-001)
 
 ### Implementation for User Story 3
 
-- [ ] T056 [US3] Acrescentar o `campo-flutuante` a `interface/static/interface/css/componentes.css`:
+- [x] T056 [US3] Acrescentar o `campo-flutuante` a `interface/static/interface/css/componentes.css`:
   - **por padrão**, o rótulo fica na borda, a reserva sem `:has()`;
   - **com `:has()`**, o rótulo desce para dentro da caixa só com `.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)`;
   - **estados**: os de `contracts/campos-publicos.md`, com `--altura-campo` de 56px.
 
   Reestilizar o layout público (`publico-topo`, `publico-cabecalho`, `publico-rodape`) em `interface/static/interface/css/layouts.css`.
-- [ ] T057 [US3] Converter os campos de `pedidos/templates/pedidos/_formulario.html` (nome completo, destino ou número da viatura, nº da ocorrência) para o markup de `contracts/campos-publicos.md`:
+- [x] T057 [US3] Converter os campos de `pedidos/templates/pedidos/_formulario.html` (nome completo, destino ou número da viatura, nº da ocorrência) para o markup de `contracts/campos-publicos.md`:
   - **destino**: o `fluxo.exemplo_destino` sai do `placeholder` e vai para o `p.campo-dica#destino-dica`;
   - **erro**: a dica só aparece sem erro, e o `aria-describedby` aponta para a dica ou para o erro;
   - **observações**: só a caixa nova, sem rótulo flutuante;
   - **"Limpar"**: continua dentro do campo.
 
   Mantém os `data-*`, os nomes de campo e o `pedidos.js`.
-- [ ] T058 [P] [US3] Reestilizar `pedidos/templates/pedidos/inicio.html` e as regras em `pedidos/static/pedidos/css/pedidos.css`: os cartões de opção (ícone em `--destaque-superficie`), a `consulta-chamada` em bloco tonal e o formulário geral à parte, com o separador. Os textos e a ordem não mudam
-- [ ] T059 [US3] Reestilizar o pedido em `pedidos/static/pedidos/css/pedidos.css`, mexendo nos templates (`_materiais.html`, `_resultados.html`, `_carrinho.html`, `_resumo_pedido.html`) só se necessário e sem mudar classes nem `data-*`:
+- [x] T058 [P] [US3] Reestilizar `pedidos/templates/pedidos/inicio.html` e as regras em `pedidos/static/pedidos/css/pedidos.css`: os cartões de opção (ícone em `--destaque-superficie`), a `consulta-chamada` em bloco tonal e o formulário geral à parte, com o separador. Os textos e a ordem não mudam
+- [x] T059 [US3] Reestilizar o pedido em `pedidos/static/pedidos/css/pedidos.css`, mexendo nos templates (`_materiais.html`, `_resultados.html`, `_carrinho.html`, `_resumo_pedido.html`) só se necessário e sem mudar classes nem `data-*`:
   - passos em blocos tonais com `--raio-bloco` e o número em círculo;
   - busca em pílula;
   - painel de resultados com o comportamento de hoje (5 linhas, no fluxo da página);
@@ -308,12 +308,12 @@ os comportamentos de FR-018a a FR-018d passam nos testes novos; Q-2.1 a Q-2.8 do
   - quantidade − / + em pílula;
   - "Seu pedido" em cartão tonal preso ao rolar a partir de 960px;
   - barra e gaveta (`dialog`) com cantos de cima de `--raio-bloco`.
-- [ ] T060 [P] [US3] Reestilizar `pedidos/templates/pedidos/_sucesso.html` com as regras em `pedidos/static/pedidos/css/pedidos.css`: o ✓ em contêiner ok, o número em `.mono` grande, o cartão com o destino e os materiais, o aviso em `aviso-info` e as mesmas ações. Os `data-lembrar-*` não mudam
-- [ ] T061 [P] [US3] Converter os campos de `pedidos/templates/pedidos/consulta.html` (número e primeiro nome) para o `campo-flutuante` e reestilizar a tela
-- [ ] T062 [US3] Pôr `placeholder=" "` nos widgets de `FormularioEntrada` e `FormularioTrocaSenha` em `contas/forms.py`, sem tocar no `FormularioEntradaAdmin`. Converter `contas/templates/contas/entrar.html` (layout próprio, com `contas/static/contas/css/entrar.css`) e `contas/templates/contas/trocar_senha.html` para o `campo-flutuante`, e reestilizar `contas/templates/contas/bloqueado.html`. O login é um só, e a equipe continua entrando por ele (Q-3.5)
-- [ ] T063 [P] [US3] Reestilizar `pedidos/templates/pedidos/meus_pedidos.html`, `pedidos/templates/pedidos/meu_pedido.html`, `pedidos/templates/pedidos/_folha.html` e `interface/templates/interface/acesso_negado_publico.html` com os componentes da fundação
-- [ ] T064 [US3] Atualizar `CLAUDE.md`: o `Fluxo.exemplo_destino` passa de "o placeholder do destino" para "o texto de apoio do destino" (parágrafo da spec 007); o campo flutuante entra no parágrafo dos formulários públicos. Tirar a marca "entrega 3" dos componentes em `docs/DESIGN.md`
-- [ ] T065 [US3] Gerar as capturas das telas públicas (também o login com preenchimento automático e a gaveta aberta no celular) e conferir Q-3.1 a Q-3.5. Repetir a medição da SC-005 com os mesmos 3 funcionários. Rodar os portões e preparar o PR da entrega 3 (só abrir com o pedido do usuário)
+- [x] T060 [P] [US3] Reestilizar `pedidos/templates/pedidos/_sucesso.html` com as regras em `pedidos/static/pedidos/css/pedidos.css`: o ✓ em contêiner ok, o número em `.mono` grande, o cartão com o destino e os materiais, o aviso em `aviso-info` e as mesmas ações. Os `data-lembrar-*` não mudam
+- [x] T061 [P] [US3] Converter os campos de `pedidos/templates/pedidos/consulta.html` (número e primeiro nome) para o `campo-flutuante` e reestilizar a tela
+- [x] T062 [US3] Pôr `placeholder=" "` nos widgets de `FormularioEntrada` e `FormularioTrocaSenha` em `contas/forms.py`, sem tocar no `FormularioEntradaAdmin`. Converter `contas/templates/contas/entrar.html` (layout próprio, com `contas/static/contas/css/entrar.css`) e `contas/templates/contas/trocar_senha.html` para o `campo-flutuante`, e reestilizar `contas/templates/contas/bloqueado.html`. O login é um só, e a equipe continua entrando por ele (Q-3.5)
+- [x] T063 [P] [US3] Reestilizar `pedidos/templates/pedidos/meus_pedidos.html`, `pedidos/templates/pedidos/meu_pedido.html`, `pedidos/templates/pedidos/_folha.html` e `interface/templates/interface/acesso_negado_publico.html` com os componentes da fundação
+- [x] T064 [US3] Atualizar `CLAUDE.md`: o `Fluxo.exemplo_destino` passa de "o placeholder do destino" para "o texto de apoio do destino" (parágrafo da spec 007); o campo flutuante entra no parágrafo dos formulários públicos. Tirar a marca "entrega 3" dos componentes em `docs/DESIGN.md`
+- [ ] T065 [US3] Gerar as capturas das telas públicas (também o login com preenchimento automático e a gaveta aberta no celular) e conferir Q-3.1 a Q-3.5. Repetir a medição da SC-005 com os mesmos 3 funcionários. Rodar os portões e preparar o PR da entrega 3 (só abrir com o pedido do usuário). Feito no PR #13: as capturas (375, 768 e 1280px) e Q-3.1 a Q-3.5, menos o preenchimento automático real do Chrome; falta a SC-005
 
 **Checkpoint**: telas públicas novas, com o mesmo fluxo de pedir.
 

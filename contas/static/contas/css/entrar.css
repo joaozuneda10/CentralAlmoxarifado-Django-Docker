@@ -22,3 +22,8 @@
   .entrada { place-content: start center; padding-top: var(--esp-4); }
   .entrada-cartao { padding: var(--esp-3) 20px; }
 }
+
+/* Troca de senha: os campos a 20px, como no login (o `pilha-larga` dá o espaço de bloco). */
+.formulario-conta { gap: 20px; }
+.formulario-conta > .acoes { margin-top: var(--esp-1); }
+.formulario-conta .campo-flutuante { --campo-fundo: var(--fundo); }

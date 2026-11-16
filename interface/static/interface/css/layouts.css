@@ -26,7 +26,7 @@
   @keyframes publico-topo-rolou { to { background: var(--superficie); box-shadow: 0 1px 0 var(--borda); } }
 }
 .publico-topo-interno { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-2); min-height: 64px; padding-inline: var(--esp-3); }
-.publico-topo .marca { gap: 12px; font-size: 17px; letter-spacing: -0.02em; }
+.publico-topo .marca { gap: 12px; font-size: 17px; letter-spacing: -0.02em; white-space: nowrap; }
 .publico-topo .marca .icone {
   box-sizing: content-box; width: 20px; height: 20px; padding: 10px; border-radius: 12px;
   background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
@@ -37,10 +37,11 @@
 .publico-conta { display: flex; align-items: center; gap: var(--esp-1); }
 .publico-conta form { margin: 0; }
 .publico-conta .botao-suave { flex-shrink: 0; }
-/* No celular estreito, o Sair fica só com o ícone (o texto segue para o leitor de tela), para a
-   marca e "Meus pedidos" caberem sem cortar nada. */
+/* No celular estreito, com a conta aberta, o Sair e a marca ficam só com o ícone (o texto segue para
+   o leitor de tela), para "Meus pedidos" caber sem cortar nada nem rolar de lado. */
 @media (max-width: 420px) {
-  .publico-conta-sair > span {
+  .publico-conta-sair > span,
+  .publico-topo-interno:has(.publico-conta-sair) .marca > span {
     position: absolute; width: 1px; height: 1px; overflow: hidden; white-space: nowrap;
     clip: rect(0 0 0 0); clip-path: inset(50%);
   }

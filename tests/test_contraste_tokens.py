@@ -18,11 +18,20 @@ CONTROLE = 3.0
 PERMITIDAS = [
     ("texto", "fundo", TEXTO),
     ("texto", "superficie-alta", TEXTO),
+    # Formulários públicos (entrega 3): o passo em `--superficie` e "Seu pedido" em
+    # `--superficie-media`.
+    ("texto", "superficie", TEXTO),
+    ("texto", "superficie-media", TEXTO),
     ("texto-secundario", "fundo", TEXTO),
     ("texto-secundario", "superficie-alta", TEXTO),
+    ("texto-secundario", "superficie", TEXTO),
+    ("texto-secundario", "superficie-media", TEXTO),
     ("texto-suave", "fundo", TEXTO),
     ("texto-suave", "superficie-media", TEXTO),
     ("destaque", "fundo", TEXTO),
+    # Rótulo flutuante com foco sobre o passo tonal, e o botão de texto de "Seu pedido".
+    ("destaque", "superficie", TEXTO),
+    ("destaque", "superficie-media", TEXTO),
     ("destaque-texto", "destaque", TEXTO),
     ("destaque-superficie-texto", "destaque-superficie", TEXTO),
     ("secundario-superficie-texto", "secundario-superficie", TEXTO),
@@ -30,6 +39,8 @@ PERMITIDAS = [
     ("aviso-texto", "aviso-superficie", TEXTO),
     ("erro-texto", "erro-superficie", TEXTO),
     ("erro-forte", "fundo", TEXTO),
+    # Rótulo flutuante com erro sobre o passo tonal.
+    ("erro-forte", "superficie", TEXTO),
     # Indicadores do painel (protótipo): o número e a nota crítica sobre o cartão tonal, com o
     # cursor e com o filtro aplicado.
     ("erro-forte", "superficie-media", TEXTO),

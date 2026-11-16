@@ -1,10 +1,12 @@
 {% extends "interface/base_publico.html" %}
+{% load static %}
 {% comment %}
 Troca de senha pelo próprio usuário (spec 013). Obrigatória para o solicitante cuja senha foi
 definida pelo almoxarifado (`obrigatoria`): até trocar, só esta página e o Sair do topo abrem. Sem
 formulário de saída próprio (o do layout é o único da página). Cada erro fica embaixo do campo.
 {% endcomment %}
 {% block title %}{% if form.errors %}Erro: {% endif %}Trocar a senha · Central Almoxarifado{% endblock %}
+{% block extra_css %}<link rel="stylesheet" href="{% static 'contas/css/entrar.css' %}">{% endblock %}
 {% block rotulo %}Sua conta{% endblock %}
 {% block heading %}Trocar a senha{% endblock %}
 {% block sub %}{% if obrigatoria %}Antes de continuar, troque a senha que o almoxarifado entregou.{% else %}Escolha uma senha que só você saiba.{% endif %}{% endblock %}

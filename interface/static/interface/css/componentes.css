@@ -624,6 +624,16 @@ html:not(.js) .filtros-alternar { display: none; }
 /* Estado vazio */
 .vazio { display: grid; justify-items: center; gap: var(--esp-1); padding: var(--esp-6) var(--esp-3); text-align: center; color: var(--texto-secundario); }
 .vazio-titulo { font-family: var(--fonte-titulo); font-weight: 600; color: var(--texto); }
+/* Recusa numa tela pública (login bloqueado, página só da equipe): bloco tonal com o ícone num
+   círculo, o texto e a saída; o estado vai no título da página e no texto, nunca só na cor. O
+   círculo é neutro; `recusa-aviso` o põe no tom de aviso. */
+.recusa { display: grid; justify-items: start; gap: var(--esp-2); padding: var(--esp-4); border-radius: var(--raio-bloco); background: var(--superficie); }
+.recusa-icone { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--neutro-superficie); color: var(--neutro-texto); }
+.recusa-aviso .recusa-icone { background: var(--aviso-superficie); color: var(--aviso-texto); }
+.recusa-icone .icone { width: 28px; height: 28px; }
+.recusa-texto { max-width: 32em; font-size: 17px; color: var(--texto); }
+.recusa .acoes { margin-top: var(--esp-1); }
+@media (max-width: 600px) { .recusa { padding: 20px var(--esp-2); border-radius: 24px; } }
 
 /* Dados (rótulo e valor) */
 .dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--esp-2) var(--esp-3); }

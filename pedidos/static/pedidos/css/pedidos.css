@@ -1129,6 +1129,10 @@ html:not([data-gaveta]) .ritmo-publico .pedido-resumo .carrinho-cabecalho { back
   grid-template-columns: minmax(0, 1fr) auto; align-items: center; gap: 12px;
   padding: 12px 44px 12px var(--esp-2);
 }
+/* Na coluna do computador, o recuo da linha vem de uma regra mais específica (`.pedido-resumo
+   .carrinho-linha`, no começo do arquivo): o lápis e o ✕ precisam do espaço à direita. */
+html.js:not([data-gaveta]) .ritmo-publico .pedido-resumo .carrinho-linha { padding-right: 40px; }
+html.js:not([data-gaveta]) .ritmo-publico .pedido-resumo .carrinho-linha:has([data-alterar].aberto) { padding-right: 52px; }
 .js .ritmo-publico .carrinho-linha:hover { background: var(--superficie); }
 .js .ritmo-publico .carrinho-linha .material-titulo::before { content: none; }
 .js .ritmo-publico .carrinho-linha .material-dados { position: static; }
@@ -1178,4 +1182,8 @@ html:not([data-gaveta]) .ritmo-publico .pedido-resumo .carrinho-cabecalho { back
   background: var(--superficie-alta); color: var(--texto-secundario);
 }
 .folha { border: 0; border-radius: var(--raio-bloco); }
-.formulario-conta .campo-flutuante { --campo-fundo: var(--fundo); }
+@media (max-width: 640px) { .folha { border-radius: 0; } }
+/* Consulta: os campos ficam a 20px, como no login (o `pilha-larga` dá o espaço de bloco, 48px no
+   público), e o botão desce mais um pouco. */
+.consulta-formulario { gap: 20px; }
+.consulta-formulario > .acoes { margin-top: var(--esp-1); }
