@@ -344,7 +344,12 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   "Materiais AB", e o rótulo do Telegram é o da origem (`get_origem_display`). `regras.Erro` tem
   `campo` (`solicitante`, `destino`, `obs`, `ocorrencia`) nos erros de um campo:
   a view monta `erros_por_campo`, e o formulário mostra o resumo no topo (focado pelo `pedidos.js`,
-  com link para o campo) e o erro embaixo do próprio campo. No celular, a gaveta do pedido envia
+  com link para o campo) e o erro embaixo do próprio campo. Nome, destino e ocorrência (e os campos
+  da consulta, do login e da troca de senha) têm o rótulo flutuante do M3 (`campo-flutuante`, spec 015,
+  `contracts/campos-publicos.md`): `placeholder=" "` no campo (o CSS sabe se está vazio), o rótulo
+  dentro da caixa só com o campo vazio, sem foco e sem erro, e o exemplo no `campo-dica` embaixo; com
+  erro, a dica sai do HTML e o `aria-describedby` aponta só para o erro (na troca de senha, o
+  `FormularioTrocaSenha.full_clean` o fixa no widget). No celular, a gaveta do pedido envia
   (`data-carrinho-enviar`, que aciona o botão do fim do formulário por `requestSubmit`; esse botão
   fica escondido com JavaScript), também na saída avulsa, com os textos da
   saída (`Fluxo.rotulo_carrinho` e afins: "Materiais da saída", "Revisar e registrar"). O "Nome completo" é texto livre, sem sugestões de nomes. O `pedidos.js`
@@ -469,7 +474,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
 - Formulário da oficina mecânica (spec `specs/007-formulario-oficina-mecanica/`): o formulário
   público `FLUXOS["oficina"]` (origem `OFICINA`, `/pedido/oficina/`), pedido de autopeças e insumos
   da oficina, sem folha nem ocorrência; o único campo novo no `Fluxo` é `exemplo_destino`, o
-  placeholder do destino (antes deduzido de `fluxo.centros`). O catálogo
+  texto de apoio do destino, embaixo do campo (`campo-dica`; antes deduzido de `fluxo.centros`). O catálogo
   (`catalogos.formulario_oficina`) são os materiais visíveis dos grupos da lista `Opcao`
   `GRUPO_OFICINA` ("Grupos (oficina)", comparados por `_grupo`, como os ocultos do AB; lista vazia =
   nenhum grupo) mais os avulsos (exceções da configuração, spec 009: antes um cadastro

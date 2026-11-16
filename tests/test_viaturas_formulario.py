@@ -164,7 +164,7 @@ def test_pedido_com_folha_e_busca_registra_tudo(client):
 def test_o_envio_registra_o_pedido_de_viaturas(client):
     r = enviar(client, [(TUBO, "2,5"), (FITA, "2")], ocorrencia="1234/2026")
     assert "Pedido registrado" in r.text
-    assert "Nº da ocorrência: 1234/2026" in texto(r.text)  # o encarregado confere o que enviou
+    assert "Nº da ocorrência 1234/2026" in texto(r.text)  # o encarregado confere o que enviou
     pedido = Pedido.objects.get()
     assert pedido.origem == VIATURAS and pedido.numero.startswith("P-")
     assert pedido.destino == EQUIPE and pedido.ocorrencia == "1234/2026"

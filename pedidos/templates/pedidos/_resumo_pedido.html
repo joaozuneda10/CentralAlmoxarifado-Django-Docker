@@ -7,6 +7,6 @@ gaveta, que aciona o do fim do formulário, escondido. Recebe `rotulo`, `rotulo_
 <aside class="pedido-lado" aria-label="{{ fluxo.rotulo_carrinho }}">
   <div class="pedido-resumo">
     <div id="carrinho">{% include "pedidos/_carrinho.html" %}</div>
-    <div class="pedido-enviar">{% include "pedidos/_enviar.html" %}</div>
+    <div class="pedido-enviar">{% include "pedidos/_enviar.html" %}{% if fluxo.publico %}<p class="pedido-enviar-nota">{% if fluxo.exige_autorizacao %}A Segurança do Trabalho autoriza antes do atendimento.{% else %}O almoxarifado confere e separa depois do envio.{% endif %}</p>{% endif %}</div>
   </div>
 </aside>
