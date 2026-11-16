@@ -17,9 +17,10 @@ from django.views.decorators.cache import never_cache
 from django.views.decorators.http import require_POST
 
 from catalogo.models import Material
-from compras import consultas, servicos
+from compras import consultas, regras, servicos
 from compras.forms import FormularioCancelamento, FormularioRecebimento
 from compras.models import ItemPedidoCompra, PedidoCompra, Recebimento, TravaPedido
+from pedidos.regras import qtd_br
 
 POR_PAGINA = 50
 RE_NUMERO_PEDIDO = re.compile(r"^(\d{1,5})(?:/(\d{2}))?$")
@@ -119,6 +120,7 @@ def pedido(request, pk):
 def _contexto_formulario(
     pedido, linhas, estado, formulario, *, erros=(), recebimento=None, modo=""
 ):
+    total_modo = modo == "total" and recebimento is None and bool(regras.sugestao_total(linhas))
     por_campo = {}
     for erro in erros:
         por_campo.setdefault(erro.campo, []).append(erro.mensagem)
@@ -133,6 +135,16 @@ def _contexto_formulario(
         "erros_por_campo": por_campo,
         "recebimento": recebimento,
         "modo": modo,
+        # O modo "total" tem os controles de travar e voltar; ele abre travado só quando o
+        # formulário é exatamente o total (uma recusa com quantidade editada abre livre, com o
+        # "Voltar ao total" disponível). `total_sugerido` é o que "voltar" restaura.
+        "total_modo": total_modo,
+        "total_travado": total_modo and formulario.eh_o_total(linhas),
+        "total_sugerido": {
+            item_id: qtd_br(livre) for item_id, livre in regras.sugestao_total(linhas).items()
+        }
+        if total_modo
+        else {},
         "hoje": timezone.localdate(),
     }
 

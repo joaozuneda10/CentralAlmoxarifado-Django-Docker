@@ -53,6 +53,15 @@ class FormularioRecebimento:
             formulario.quantidades = dict(formulario.marcados)
         return formulario
 
+    def eh_o_total(self, linhas) -> bool:
+        """Se o formulário é exatamente o "total" sugerido: todos os itens disponíveis marcados,
+        cada um com o saldo livre. Só então a tela o trava até a pessoa escolher alterar; com algo
+        diferente (uma recusa devolvida com quantidade editada), as quantidades abrem livres."""
+        sugerido = {
+            item_id: qtd_br(livre) for item_id, livre in regras.sugestao_total(linhas).items()
+        }
+        return bool(sugerido) and self.marcados == sugerido and self.quantidades == sugerido
+
     @classmethod
     def de(cls, recebimento: Recebimento) -> "FormularioRecebimento":
         """A edição: o que está gravado."""
