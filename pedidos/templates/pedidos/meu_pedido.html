@@ -25,7 +25,7 @@ a quantidade entregue e a troca. Nada da equipe chega aqui (FR-020).
   <ul class="meu-pedido-itens">
     {% for i in pedido.itens %}
     <li>
-      <span class="meu-pedido-material">{{ i.material }}</span>
+      <span>{{ i.material }}</span>
       <span class="texto-pequeno">Pedido: <strong>{{ i.qtd_pedida|quantidade }}{% if i.unidade %} {{ i.unidade }}{% endif %}</strong>{% if pedido.atendido %} · Entregue: <strong>{{ i.qtd_entregue|default_if_none:0|quantidade }}{% if i.unidade %} {{ i.unidade }}{% endif %}</strong>{% endif %}</span>
       {% if i.trocado_por %}<span class="texto-pequeno texto-secundario">{% include "interface/_icone.html" with nome="trocar" %} Trocado por {{ i.trocado_por }}</span>{% endif %}
     </li>

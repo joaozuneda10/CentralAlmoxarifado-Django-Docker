@@ -1,42 +1,45 @@
-/* Componentes do Clean (docs/DESIGN.md). Só usa os tokens de clean.css. */
+/* Componentes do Tonal (docs/DESIGN.md), na linguagem do Material 3. Só usa os tokens de fundacao.css. */
 
-/* Botões */
+/* Botões: pílula. Primário cheio, secundário de contorno, suave tonal, texto sem fundo. */
 .botao {
   display: inline-flex; align-items: center; justify-content: center; gap: var(--esp-1);
-  min-height: var(--altura-controle); padding: var(--esp-1) 20px;
-  border: 1px solid transparent; border-radius: var(--raio-controle);
+  min-height: var(--altura-controle); padding: var(--esp-1) var(--esp-3);
+  border: 1px solid transparent; border-radius: var(--raio-pilula);
   font-family: var(--fonte-texto); font-size: 0.95em; font-weight: 500; line-height: 1.3;
   text-align: center; text-decoration: none; cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao),
-    color var(--transicao), transform var(--transicao);
+    color var(--transicao), box-shadow var(--transicao), transform var(--transicao);
 }
 .botao:hover { text-decoration: none; }
 .botao:active { transform: scale(0.98); }
-.botao[disabled], .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; }
+.botao[disabled], .botao[aria-disabled="true"] { opacity: 0.5; cursor: not-allowed; transform: none; box-shadow: none; }
 .botao-primario { background: var(--destaque); color: var(--destaque-texto); }
-.botao-primario:hover { background: var(--destaque-hover); color: var(--destaque-texto); }
-.botao-secundario { background: var(--fundo); border-color: var(--borda); color: var(--texto); }
+.botao-primario:hover { background: var(--destaque-hover); color: var(--destaque-texto); box-shadow: var(--sombra-cartao); }
+.botao-secundario { background: var(--fundo); border-color: var(--contorno); color: var(--texto); }
 .botao-secundario:hover { background: var(--superficie); color: var(--texto); }
 .botao-texto { min-height: 0; padding: var(--esp-meio) var(--esp-1); background: none; color: var(--texto-secundario); }
-.botao-texto:hover { background: var(--superficie); color: var(--texto); }
+.botao-texto:hover { background: var(--destaque-superficie); color: var(--destaque-superficie-texto); }
 .botao-perigo, .botao-perigo:hover { color: var(--erro-texto); }
 /* Variantes de cor do botão secundário (contorno e texto na cor, fundo tingido ao passar o mouse):
    destaque (azul, incluir), perigo (vermelho, o que afeta tudo) e ok (verde, reativar). */
-.botao-secundario.botao-destaque { color: var(--info-texto); border-color: rgba(37, 99, 235, 0.35); }
-.botao-secundario.botao-destaque:hover { color: var(--info-texto); background: var(--destaque-superficie); border-color: rgba(37, 99, 235, 0.6); }
-.botao-secundario.botao-perigo { border-color: rgba(163, 38, 29, 0.35); }
-.botao-secundario.botao-perigo:hover { background: var(--erro-superficie); border-color: rgba(163, 38, 29, 0.6); }
-.botao-secundario.botao-ok { color: var(--ok-texto); border-color: rgba(30, 107, 52, 0.35); }
-.botao-secundario.botao-ok:hover { color: var(--ok-texto); background: var(--ok-superficie); border-color: rgba(30, 107, 52, 0.6); }
-.botao-icone { width: var(--altura-controle); padding: 0; }
+.botao-secundario.botao-destaque { color: var(--info-texto); border-color: var(--destaque); }
+.botao-secundario.botao-destaque:hover { color: var(--info-texto); background: var(--destaque-superficie); }
+.botao-secundario.botao-perigo { border-color: var(--erro-forte); }
+.botao-secundario.botao-perigo:hover { background: var(--erro-superficie); }
+.botao-secundario.botao-ok { color: var(--ok-texto); border-color: currentColor; }
+.botao-secundario.botao-ok:hover { color: var(--ok-texto); background: var(--ok-superficie); }
+/* Botão de ícone: a área de toque é a altura do controle (44px na área interna, 48px no público). */
+.botao-icone { width: var(--altura-controle); height: var(--altura-controle); min-height: 0; padding: 0; border-radius: 50%; }
 @media (max-width: 640px) { .botao-bloco { width: 100%; } }
 
 /* Campos */
 .campo { display: grid; grid-template-columns: minmax(0, 1fr); align-content: start; gap: 6px; }
 .campo-rotulo { font-size: 0.875em; font-weight: 500; color: var(--texto); }
+/* Caixa do campo no padrão do M3: contorno de controle (3:1) e, no foco, a borda de 2px em azul
+   (o segundo pixel é uma sombra interna, para o texto não pular). */
 .campo-entrada {
   width: 100%; min-height: var(--altura-controle); padding: 10px 14px;
-  background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  background: var(--fundo); border: 1px solid var(--contorno); border-radius: var(--raio-campo);
   transition: border-color var(--transicao), box-shadow var(--transicao);
 }
 .campo-entrada::placeholder { color: var(--texto-suave); }
@@ -46,11 +49,11 @@ input[type="date"].campo-entrada {
   box-sizing: border-box; display: block; min-width: 0; max-width: 100%;
 }
 input[type="date"].campo-entrada::-webkit-date-and-time-value { text-align: left; min-width: 0; }
-.campo-entrada:hover { border-color: var(--texto-suave); }
-.campo-entrada:focus { outline: none; border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-superficie); }
+.campo-entrada:hover { border-color: var(--texto); }
+.campo-entrada:focus { outline: none; border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
 /* Campo só de leitura (o nome da conta no formulário, spec 013): o mesmo tom dos controles
    travados, sem o realce de quem espera digitação. */
-.campo-entrada[readonly] { background: var(--superficie); color: var(--texto-secundario); cursor: default; }
+.campo-entrada[readonly] { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: default; }
 .campo-entrada[readonly]:hover { border-color: var(--borda); }
 input[type="checkbox"][aria-readonly="true"] { cursor: default; opacity: 0.6; }
 .botao[hidden] { display: none; }
@@ -58,14 +61,41 @@ input[type="checkbox"][aria-readonly="true"] { cursor: default; opacity: 0.6; }
 textarea.campo-entrada { min-height: 96px; resize: vertical; }
 select.campo-entrada { padding-right: 36px; }
 .campo-dica { font-size: 0.85em; color: var(--texto-secundario); }
-.campo-erro { font-size: 0.85em; color: var(--erro-texto); }
-.campo-com-erro .campo-entrada { border-color: var(--erro-texto); }
+/* Erro: borda, rótulo e texto em vermelho forte; o texto do erro leva o ícone de alerta. */
+.campo-erro { display: flex; align-items: flex-start; gap: 6px; font-size: 0.85em; color: var(--erro-forte); }
+.campo-erro::before {
+  content: ""; flex: none; width: 14px; height: 14px; margin-top: 0.2em; background: currentColor;
+  -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+  mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E") center / contain no-repeat;
+}
+.campo-com-erro .campo-rotulo { color: var(--erro-forte); }
+.campo-com-erro .campo-entrada, .campo-com-erro .campo-entrada:hover { border-color: var(--erro-forte); }
+.campo-com-erro .campo-entrada:focus { box-shadow: inset 0 0 0 1px var(--erro-forte); }
+/* Campo com rótulo flutuante (contracts/campos-publicos.md): o campo contornado do M3, de 56px. O
+   rótulo desce para dentro da caixa só com o campo vazio e sem foco (`placeholder=" "`, com `:has()`). */
+.campo-flutuante { position: relative; gap: 0; }
+.campo-flutuante .campo-entrada { min-height: var(--altura-campo); padding: 0 16px; font-size: 16px; }
+.campo-flutuante > .campo-rotulo {
+  position: absolute; z-index: 2; left: 12px; top: 0; transform: translateY(-50%);
+  max-width: calc(100% - 24px); padding: 0 4px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  font-size: 12px; font-weight: 400; line-height: 16px; color: var(--texto-secundario); pointer-events: none;
+  background: linear-gradient(transparent calc(50% - 2px), var(--campo-fundo, var(--fundo)) calc(50% - 2px));
+  transition: top var(--transicao), font-size var(--transicao), line-height var(--transicao), color var(--transicao);
+}
+.campo-flutuante:has(.campo-entrada[readonly]) { --campo-fundo: var(--superficie); }
+.campo-flutuante:not(.campo-com-erro):has(.campo-entrada:placeholder-shown:not(:focus):not(:autofill):not(:-webkit-autofill)) > .campo-rotulo {
+  top: calc(var(--altura-campo) / 2); font-size: 16px; line-height: 24px;
+}
+.campo-flutuante:focus-within > .campo-rotulo { color: var(--destaque); }
+.campo-flutuante.campo-com-erro > .campo-rotulo { color: var(--erro-forte); }
+.campo-flutuante.campo-com-erro .campo-entrada { box-shadow: inset 0 0 0 1px var(--erro-forte); }
+.campo-flutuante .campo-dica, .campo-flutuante .campo-erro { margin: 0; padding: 4px 16px 0; font-size: 13px; line-height: 1.4; }
+/* O erro que já traz o ícone no HTML (`pedidos/_erro_campo.html`) não ganha o segundo. */
+.campo-erro:has(> .icone)::before { content: none; }
+@media (prefers-reduced-motion: reduce) { .campo-flutuante > .campo-rotulo { transition: none; } }
 .campo-check { display: flex; align-items: flex-start; gap: 10px; cursor: pointer; }
 .campo-check input { width: 18px; height: 18px; margin-top: 3px; accent-color: var(--destaque); }
-/* Campos de uma saída, compactos: a grade escolhe as colunas pela largura do próprio bloco
-   (container query), porque a barra lateral e o resumo do pedido mudam o espaço. Quatro colunas
-   com o recebedor e o centro de custo em duas e as observações na linha toda; duas colunas (o
-   tablet), aos pares na ordem do formulário, com o centro de custo na linha toda; uma. */
+/* Campos de uma saída, compactos: as colunas saem da largura do próprio bloco (container query). */
 .saida-campos { container-type: inline-size; }
 .grade-saida { display: grid; grid-template-columns: minmax(0, 1fr); gap: 12px var(--esp-2); align-items: start; }
 @container (min-width: 480px) {
@@ -97,10 +127,10 @@ select.campo-entrada { padding-right: 36px; }
 .campo-nota .icone { width: 12px; height: 12px; }
 .campo-check-caixa {
   align-items: center; align-self: end; min-height: var(--altura-controle); padding: 0 12px;
-  background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-controle);
+  background: var(--fundo); border: 1px solid var(--contorno); border-radius: var(--raio-campo);
   font-size: 0.875em; transition: border-color var(--transicao);
 }
-.campo-check-caixa:hover { border-color: var(--texto-suave); }
+.campo-check-caixa:hover { border-color: var(--texto); }
 .campo-check-caixa input { margin-top: 0; width: 16px; height: 16px; flex: none; }
 .campo-check-caixa > span { line-height: 1.25; }
 .campo-check-caixa .campo-dica { display: block; font-size: 11px; line-height: 1.25; }
@@ -108,16 +138,21 @@ select.campo-entrada { padding-right: 36px; }
 textarea.campo-linha { min-height: var(--altura-controle); height: var(--altura-controle); padding-block: 9px; resize: none; line-height: 1.4; overflow: hidden; transition: height 0.2s ease, border-color var(--transicao), box-shadow var(--transicao); }
 textarea.campo-linha:focus { height: 84px; }
 @media (prefers-reduced-motion: reduce) { textarea.campo-linha { transition: none; } }
-/* Botão suave: ação secundária em azul sutil (mesmo tom do selo-info), com ícone. */
+/* Botão suave: ação secundária tonal, em pílula, 8px mais baixo que o controle; o ::after dá à área
+   de toque a altura do controle. */
 .botao-suave {
-  display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 10px;
-  background: var(--destaque-superficie); border: 1px solid transparent; border-radius: 6px;
-  font-size: 0.8125em; font-weight: 500; color: var(--info-texto); cursor: pointer;
+  position: relative; display: inline-flex; align-items: center; gap: 6px; height: calc(var(--altura-controle) - 8px); padding: 0 12px;
+  background: var(--secundario-superficie); border: 1px solid transparent; border-radius: var(--raio-pilula);
+  font-size: 0.8125em; font-weight: 500; color: var(--secundario-superficie-texto); cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao), transform var(--transicao);
+}
+.botao-suave::after {
+  content: ""; position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%);
+  width: max(100% + 2px, var(--altura-controle)); height: var(--altura-controle);
 }
 .botao-suave > span { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .botao-suave .icone { width: 14px; height: 14px; }
-.botao-suave:hover { background: #dde8ff; border-color: rgba(37, 99, 235, 0.25); }
+.botao-suave:hover { background: var(--superficie-maxima); }
 .botao-suave:active { transform: scale(0.97); }
 /* Atalho dentro do campo (ex.: "Usar <solicitante>"), à esquerda da seta do dropdown. */
 .com-acao { position: relative; }
@@ -141,26 +176,23 @@ textarea.campo-linha:focus { height: 84px; }
   text-align: left; cursor: pointer;
 }
 .dropdown-valor { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.dropdown-gatilho:disabled { background: var(--superficie); color: var(--texto-secundario); cursor: not-allowed; }
+.dropdown-gatilho:disabled { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: not-allowed; }
 .dropdown-gatilho:disabled:hover { border-color: var(--borda); }
 .dropdown-gatilho:disabled .dropdown-seta { opacity: 0.4; }
 .dropdown-vazio .dropdown-valor { color: var(--texto-secundario); }
 .dropdown-seta { display: inline-flex; flex: none; color: var(--texto-suave); transition: transform var(--transicao); }
 .dropdown[data-aberto] .dropdown-seta { transform: rotate(180deg); color: var(--destaque); }
-.dropdown[data-aberto] > .campo-entrada { border-color: var(--destaque); box-shadow: 0 0 0 3px var(--destaque-superficie); }
+.dropdown[data-aberto] > .campo-entrada { border-color: var(--destaque); box-shadow: inset 0 0 0 1px var(--destaque); }
 /* block: sem a folga de linha de um inline-block, o wrapper tem a altura do campo e a seta fica no centro. */
 .dropdown-combo { display: block; padding-right: 44px; }
 /* Select digitável travado (o centro de custo, enquanto há placa): como o gatilho travado. */
-.dropdown-combo:disabled { background: var(--superficie); color: var(--texto-secundario); cursor: not-allowed; }
+.dropdown-combo:disabled { background: var(--superficie); border-color: var(--borda); color: var(--texto-secundario); cursor: not-allowed; }
 .dropdown-combo:disabled ~ .dropdown-seta { opacity: 0.4; }
 .dropdown-seta-campo { position: absolute; right: 14px; top: 50%; transform: translateY(-50%); pointer-events: none; }
 .dropdown[data-aberto] .dropdown-seta-campo { transform: translateY(-50%) rotate(180deg); }
 
-/* Painel flutuante: a casca única de todo painel que abre embaixo de um campo, a base do dropdown.js.
-   Os painéis dos dropdowns (.dropdown-painel) e o de resultados da busca de materiais (.busca-painel)
-   a usam; mudar aqui muda todos. Aparência: cartão com borda e sombra, sem legenda. Abrir e
-   fechar: o `aberto` mostra o painel com a entrada animada, o `fechando` toca a saída (dropdown.js,
-   `Dropdown.abrirPainel` e `fecharPainel`, que tiram os dois no fim). Só existe com JavaScript. */
+/* Painel flutuante: a casca única dos painéis que abrem embaixo de um campo (dropdown.js e a busca de
+   materiais); `aberto` e `fechando` tocam a entrada e a saída (`Dropdown.abrirPainel`/`fecharPainel`). */
 .painel-flutuante {
   background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-cartao);
   box-shadow: var(--sombra-elevada);
@@ -185,9 +217,9 @@ textarea.campo-linha:focus { height: 84px; }
 }
 .dropdown-opcao:last-child { border-bottom: 0; }
 .dropdown-texto { min-width: 0; overflow-wrap: anywhere; }
-.dropdown-check { display: inline-flex; flex: none; color: var(--destaque); visibility: hidden; }
-.dropdown-opcao[data-ativa] { background: var(--superficie); }
-.dropdown-opcao[aria-selected="true"] { background: var(--destaque-superficie); color: var(--destaque-hover); font-weight: 500; }
+.dropdown-check { display: inline-flex; flex: none; color: currentColor; visibility: hidden; }
+.dropdown-opcao[data-ativa] { background: var(--superficie-alta); }
+.dropdown-opcao[aria-selected="true"] { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 500; }
 .dropdown-opcao[aria-selected="true"] .dropdown-check { visibility: visible; }
 .dropdown-sem-opcoes { padding: 14px var(--esp-2); }
 /* Árvore (data-dropdown-arvore): linhas mais baixas; à esquerda, a quantidade de subgrupos da
@@ -215,25 +247,34 @@ textarea.campo-linha:focus { height: 84px; }
 .dropdown-arvore .dropdown-filho:has(+ :not(.dropdown-filho)), .dropdown-arvore .dropdown-filho:last-child { border-bottom-color: var(--borda); }
 
 /* Cartões */
+/* Cartão de contorno do M3: branco, com a borda decorativa e sem sombra; o sutil é tonal, sem borda. */
 .cartao {
   background: var(--fundo); border: 1px solid var(--borda); border-radius: var(--raio-cartao);
-  box-shadow: var(--sombra-cartao); padding: var(--recheio-cartao);
+  padding: var(--recheio-cartao);
 }
 .cartao-titulo { margin-bottom: var(--esp-2); }
-.cartao-sutil { background: var(--superficie); box-shadow: none; }
+/* Na área interna, o que vem depois dos dados ou de um aviso num cartão (outro aviso, as ações, a
+   tabela) fica a 16px dele, sem o cartão precisar ser uma pilha. */
+.ritmo-almox .cartao:not(.pilha, .pilha-larga) > :is(.dados, .aviso) + :is(.dados, .aviso, .acoes, .tabela-rolagem) { margin-top: var(--esp-2); }
+.cartao-sutil { background: var(--superficie-media); border-color: transparent; box-shadow: none; }
 .cartao-opcao {
   display: grid; gap: var(--esp-1); color: inherit; text-decoration: none;
   transition: transform 0.2s ease, box-shadow 0.2s ease, border-color 0.2s ease;
 }
 .cartao-opcao:hover { color: inherit; text-decoration: none; transform: translateY(-2px); box-shadow: var(--sombra-hover); }
 .cartao-opcao .icone { width: 24px; height: 24px; }
+/* O ícone do formulário num quadrado tonal de 48px. */
+.cartao-opcao > .icone {
+  box-sizing: content-box; padding: 12px; border-radius: var(--raio-cartao);
+  background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+}
 .cartao-opcao-seta { margin-top: var(--esp-1); color: var(--destaque); transition: transform var(--transicao); }
 .cartao-opcao:hover .cartao-opcao-seta { transform: translateX(4px); }
 
 /* Abas (abas.js): pasta. A aba ativa é branca e se funde ao primeiro cartão do painel, que vira o
    corpo da pasta; os demais cartões do painel ficam embaixo, soltos. Sem JavaScript, os painéis
    ficam todos à vista, empilhados, e a lista de abas não aparece. */
-.abas { display: grid; gap: var(--esp-4); }
+.abas { display: grid; grid-template-columns: minmax(0, 1fr); gap: var(--esp-4); }
 .abas-lista { display: none; }
 .js .abas { gap: 0; }
 /* A lista desce 1px sobre o cartão: a aba ativa cobre a borda de cima dele. O recuo (maior que o raio
@@ -256,44 +297,57 @@ textarea.campo-linha:focus { height: 84px; }
 }
 .aba {
   display: inline-flex; align-items: center; gap: var(--esp-1); min-height: var(--altura-controle); padding: 0 var(--esp-2);
-  background: rgba(15, 14, 12, 0.04); border: 1px solid var(--borda); border-bottom: 0;
-  border-radius: var(--raio-controle) var(--raio-controle) 0 0;
+  background: var(--superficie-media); border: 1px solid var(--borda); border-bottom: 0;
+  border-radius: var(--raio-cartao) var(--raio-cartao) 0 0;
   font: inherit; font-weight: 500; color: var(--texto-secundario); cursor: pointer; white-space: nowrap;
   transition: color var(--transicao), background var(--transicao);
 }
 /* As não selecionadas também são abas da pasta: cinza, atrás da ativa, apoiadas na borda do cartão. */
-.aba:hover { color: var(--texto); background: rgba(15, 14, 12, 0.08); }
+.aba:hover { color: var(--texto); background: var(--superficie-alta); }
 /* Estado pela forma (aba aberta, ligada ao cartão) e pelo filete azul em cima, não só pela cor. */
-.aba-ativa, .aba-ativa:hover { background: var(--fundo); border-color: var(--borda); color: var(--texto); box-shadow: inset 0 2px 0 var(--destaque); }
+.aba-ativa, .aba-ativa:hover { background: var(--fundo); border-color: var(--borda); color: var(--destaque-superficie-texto); box-shadow: inset 0 3px 0 var(--destaque); }
 .aba:focus-visible { outline: none; box-shadow: inset 0 0 0 2px var(--destaque); }
 .js .aba-painel:not(.aba-painel-ativo) { display: none; }
-/* Selo dentro da aba: com texto na tela larga; abaixo de 1024px só o ícone (o texto fica para o
-   leitor de tela), para as abas caberem no tablet. O ícone é a forma do estado, não só a cor. */
-.aba-selo .icone { display: none; width: 14px; height: 14px; }
+/* Selo dentro da aba: o ícone em toda largura, com o texto ao lado na tela larga; abaixo de 1024px só
+   o ícone (o texto fica para o leitor de tela), para as abas caberem no tablet. O ícone é a forma do
+   estado, não só a cor. */
+.aba-selo .icone { width: 14px; height: 14px; }
 @media (max-width: 1024px) {
   .aba-selo { padding: 3px; }
-  .aba-selo .icone { display: block; }
   .aba-selo-texto {
     position: absolute; width: 1px; height: 1px; margin: -1px; overflow: hidden;
     clip: rect(0, 0, 0, 0); white-space: nowrap;
   }
 }
 
-/* Selos (estado sempre com texto) */
+/* Selos: estado sempre com texto e, pelo tom, o ícone no ::before (máscara de um SVG do Lucide); o
+   neutro e o selo que já traz um svg ficam sem; na impressão o ícone some (layouts.css). */
 .selo {
-  display: inline-flex; align-items: center; gap: 6px; padding: 2px 10px;
-  border-radius: var(--raio-pilula); font-size: 0.8em; font-weight: 500; line-height: 1.6; white-space: nowrap;
+  display: inline-flex; align-items: center; gap: 6px; padding: 2px 8px;
+  border-radius: var(--raio-selo); font-size: 0.8em; font-weight: 500; line-height: 1.6; white-space: nowrap;
 }
+.selo::before {
+  flex: none; width: 14px; height: 14px; background: currentColor;
+  -webkit-mask-position: center; mask-position: center;
+  -webkit-mask-size: contain; mask-size: contain;
+  -webkit-mask-repeat: no-repeat; mask-repeat: no-repeat;
+}
+.selo .icone { width: 14px; height: 14px; }
 .selo-ok { background: var(--ok-superficie); color: var(--ok-texto); }
+.selo-ok::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M20 6 9 17l-5-5'/%3E%3C/svg%3E"); }
 .selo-aviso { background: var(--aviso-superficie); color: var(--aviso-texto); }
+.selo-aviso::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3'/%3E%3Cpath d='M12 9v4'/%3E%3Cpath d='M12 17h.01'/%3E%3C/svg%3E"); }
 .selo-erro { background: var(--erro-superficie); color: var(--erro-texto); }
+.selo-erro::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 8v4'/%3E%3Cpath d='M12 16h.01'/%3E%3C/svg%3E"); }
 .selo-info { background: var(--info-superficie); color: var(--info-texto); }
-.selo-neutro { background: var(--neutro-superficie); color: var(--neutro-texto); border: 1px solid var(--borda); }
+.selo-info::before { content: ""; -webkit-mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E"); mask-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='black' stroke-width='2.25' stroke-linecap='round' stroke-linejoin='round'%3E%3Ccircle cx='12' cy='12' r='10'/%3E%3Cpath d='M12 16v-4'/%3E%3Cpath d='M12 8h.01'/%3E%3C/svg%3E"); }
+.selo-neutro { background: var(--neutro-superficie); color: var(--neutro-texto); }
+.selo:has(svg)::before { display: none; }
 
 /* Avisos */
 .aviso {
   display: flex; gap: var(--esp-1); align-items: flex-start;
-  padding: 14px var(--esp-2); border-radius: var(--raio-controle); font-size: 0.95em;
+  padding: 14px var(--esp-2); border-radius: var(--raio-cartao); font-size: 0.95em;
 }
 .aviso > .icone { margin-top: 3px; }
 .aviso ul { margin-top: var(--esp-meio); }
@@ -308,10 +362,18 @@ textarea.campo-linha:focus { height: 84px; }
 .tabela { width: 100%; border-collapse: collapse; font-size: 0.95em; }
 .tabela th {
   padding: var(--celula-v) var(--celula-h); text-align: left; white-space: nowrap;
-  font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em;
-  color: var(--texto-suave); border-bottom: 1px solid var(--borda);
+  font-size: 13px; font-weight: 500; color: var(--texto-secundario); border-bottom: 1px solid var(--borda);
 }
 .tabela td { padding: var(--celula-v) var(--celula-h); border-bottom: 1px solid var(--borda); vertical-align: top; }
+/* Coluna de marcar (a fila do robô, os itens a receber): a caixa de 20px com a área de toque de 44px; a
+   linha com caixa fica centrada na vertical. */
+.tabela .celula-marca { width: 1%; padding: 0; }
+.tabela:has(.celula-marca) td { vertical-align: middle; }
+.celula-marca label { display: flex; align-items: center; justify-content: center; min-width: 44px; min-height: 44px; cursor: pointer; }
+.celula-marca input { width: 20px; height: 20px; margin: 0; accent-color: var(--destaque); cursor: pointer; }
+.celula-marca input:disabled { cursor: not-allowed; }
+.celula-marca label:has(input[aria-readonly="true"]) { cursor: default; }
+.celula-marca input:focus-visible { outline: none; box-shadow: var(--anel-foco); border-radius: var(--raio-campo); }
 .tabela tbody tr { transition: background-color var(--transicao); }
 .tabela tbody tr:hover { background: var(--superficie); }
 .tabela tbody tr:last-child td { border-bottom: 0; }
@@ -323,11 +385,11 @@ textarea.campo-linha:focus { height: 84px; }
 .paginacao-resumo { font-size: 0.875em; color: var(--texto-secundario); }
 .paginacao-lista { display: flex; flex-wrap: wrap; gap: var(--esp-meio); list-style: none; margin: 0; padding: 0; }
 .paginacao-link {
-  display: inline-flex; align-items: center; justify-content: center; min-width: 36px; height: 36px; padding: 0 10px;
-  border: 1px solid var(--borda); border-radius: var(--raio-controle); background: var(--fundo); color: var(--texto); font-size: 0.9em;
+  display: inline-flex; align-items: center; justify-content: center; min-width: var(--altura-controle); height: var(--altura-controle); padding: 0 12px;
+  border: 1px solid transparent; border-radius: var(--raio-pilula); background: none; color: var(--texto); font-size: 0.9em;
 }
 a.paginacao-link:hover { background: var(--superficie); color: var(--texto); text-decoration: none; }
-.paginacao-atual { background: var(--texto); border-color: var(--texto); color: var(--fundo); }
+.paginacao-atual { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); font-weight: 600; }
 .paginacao-desativado { color: var(--texto-suave); }
 .paginacao-reticencia { padding: 0 var(--esp-meio); color: var(--texto-suave); align-self: center; }
 .paginacao-compacta { display: none; }
@@ -337,7 +399,7 @@ a.paginacao-link:hover { background: var(--superficie); color: var(--texto); tex
    fundo claro que se dissolvem. Com movimento reduzido não anima: o destaque fica parado até o JS
    tirar a classe. */
 @keyframes piscar-destaque {
-  0%, 100% { box-shadow: var(--sombra-cartao); background-color: var(--fundo); }
+  0%, 100% { box-shadow: 0 0 0 0 transparent; background-color: var(--fundo); }
   25%, 45% { box-shadow: 0 0 0 3px var(--destaque), var(--sombra-hover); background-color: var(--destaque-superficie); }
 }
 .destaque-piscada { animation: piscar-destaque 1.3s ease-in-out; }
@@ -356,22 +418,20 @@ tr.destaque-piscada > td { animation: piscar-linha 1.3s ease-in-out; }
   tr.destaque-piscada > td { animation: none; background-color: var(--destaque-superficie); }
 }
 
-/* Diálogo de confirmação (dialogo.js): um <dialog> modal com título, texto e duas ações. O botão
-   `[data-abrir-dialogo="id"]` o abre; `[data-fechar-dialogo]`, o fundo e o Esc o fecham. Sem
-   JavaScript ele vem com `open` e fica à vista na página, como um aviso comum, e o botão que o abre
-   (escondido) não aparece. */
+/* Diálogo de confirmação (dialogo.js): `[data-abrir-dialogo="id"]` o abre; sem JavaScript ele vem com
+   `open`, à vista como um aviso comum. */
 .dialogo-confirmacao {
   width: min(440px, calc(100% - 2 * var(--esp-2))); padding: 0; color: inherit; background: var(--fundo);
-  border: 1px solid var(--borda); border-radius: var(--raio-cartao); box-shadow: var(--sombra-elevada);
+  border: 0; border-radius: var(--raio-bloco); box-shadow: var(--sombra-elevada);
 }
-.dialogo-confirmacao::backdrop { background: rgba(15, 14, 12, 0.4); }
+.dialogo-confirmacao::backdrop { background: color-mix(in srgb, var(--texto) 40%, transparent); }
 .js .dialogo-confirmacao:not(:modal) { display: none; }
 html:not(.js) .dialogo-confirmacao {
   position: static; width: auto; margin: 0; box-shadow: none; background: var(--aviso-superficie); color: var(--aviso-texto);
 }
 .dialogo-confirmacao-corpo { display: grid; gap: var(--esp-3); padding: var(--esp-3); }
 .dialogo-confirmacao-texto { display: grid; gap: var(--esp-1); }
-.dialogo-confirmacao-titulo { margin: 0; font-size: 20px; }
+.dialogo-confirmacao-titulo { margin: 0; font-size: 22px; }
 .dialogo-confirmacao-texto p { margin: 0; color: var(--texto-secundario); }
 .dialogo-confirmacao-acoes { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: var(--esp-1); }
 /* Sem JavaScript só o botão que fecha por `formmethod="dialog"` (nativo, sem enviar nada) continua à vista. */
@@ -416,13 +476,12 @@ html:not(.js) .filtros-alternar { display: none; }
 .filtros-chips[hidden] { display: none; }
 .filtros-chip {
   display: inline-flex; align-items: center; gap: 6px; min-height: 32px; padding: 0 8px 0 12px;
-  border: 1px solid var(--borda); border-radius: var(--raio-pilula); background: var(--superficie);
-  color: var(--texto); font: inherit; font-size: 0.875em; cursor: pointer;
+  border: 1px solid transparent; border-radius: var(--raio-controle); background: var(--secundario-superficie);
+  color: var(--secundario-superficie-texto); font: inherit; font-size: 0.875em; font-weight: 500; cursor: pointer;
   transition: background-color var(--transicao), border-color var(--transicao);
 }
-.filtros-chip .icone { width: 14px; height: 14px; color: var(--texto-secundario); }
-.filtros-chip:hover { background: var(--fundo); border-color: var(--texto-suave); }
-.filtros-chip:hover .icone { color: var(--texto); }
+.filtros-chip .icone { width: 14px; height: 14px; color: currentColor; }
+.filtros-chip:hover { background: var(--superficie-maxima); }
 .filtros-painel { display: grid; gap: var(--esp-2); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 .filtros-painel[hidden] { display: none; }
 @starting-style { .filtros-painel { opacity: 0; transform: translateY(-4px); } }
@@ -447,7 +506,7 @@ html:not(.js) .filtros-alternar { display: none; }
   position: absolute; left: 0; bottom: calc(100% + 10px); z-index: 30;
   width: max-content; max-width: min(18rem, calc(100vw - 2 * var(--esp-2)));
   padding: 8px 12px; border-radius: var(--raio-controle); background: var(--texto); color: var(--fundo);
-  font-size: 12.5px; font-weight: 400; line-height: 1.45; box-shadow: 0 8px 30px rgba(0, 0, 0, .09);
+  font-size: 12.5px; font-weight: 400; line-height: 1.45; box-shadow: var(--sombra-elevada);
   /* Escondida fica fora do layout (display: none): com visibility ela ainda alargava a página no celular. */
   display: none; pointer-events: none;
 }
@@ -496,13 +555,15 @@ html:not(.js) .filtros-alternar { display: none; }
 .material-alerta > .icone { width: 16px; height: 16px; margin-top: 2px; flex: none; }
 .material-alerta-lista { margin: 2px 0 4px; padding-left: 1.1em; }
 .material-alerta-lista li + li { margin-top: 2px; }
-.quantidade { display: inline-flex; align-items: center; border: 1px solid var(--borda); border-radius: var(--raio-controle); background: var(--fundo); }
+.quantidade { display: inline-flex; align-items: center; overflow: hidden; border: 1px solid var(--contorno); border-radius: var(--raio-pilula); background: var(--fundo); }
 /* A quantidade é o que a pessoa confere: número em Geist 600, algarismos de largura fixa e os
    sinais de − e + no traço mais grosso, na cor do texto (no cinza secundário pareciam apagados). */
-.quantidade:hover { border-color: var(--texto-suave); }
-.quantidade .botao-icone { min-height: 0; width: 40px; height: var(--altura-controle); border: 0; background: none; color: var(--texto); }
+.quantidade:hover { border-color: var(--texto); }
+.quantidade .botao-icone { min-height: 0; width: var(--altura-controle); height: var(--altura-controle); border: 0; border-radius: 0; background: none; color: var(--texto); }
 .quantidade .botao-icone .icone { stroke-width: 2; }
-.quantidade .botao-icone:hover { background: var(--superficie); color: var(--texto); }
+.quantidade .botao-icone:hover { background: var(--superficie-alta); color: var(--texto); }
+/* Anel interno: o overflow da .quantidade cortaria o anel de fora do :focus-visible comum. */
+.quantidade .botao-icone:focus-visible { box-shadow: inset 0 0 0 2px var(--destaque); }
 .quantidade-campo {
   width: 64px; min-height: var(--altura-controle); border: 0; border-inline: 1px solid var(--borda); text-align: center; background: none;
   font-family: var(--fonte-titulo); font-weight: 600; font-variant-numeric: tabular-nums; color: var(--texto);
@@ -512,11 +573,8 @@ html:not(.js) .filtros-alternar { display: none; }
 /* Resultados da busca sem nenhum material: a frase fica no painel, sem legenda em cima. */
 .resultados-vazio { margin: 0; padding: 14px var(--esp-2); }
 
-/* Carrinho ("Seu pedido"). Sem JavaScript, ou com espaço para a coluna ao lado dos passos
-   (pedidos.css): cartão azul na página. Sem esse espaço (menos de 960px; celular, tablet, ou tela
-   com barra lateral), vira barra fixa no rodapé e gaveta (<dialog>). Quem decide é o
-   `data-gaveta` no <html>: o <head> o põe no celular e o pedidos.js o acompanha pela largura da
-   área dos passos (ResizeObserver). */
+/* Carrinho ("Seu pedido"): cartão azul na página; sem espaço para a coluna, barra fixa no rodapé e
+   gaveta (<dialog>), pelo `data-gaveta` do <html> (o pedidos.js o acompanha pela largura). */
 .carrinho { display: grid; margin-top: var(--esp-2); }
 .carrinho-barra { display: none; }
 .carrinho-barra-resumo { display: inline-flex; align-items: center; gap: var(--esp-1); font-weight: 500; color: var(--destaque-hover); }
@@ -526,7 +584,7 @@ html:not(.js) .filtros-alternar { display: none; }
   border: 1px solid var(--destaque); border-radius: var(--raio-cartao);
 }
 .carrinho-cabecalho { display: flex; align-items: center; justify-content: space-between; gap: var(--esp-1); }
-.carrinho-titulo { display: inline-flex; align-items: center; gap: var(--esp-1); color: var(--destaque-hover); }
+.carrinho-titulo { display: inline-flex; align-items: center; gap: var(--esp-1); color: var(--destaque-superficie-texto); }
 .carrinho-so-gaveta { display: none; }
 .carrinho-lista { list-style: none; margin: 0; padding: 0; display: grid; }
 .carrinho-linha {
@@ -555,22 +613,230 @@ html:not(.js) .filtros-alternar { display: none; }
   background: var(--fundo); border: 0; border-radius: var(--raio-cartao) var(--raio-cartao) 0 0;
   box-shadow: var(--sombra-elevada);
 }
-.js[data-gaveta] .carrinho-gaveta::backdrop { background: rgba(15, 14, 12, 0.4); }
+.js[data-gaveta] .carrinho-gaveta::backdrop { background: color-mix(in srgb, var(--texto) 40%, transparent); }
 .js[data-gaveta] .carrinho-so-gaveta { display: inline-flex; }
 .js[data-gaveta] .carrinho-so-gaveta.botao-bloco { width: 100%; }
 
 /* Estado vazio */
 .vazio { display: grid; justify-items: center; gap: var(--esp-1); padding: var(--esp-6) var(--esp-3); text-align: center; color: var(--texto-secundario); }
 .vazio-titulo { font-family: var(--fonte-titulo); font-weight: 600; color: var(--texto); }
+/* Recusa (login bloqueado, página só da equipe, sem acesso na área interna): bloco tonal com o ícone num
+   círculo, o texto e a saída; o estado vai no título da página e no texto, nunca só na cor. O
+   círculo é neutro; `recusa-aviso` o põe no tom de aviso. */
+.recusa { display: grid; justify-items: start; gap: var(--esp-2); padding: var(--esp-4); border-radius: var(--raio-bloco); background: var(--superficie); }
+.recusa-icone { display: grid; place-items: center; width: 56px; height: 56px; border-radius: 50%; background: var(--neutro-superficie); color: var(--neutro-texto); }
+.recusa-aviso .recusa-icone { background: var(--aviso-superficie); color: var(--aviso-texto); }
+.recusa-icone .icone { width: 28px; height: 28px; }
+.recusa-texto { max-width: 32em; font-size: var(--texto-corpo); color: var(--texto); }
+.recusa-titulo { font-size: 20px; }
+.recusa-titulo + .recusa-texto { margin-top: calc(-1 * var(--esp-1)); color: var(--texto-secundario); }
+.recusa .acoes { margin-top: var(--esp-1); }
+@media (max-width: 600px) { .recusa { padding: 20px var(--esp-2); border-radius: 24px; } }
 
 /* Dados (rótulo e valor) */
 .dados { display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: var(--esp-2) var(--esp-3); }
-.dados dt { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-suave); }
+.dados dt { font-size: 12px; font-weight: 500; text-transform: uppercase; letter-spacing: 0.06em; color: var(--texto-secundario); }
 .dados dd { overflow-wrap: anywhere; }
 
 /* Ações de formulário */
 .acoes { display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-2); }
+/* Ação em dois passos (`details.acao-recolhida`): o `summary` é um botão (em geral `botao botao-texto
+   botao-perigo`, "Cancelar…", "Não lançar…"); aberto, o que confirma fica embaixo, depois de um filete. */
+.acao-recolhida > summary { list-style: none; width: fit-content; cursor: pointer; }
+.acao-recolhida > summary::-webkit-details-marker { display: none; }
+.acao-recolhida[open] > summary.botao-perigo { background: var(--erro-superficie); }
+.acao-recolhida > :not(summary) { margin-top: var(--esp-1); padding-top: var(--esp-2); border-top: 1px solid var(--borda); }
 
 @media (max-width: 640px) {
   .botao, .campo-entrada, .paginacao-link { min-height: 44px; }
 }
+
+/* ---------------------------------------------------------------------------------------------
+   Entrega 2 da spec 015: painel do almoxarifado (contracts/componentes.md e contracts/painel.md).
+   --------------------------------------------------------------------------------------------- */
+
+/* Indicadores: cartões tonais, quatro por linha, com o `indicador-link` cobrindo o cartão; o do filtro
+   aplicado (`aria-current`) no contêiner secundário; o crítico em `--erro-forte`, com o ícone. */
+.indicadores { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: var(--esp-2); }
+.indicador {
+  position: relative; display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 0; min-height: 148px; padding: 16px 20px; border-radius: var(--raio-cartao);
+  background: var(--superficie-media); color: var(--texto); transition: background-color var(--transicao), box-shadow var(--transicao);
+}
+.indicador:has(> .indicador-link:hover) { background: var(--superficie-alta); }
+.indicador:has(> .indicador-link[aria-current="true"]) {
+  background: var(--secundario-superficie); color: var(--secundario-superficie-texto); box-shadow: inset 0 0 0 2px var(--destaque);
+}
+.indicador:has(> .indicador-link[aria-current="true"]) :is(.indicador-rotulo, .indicador-nota, .indicador-dica) { color: var(--secundario-superficie-texto); }
+.indicador-link { position: absolute; inset: 0; z-index: 0; border-radius: inherit; }
+.indicador-link:focus-visible { border-radius: inherit; }
+.indicador-rotulo { margin: 0; font-size: 13px; font-weight: 500; line-height: 1.4; color: var(--texto-secundario); }
+.indicador-link[aria-current="true"] ~ .indicador-rotulo::after { content: " · filtro aplicado"; font-weight: 400; }
+.indicador-numero {
+  margin: 6px 0 0; font-family: var(--fonte-titulo); font-size: 34px; font-weight: 600; line-height: 1.15;
+  letter-spacing: -0.02em; font-variant-numeric: tabular-nums;
+}
+.indicador-critico .indicador-numero { color: var(--erro-forte); }
+.indicador-notas { display: grid; justify-items: start; gap: 2px; }
+.indicador-nota { display: flex; align-items: center; gap: 6px; margin: 0; font-size: 12.5px; line-height: 1.4; color: var(--texto-secundario); }
+.indicador-nota .icone { width: 14px; height: 14px; flex: none; }
+/* Alerta (para conferir, erros do catálogo): vermelho forte com o ícone. Quando é link, fica acima
+   do link do cartão, sublinhado ao passar o cursor, com área de toque folgada. */
+.indicador-nota-alerta { color: var(--erro-forte); font-weight: 500; }
+a.indicador-nota { position: relative; z-index: 1; padding-block: 4px; text-decoration: none; }
+a.indicador-nota:hover { color: var(--erro-forte); text-decoration: underline; text-underline-offset: 2px; }
+.indicador-acao { position: relative; z-index: 1; display: flex; flex-wrap: wrap; align-items: center; gap: var(--esp-1); margin-top: auto; padding-top: 12px; }
+/* Botões pequenos (32px de desenho) com a área de toque de 44px. */
+.indicador-acao .botao {
+  position: relative; height: 32px; min-height: 0; padding: 0 14px 0 12px; gap: var(--esp-1);
+  border-radius: var(--raio-pilula); font-size: 13px; font-weight: 500;
+}
+.indicador-acao .botao::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: var(--altura-controle); transform: translateY(-50%); width: auto; }
+.indicador-acao .botao .icone { width: 16px; height: 16px; }
+/* Desabilitado: o cinza do M3, sem a transparência dos outros botões. */
+.indicador-acao .botao:is([disabled], [aria-disabled="true"]) {
+  opacity: 1; border-color: transparent; background: var(--superficie-alta); color: var(--texto-secundario);
+}
+/* "Ver avisos": botão de texto escuro com a seta (o azul não vai sobre o contêiner tonal). */
+.indicador-acao .indicador-texto { padding: 0 12px; color: var(--texto); background: none; }
+.indicador-acao .indicador-texto:hover { color: var(--texto); background: none; text-decoration: underline; text-underline-offset: 2px; }
+.indicador-dica { position: relative; font-size: 12px; color: var(--texto-secundario); text-decoration: underline; text-underline-offset: 2px; }
+.indicador-dica:hover { color: var(--texto); }
+.indicador-dica::after { content: ""; position: absolute; top: 50%; left: 0; right: 0; height: var(--altura-controle); transform: translateY(-50%); }
+.indicador-acao.dica-flutuante { align-self: stretch; }
+@media (max-width: 1180px) { .indicadores { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+@media (max-width: 560px) {
+  .indicadores { grid-template-columns: minmax(0, 1fr); }
+  .indicador { min-height: 0; }
+}
+
+/* Chips (rádios de situação e chips com lista): 32px de desenho e 44px de toque (o `::after`); o
+   marcado em `--secundario-superficie`, com o `check`. O rádio fica fora do desenho, mas tem o foco. */
+.chips, .chips-links { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); margin: 0; padding: 0; border: 0; min-width: 0; }
+.chip { position: relative; display: inline-flex; cursor: pointer; }
+label.chip::after, .chip-menu > summary::after, .chip-link::after { content: ""; position: absolute; inset: -6px 0; }
+.chip-entrada { position: absolute; width: 1px; height: 1px; margin: 0; opacity: 0; pointer-events: none; }
+.chip-texto, .chip-menu > summary, .chip-link {
+  display: inline-flex; align-items: center; gap: 6px; height: 32px; padding: 0 14px;
+  border: 1px solid var(--contorno); border-radius: var(--raio-controle); background: var(--fundo);
+  color: var(--texto-secundario); font-size: 13.5px; font-weight: 500; line-height: 1.2; white-space: nowrap;
+  transition: background-color var(--transicao), color var(--transicao), border-color var(--transicao);
+}
+.chip-texto .icone, .chip-link .icone { display: none; flex: none; width: 16px; height: 16px; }
+.chip:hover .chip-texto, .chip-menu > summary:hover, .chip-link:hover { background: var(--superficie); }
+.chip-entrada:checked + .chip-texto, .chip-menu > summary.chip-ativo, .chip-link[aria-current] {
+  border-color: transparent; background: var(--secundario-superficie); color: var(--secundario-superficie-texto);
+}
+.chip-entrada:checked + .chip-texto, .chip-link[aria-current] { padding-left: 10px; }
+.chip-entrada:checked + .chip-texto .icone, .chip-link[aria-current] .icone { display: inline-block; }
+.chip-entrada:focus-visible + .chip-texto { box-shadow: var(--anel-foco); }
+
+/* Chips em links (`ul.chips-links`): o filtro que vai na URL (o veredito da conferência, o formulário
+   da página Formulários), no desenho do chip de rádio, com o texto que pode quebrar. */
+.chips-links { list-style: none; }
+.chip-link { position: relative; height: auto; min-height: 32px; padding-block: 6px; white-space: normal; text-decoration: none; }
+.chip-link:not([aria-current]):hover { color: var(--texto); }
+
+/* Chip com lista: o `<details data-menu>` (menus.js) com o campo do filtro num painel flutuante. */
+.chip-menu { position: relative; display: inline-flex; }
+.chip-menu > summary { position: relative; padding-right: 10px; list-style: none; cursor: pointer; }
+.chip-menu > summary::-webkit-details-marker { display: none; }
+.chip-menu > summary .icone { width: 16px; height: 16px; transition: transform var(--transicao); }
+.chip-menu[open] > summary .icone:last-child { transform: rotate(180deg); }
+.chip-menu-rotulo { max-width: 16rem; overflow: hidden; text-overflow: ellipsis; }
+.chip-menu-painel {
+  position: absolute; left: 0; top: calc(100% + 6px); z-index: 25; display: grid; gap: 6px;
+  width: max-content; min-width: 16rem; max-width: min(22rem, calc(100vw - 2 * var(--esp-2))); padding: var(--esp-2);
+}
+/* O painel aparece com o `open` do details, também com JavaScript (a casca o esconde sem `.aberto`). */
+.js .chip-menu[open] > .chip-menu-painel { display: grid; animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1); }
+.chip-menu-periodo { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: var(--esp-1); }
+@media (max-width: 640px) {
+  /* No celular o painel ocupa a largura da barra de filtros e abre embaixo do chip. */
+  .filtros-chips-barra { position: relative; }
+  .chip-menu { position: static; }
+  .chip-menu-painel { left: 0; right: 0; width: auto; min-width: 0; max-width: none; }
+  .chip-menu-periodo { grid-template-columns: minmax(0, 1fr); }
+}
+
+/* Menu de ações de uma linha (⋮): acima do link que cobre a linha; abre para baixo e, nas duas
+   últimas linhas de uma página com 5 ou mais, para cima (`menu-acoes-acima`), para a rolagem da
+   tabela não o cortar. */
+.menu-acoes { position: relative; z-index: 2; display: inline-flex; }
+.menu-acoes > summary { list-style: none; color: var(--texto-secundario); }
+.menu-acoes > summary::-webkit-details-marker { display: none; }
+.menu-acoes > summary:hover { background: var(--superficie-alta); color: var(--texto); }
+.menu-acoes[open] > summary { background: var(--secundario-superficie); color: var(--secundario-superficie-texto); }
+.menu-acoes-lista {
+  position: absolute; right: 0; top: calc(100% + 4px); z-index: 30; min-width: 220px; margin: 0; padding: var(--esp-1) 0;
+  list-style: none; background: var(--fundo); border-radius: var(--raio-controle);
+  box-shadow: var(--sombra-elevada); animation: painel-surge 0.18s cubic-bezier(0.2, 0.8, 0.2, 1);
+}
+.menu-acoes-acima .menu-acoes-lista { top: auto; bottom: calc(100% + 4px); }
+.menu-acoes-item {
+  display: flex; align-items: center; gap: 12px; min-height: 44px; padding: 0 var(--esp-2);
+  color: var(--texto); font-size: 14px; white-space: nowrap;
+}
+.menu-acoes-item .icone { width: 20px; height: 20px; color: var(--texto-secundario); }
+.menu-acoes-item:hover { background: var(--superficie-media); color: var(--texto); text-decoration: none; }
+.menu-acoes-item:focus-visible { border-radius: 0; box-shadow: inset 0 0 0 2px var(--destaque); }
+@media (prefers-reduced-motion: reduce) { .menu-acoes-lista, .js .chip-menu[open] > .chip-menu-painel { animation: none; } }
+/* Lista curta (menos de 5 linhas): todo menu abre para baixo, e a rolagem reserva embaixo da última
+   linha a altura do menu aberto (3 itens de 44px e as margens), seja qual for a altura das linhas. */
+.tabela-rolagem-curta { padding-bottom: 9.5rem; }
+
+/* Caixa da tabela (a lista do painel): contorno decorativo, raio de 16px, fundo branco; a paginação
+   é o rodapé da caixa, separada por uma linha. */
+.tabela-caixa { min-width: 0; border: 1px solid var(--borda); border-radius: var(--raio-cartao); overflow: hidden; background: var(--fundo); }
+.tabela-caixa > .paginacao { min-height: 52px; margin: 0; padding: var(--esp-1) 12px var(--esp-1) var(--esp-3); border-top: 1px solid var(--borda); }
+.tabela-caixa > .vazio { padding: var(--esp-6) var(--esp-3); }
+/* Linha de apoio dentro de uma célula (horário, quem recebeu, tipo da saída). */
+.cel-sub { display: flex; align-items: center; gap: 6px; margin-top: 1px; font-size: 12.5px; font-weight: 400; line-height: 1.4; color: var(--texto-suave); }
+.cel-principal { color: var(--texto); font-weight: 500; }
+
+/* Botão flutuante (a saída avulsa do painel): contêiner tonal, raio de 16px e elevação; no celular
+   sobe acima da área segura. A página ganha recheio embaixo (`pagina-com-fab`) para ele não cobrir
+   a paginação nem o fim da saúde do catálogo. */
+.fab {
+  position: fixed; right: var(--esp-4); bottom: calc(var(--esp-4) + env(safe-area-inset-bottom)); z-index: 15;
+  display: inline-flex; align-items: center; gap: 12px; height: 56px; padding: 0 20px 0 16px;
+  border-radius: var(--raio-cartao); background: var(--destaque-superficie); color: var(--destaque-superficie-texto);
+  box-shadow: var(--sombra-elevada); font-size: 14.5px; font-weight: 600; text-decoration: none;
+  transition: box-shadow var(--transicao), transform var(--transicao);
+}
+.fab:hover { color: var(--destaque-superficie-texto); text-decoration: none; box-shadow: var(--sombra-elevada), var(--sombra-hover); transform: translateY(-1px); }
+.fab:active { transform: scale(0.98); }
+.fab .icone { width: 24px; height: 24px; }
+.pagina-com-fab { padding-bottom: 72px; }
+@media (max-width: 640px) { .fab { right: var(--esp-2); bottom: calc(var(--esp-2) + env(safe-area-inset-bottom)); } }
+
+/* Barra de filtros do painel (`form#filtros-painel`): uma linha que quebra quando não cabe; com
+   JavaScript, o "Filtrar" some (continua o primeiro botão de envio, para o Enter). */
+.filtros-chips-barra { display: flex; flex-wrap: wrap; align-items: center; gap: 12px var(--esp-1); }
+.filtros-rotulo { margin-right: 2px; font-size: 13px; color: var(--texto-secundario); }
+.filtros-divisor { width: 1px; height: 24px; margin: 0 6px; background: var(--borda); }
+.filtros-material { flex: 1 1 180px; min-width: 180px; max-width: 320px; }
+.filtros-material .campo-entrada { height: 32px; min-height: 0; padding-block: 0; border-radius: var(--raio-controle); font-size: 13.5px; }
+.filtros-material .campo-entrada::placeholder { color: var(--texto-secundario); }
+.filtros-material .icone { left: 12px; width: 16px; height: 16px; color: var(--texto-secundario); }
+.filtros-material .campo-busca .campo-entrada { padding-left: 36px; }
+.filtros-linha-acoes { display: flex; align-items: center; gap: var(--esp-1); margin-left: auto; }
+.filtros-linha-acoes .botao-texto { font-size: 13px; }
+.js .filtros-enviar { display: none; }
+@media (max-width: 860px) {
+  .filtros-divisor { display: none; }
+  .filtros-material { flex-basis: 100%; min-width: 0; max-width: none; }
+}
+
+/* Busca da barra do topo (painel), em pílula tonal sem contorno: branca e elevada no foco. */
+.busca-cabecalho { min-width: 0; }
+.campo-busca-pilula .campo-entrada {
+  height: 48px; min-height: 0; padding: 0 20px 0 52px; border: 0; border-radius: var(--raio-pilula);
+  background: var(--superficie-alta); font-size: 15px;
+  transition: background-color var(--transicao), box-shadow var(--transicao);
+}
+.campo-busca-pilula .campo-entrada::placeholder { color: var(--texto-secundario); }
+.campo-busca-pilula .campo-entrada:hover { border: 0; }
+.campo-busca-pilula .campo-entrada:focus { background: var(--fundo); box-shadow: var(--sombra-cartao), inset 0 0 0 1px var(--borda); }
+.campo-busca-pilula .campo-entrada:focus-visible { box-shadow: var(--sombra-cartao), inset 0 0 0 2px var(--destaque); }
+.campo-busca-pilula .icone { left: 20px; width: 20px; height: 20px; color: var(--texto-secundario); }

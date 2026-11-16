@@ -9,17 +9,15 @@ formulário de saída por página. Nunca mostra dados de pedido.
 {% block rotulo %}Acesso{% endblock %}
 {% block heading %}{% if sem_papel %}Seu usuário ainda não tem acesso{% else %}Sem acesso a esta página{% endif %}{% endblock %}
 {% block page %}
-<section class="cartao">
-  <div class="vazio">
-    {% include "interface/_icone.html" with nome="cadeado" %}
-    {% if sem_papel %}
-      <p class="vazio-titulo">Falta um papel no seu usuário</p>
-      <p>O administrador do almoxarifado precisa dar um papel ao seu usuário. Procure-o e entre de novo depois.</p>
-    {% else %}
-      <p class="vazio-titulo">{{ motivo|default:"Seu usuário não tem acesso a esta página." }}</p>
-      <p>Se precisar dela, fale com o administrador do almoxarifado.</p>
-      {% if volta_ao_painel %}<a class="botao botao-secundario" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a>{% endif %}
-    {% endif %}
-  </div>
+<section class="recusa">
+  <span class="recusa-icone">{% include "interface/_icone.html" with nome="cadeado" %}</span>
+  {% if sem_papel %}
+    <h2 class="recusa-titulo">Falta um papel no seu usuário</h2>
+    <p class="recusa-texto">O administrador do almoxarifado precisa dar um papel ao seu usuário. Procure-o e entre de novo depois.</p>
+  {% else %}
+    <h2 class="recusa-titulo">{{ motivo|default:"Seu usuário não tem acesso a esta página." }}</h2>
+    <p class="recusa-texto">Se precisar dela, fale com o administrador do almoxarifado.</p>
+    {% if volta_ao_painel %}<div class="acoes"><a class="botao botao-suave" href="{% url 'pedidos:painel' %}">{% include "interface/_icone.html" with nome="seta-esquerda" %}Voltar ao painel</a></div>{% endif %}
+  {% endif %}
 </section>
 {% endblock %}

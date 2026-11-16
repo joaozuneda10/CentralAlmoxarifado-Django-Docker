@@ -24,7 +24,7 @@ def css(nome):
 @pytest.mark.parametrize("arquivo", FONTES)
 def test_fontes_locais_existem_e_tem_font_face(arquivo):
     assert finders.find(f"interface/fonts/{arquivo}")
-    assert f"../fonts/{arquivo}" in css("clean.css")
+    assert f"../fonts/{arquivo}" in css("fundacao.css")
 
 
 def test_licencas_das_fontes():
@@ -32,17 +32,33 @@ def test_licencas_das_fontes():
         assert finders.find(f"interface/fonts/{nome}")
 
 
-def test_tokens_do_clean():
-    texto = css("clean.css")
+def test_tokens_da_fundacao():
+    # Spec 015: os valores de specs/015-design-system-m3/contracts/tokens.md.
+    texto = css("fundacao.css")
     for valor in (
-        "#ffffff",
-        "#f7f6f2",
-        "#0f0e0c",
-        "#6b6760",
-        "#a8a49f",
-        "#e8e6e1",
-        "#2563eb",
-        "#1d4ed8",
+        "--fundo: #ffffff",
+        "--superficie: #f5f6fa",
+        "--superficie-media: #eef0f5",
+        "--superficie-alta: #e8eaf0",
+        "--superficie-maxima: #e1e4eb",
+        "--texto: #1a1c21",
+        "--texto-secundario: #4a4d57",
+        "--texto-suave: #666975",
+        "--borda: #e2e4ea",
+        "--contorno: #7a7d88",
+        "--destaque: #2563eb",
+        "--destaque-hover: #1d4ed8",
+        "--destaque-superficie: #dce6ff",
+        "--destaque-superficie-texto: #0f2a6b",
+        "--secundario-superficie: #e2e7f3",
+        "--secundario-superficie-texto: #1b2540",
+        "--erro-forte: #b3261e",
+        "--raio-campo: 4px",
+        "--raio-selo: 6px",
+        "--raio-cartao: 16px",
+        "--raio-bloco: 28px",
+        "--altura-campo: 56px",
+        "--transicao: 0.15s ease",
         "font-display: swap",
         ":focus-visible",
         "prefers-reduced-motion",
@@ -133,7 +149,7 @@ def test_itens_do_menu_tem_icone():
 def test_base_sem_tema_e_com_css_novo():
     html = render_to_string("interface/base.html", {})
     head = html.split("</head>")[0]
-    assert "interface/css/clean.css" in head
+    assert "interface/css/fundacao.css" in head
     assert "almox-tema" not in html and "data-theme" not in html
     assert 'src="/static/interface/js/shell.js" defer' in head
     assert '<meta name="htmx-config"' in head
@@ -171,8 +187,8 @@ def test_grades_nao_crescem_com_a_tabela():
     # Trilha implícita `auto` cresce até a largura mínima da tabela e a página rola de lado;
     # com minmax(0, 1fr) quem rola é só o .tabela-rolagem.
     for arquivo, seletor in (
-        ("clean.css", ".pilha"),
-        ("clean.css", ".pilha-larga"),
+        ("fundacao.css", ".pilha"),
+        ("fundacao.css", ".pilha-larga"),
         ("layouts.css", ".publico-conteudo"),
         ("layouts.css", ".app-principal"),
     ):
@@ -198,3 +214,61 @@ def test_impressao_em_texto_preto():
     for seletor in (".rotulo-secao", ".dados dt", ".texto-suave", ".texto-secundario"):
         assert seletor in impressao
     assert "color: #000000" in impressao
+
+
+# Spec 015 (entrega 1): ícone do selo pelo tom, no CSS (research R12), e ícones novos.
+def _regras(texto, seletor):
+    """Todas as declarações das regras que começam exatamente com o seletor."""
+    return [texto[i : texto.index("}", i)] for i in _posicoes(texto, seletor + " {")]
+
+
+def _posicoes(texto, trecho):
+    inicio = 0
+    while (i := texto.find(trecho, inicio)) != -1:
+        yield i
+        inicio = i + 1
+
+
+@pytest.mark.parametrize("tom", ["selo-ok", "selo-aviso", "selo-erro", "selo-info"])
+def test_selo_com_icone_pelo_tom(tom):
+    regras = " ".join(_regras(css("componentes.css"), f".{tom}::before"))
+    assert 'mask-image: url("data:image/svg+xml' in regras
+    assert '-webkit-mask-image: url("data:image/svg+xml' in regras
+
+
+def test_selo_neutro_sem_icone_e_selo_com_svg_sem_o_segundo():
+    texto = css("componentes.css")
+    assert ".selo-neutro::before" not in texto
+    assert "display: none" in _regra(texto, ".selo:has(svg)::before")
+    base = _regra(texto, ".selo::before")
+    assert "background: currentColor" in base and "width: 14px" in base
+
+
+def test_aba_selo_mostra_o_proprio_icone_em_toda_largura():
+    texto = css("componentes.css")
+    for regra in _regras(texto, ".aba-selo .icone"):
+        assert "display: none" not in regra
+
+
+def test_selo_sem_icone_na_impressao():
+    for arquivo in ("layouts.css", "componentes.css"):
+        texto = css(arquivo)
+        if "@media print" in texto:
+            impressao = texto[texto.index("@media print") :]
+            if ".selo::before" in impressao:
+                assert "display: none" in _regra(impressao, ".selo::before")
+                return
+    pytest.fail("nenhum @media print esconde o ícone dos selos")
+
+
+def test_botao_icone_tem_a_area_de_toque_do_controle():
+    regra = _regra(css("componentes.css"), ".botao-icone")
+    assert "width: var(--altura-controle)" in regra
+    assert "height: var(--altura-controle)" in regra
+
+
+@pytest.mark.parametrize("nome", ["kebab", "calendario", "documento", "caminhao"])
+def test_icones_novos(nome):
+    svg = render_to_string("interface/_icone.html", {"nome": nome})
+    assert svg.startswith('<svg class="icone"') and 'stroke-width="1.5"' in svg
+    assert "<path" in svg or "<circle" in svg or "<rect" in svg

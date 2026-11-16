@@ -769,6 +769,22 @@
     revelarConfirmacao();
   });
 
+  // "Imprimir recibo" pelo ⋮ da lista do painel (spec 015): o detalhe abre com `?imprimir=1`, e o
+  // servidor marca o botão (`data-imprimir-ao-abrir`) só com o recibo ainda não impresso. No `load`
+  // (com as fontes já carregadas), ele é acionado uma vez, e o parâmetro sai da barra, mantendo o
+  // estado de histórico do HTMX: recarregar a página ou voltar a ela não imprime de novo.
+  window.addEventListener("load", function () {
+    var url = new URL(window.location.href);
+    if (url.searchParams.has("imprimir")) {
+      url.searchParams.delete("imprimir");
+      history.replaceState(history.state, "", url.pathname + url.search + url.hash);
+    }
+    var botao = document.querySelector("[data-imprimir-ao-abrir]");
+    if (!botao) return;
+    botao.removeAttribute("data-imprimir-ao-abrir");
+    botao.click();
+  });
+
   // O pedido em montagem só existe na página: sair dela (link, voltar, fechar) com material no
   // pedido pede confirmação. O envio sem HTMX (sem JavaScript não há aviso) e a tela de sucesso,
   // que já não tem o carrinho, saem direto. A saída avulsa não tem `data-formulario-pedido`.
@@ -1267,7 +1283,7 @@
   // da tela (no celular, atrás da barra "Seu pedido"): em qualquer tela, a página rola para o
   // elemento ficar no topo, descontando a barra do almoxarifado quando ela é uma barra no topo (a
   // .app-lateral do celular; na tela larga ela é uma coluna). Só rola para baixo.
-  // Com "reduzir movimento", o clean.css zera as transições: a rolagem também não anima.
+  // Com "reduzir movimento", o fundacao.css zera as transições: a rolagem também não anima.
   function rolagemSuave() {
     var campo = document.querySelector(".campo-entrada");
     return !campo || parseFloat(getComputedStyle(campo).transitionDuration) >= 0.05;
@@ -1279,6 +1295,9 @@
     var barra = document.querySelector(".app-lateral");
     var noTopo = barra && barra.offsetWidth >= window.innerWidth / 2;
     if (noTopo && getComputedStyle(barra).position === "sticky") topo += barra.getBoundingClientRect().bottom;
+    // Nas telas públicas, o topo fica preso ao rolar (spec 015): o campo para logo abaixo dele.
+    var publico = document.querySelector(".publico-topo");
+    if (publico && getComputedStyle(publico).position === "sticky") topo += publico.offsetHeight;
     return topo;
   }
   function trazerAoTopo(el, depois) {

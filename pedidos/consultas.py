@@ -60,6 +60,8 @@ class FiltrosPainel(forms.Form):
                 "class": "campo-entrada",
                 "type": "search",
                 "placeholder": "Nº, solicitante, recebedor ou ocorrência",
+                # A busca fica no cabeçalho, fora do <form> (spec 015): o atributo a liga a ele.
+                "form": "filtros-painel",
             }
         ),
     )
@@ -85,7 +87,8 @@ class FiltrosPainel(forms.Form):
         required=False,
         label="Situação do pedido",
         choices=[("", "Todas")] + OPCOES_SITUACAO,
-        widget=forms.Select(attrs={"class": "campo-entrada"}),
+        # Chips de rádio (spec 015): o valor vale em todo envio do formulário.
+        widget=forms.RadioSelect(attrs={"class": "chip-entrada"}),
     )
     autorizacao = forms.ChoiceField(
         required=False,
@@ -120,6 +123,42 @@ class FiltrosPainel(forms.Form):
         """Os valores válidos; o que não validou é ignorado."""
         self.is_valid()
         return {k: v for k, v in getattr(self, "cleaned_data", {}).items() if v}
+
+    # Os chips com lista do painel (spec 015): o nome curto e o valor escolhido ("Origem: Limpeza").
+    CHIPS = (
+        ("origem", "Origem"),
+        ("scpi", "SCPI"),
+        ("recibo", "Recibo"),
+        ("autorizacao", "Autorização"),
+    )
+
+    def rotulos_dos_chips(self) -> dict[str, dict]:
+        """O rótulo de cada chip com lista pela URL: o nome sozinho sem valor, ou "nome: valor".
+        O `filtros.js` refaz o mesmo texto depois de cada troca do HTMX (`data-chip-nome`)."""
+        valores = self.filtros()
+        rotulos = {}
+        for nome, curto in self.CHIPS:
+            escolhido = dict(self.fields[nome].choices).get(valores.get(nome))
+            rotulos[nome] = {
+                "nome": curto,
+                "texto": f"{curto}: {escolhido}" if escolhido else curto,
+                "ativo": bool(escolhido),
+            }
+        de, ate = valores.get("de"), valores.get("ate")
+        if de and ate:
+            periodo = f"{de:%d/%m/%Y} a {ate:%d/%m/%Y}"
+        elif de:
+            periodo = f"a partir de {de:%d/%m/%Y}"
+        elif ate:
+            periodo = f"até {ate:%d/%m/%Y}"
+        else:
+            periodo = ""
+        rotulos["periodo"] = {
+            "nome": "Período",
+            "texto": f"Período: {periodo}" if periodo else "Período",
+            "ativo": bool(periodo),
+        }
+        return rotulos
 
 
 def filtrar_situacao(qs: QuerySet, chave: str) -> QuerySet:
@@ -328,15 +367,39 @@ def lotes_travados() -> list[LoteTravado]:
     return list(lotes.values())
 
 
-def contar_lotes_travados() -> int:
-    """Quantos lotes `lotes_travados` devolveria, contados no banco, sem carregar as linhas."""
+def contar_lotes_travados(com_em_lancamento: bool = True) -> int:
+    """Quantos lotes `lotes_travados` devolveria, contados no banco, sem carregar as linhas. Com
+    `com_em_lancamento=False`, só os lotes com linha `VERIFICAR` ou `ERRO` (o contador do menu,
+    spec 015: durante uma execução, o `EM_LANCAMENTO` é o robô trabalhando)."""
+    estados = [s for s in ESTADOS_TRAVA if com_em_lancamento or s != EM_LANCAMENTO]
     return (
-        LinhaSaida.objects.filter(status__in=ESTADOS_TRAVA)
-        .order_by()
-        .values("lote")
-        .distinct()
-        .count()
+        LinhaSaida.objects.filter(status__in=estados).order_by().values("lote").distinct().count()
     )
+
+
+def ha_lote_em_lancamento() -> bool:
+    return LinhaSaida.objects.filter(status=EM_LANCAMENTO).exists()
+
+
+# --- Indicadores do painel (spec 015, entrega 2) --------------------------------------------
+
+
+def contar_aguardando() -> int:
+    """Os pedidos do filtro "Aguardando atendimento" (fora os aguardando autorização e os
+    recusados): o cartão do painel e o contador do item Painel no menu."""
+    return filtrar_situacao(Pedido.objects.all(), "aguardando").count()
+
+
+def envio_mais_antigo_aguardando() -> datetime | None:
+    """O `criado_em` mais antigo entre os pedidos aguardando atendimento, ou None sem nenhum."""
+    return filtrar_situacao(Pedido.objects.all(), "aguardando").aggregate(m=Min("criado_em"))["m"]
+
+
+def contar_aguardando_autorizacao() -> int:
+    """Os pedidos de EPI aguardando a decisão da Segurança do Trabalho (o filtro Autorização =
+    aguardando)."""
+    aguardando = AutorizacaoPedido.Situacao.AGUARDANDO
+    return Pedido.objects.filter(autorizacao__situacao=aguardando).count()
 
 
 def nomes_scpi(pedidos) -> dict[str, str]:

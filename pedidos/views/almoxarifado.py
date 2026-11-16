@@ -16,11 +16,12 @@ from django.views.decorators.http import require_POST
 from catalogo.models import Opcao
 from catalogo.saude import saude_do_catalogo
 from contas.acesso import AUTOMACOES
+from interface.navegacao import contadores
 from pedidos import carrinho as carrinho_mod
 from pedidos.consultas import (
     FiltrosPainel,
-    contar_lotes_travados,
-    filtrar_situacao,
+    contar_aguardando_autorizacao,
+    envio_mais_antigo_aguardando,
     lotes_pendentes,
     nomes_scpi,
     pedidos_do_painel,
@@ -38,6 +39,7 @@ from pedidos.regras import (
     frase_diferenca,
     lote_todo_sem_lancar,
     qtd_br,
+    texto_envio_mais_antigo,
 )
 from pedidos.servicos import (
     catalogo_avulsa_por_codigo,
@@ -76,15 +78,28 @@ def painel(request):
         resposta = render(request, "pedidos/_painel_lista.html", contexto)
         patch_vary_headers(resposta, ["HX-Request", "HX-History-Restore-Request"])
         return resposta
-    contexto["saude"] = [item for item in saude_do_catalogo() if item.nivel != "ok"]
+    saude = [item for item in saude_do_catalogo() if item.nivel != "ok"]
+    contexto["saude"] = saude
+    contexto["saude_erros"] = sum(1 for item in saude if item.nivel == "erro")
+    contexto["saude_avisos"] = sum(1 for item in saude if item.nivel == "aviso")
     contexto["recibos_pendentes"] = Atendimento.objects.filter(
         recibo_impresso_em__isnull=True
     ).count()
-    contexto["pedidos_aguardando"] = filtrar_situacao(Pedido.objects.all(), "aguardando").count()
+    # As parcelas que o menu também mostra vêm da mesma memória da requisição (spec 015, R7).
+    memoria = contadores(request)
+    contexto["pedidos_aguardando"] = memoria.pedidos_aguardando
+    if contexto["pedidos_aguardando"]:
+        mais_antigo = envio_mais_antigo_aguardando()
+        if mais_antigo:
+            contexto["envio_mais_antigo"] = texto_envio_mais_antigo(
+                timezone.localdate(mais_antigo), timezone.localdate()
+            )
+    contexto["aguardando_autorizacao"] = contar_aguardando_autorizacao()
+    contexto["chips"] = form.rotulos_dos_chips()
     # O cartão do lançamento é só de quem opera as automações (spec 012).
     if request.user.has_perm(AUTOMACOES):
         contexto["lancamento_pendentes"] = lotes_pendentes()
-        contexto["lancamento_travados"] = contar_lotes_travados()
+        contexto["lancamento_travados"] = memoria.requisicoes_travadas
         contexto["lancamento_em_andamento"] = ExecucaoRobo.em_andamento().exists()
         contexto["lancamento_real"] = settings.LANCAMENTO_REAL
     resposta = render(request, "pedidos/painel.html", contexto)
@@ -235,8 +250,21 @@ def _contexto_detalhe(pedido, **extra) -> dict:
 
 @login_required
 def detalhe(request, numero):
-    """Recibo do pedido na tela e, enquanto não atendido, o formulário de atendimento."""
-    return render(request, "pedidos/detalhe.html", _contexto_detalhe(_pedido(numero)))
+    """Recibo do pedido na tela e, enquanto não atendido, o formulário de atendimento. Com
+    `?imprimir=1` (o "Imprimir recibo" do ⋮ do painel, spec 015), o botão de imprimir é acionado ao
+    abrir, só com atendimento e recibo ainda não impresso; a volta da confirmação sai sem o
+    parâmetro, para não imprimir de novo."""
+    contexto = _contexto_detalhe(_pedido(numero))
+    parametros = request.GET.copy()
+    pedir_impressao = parametros.pop("imprimir", None) is not None
+    atendimento = contexto["pedido"].atendimento_ou_none
+    contexto["imprimir_ao_abrir"] = bool(
+        pedir_impressao and atendimento and atendimento.recibo_impresso_em is None
+    )
+    contexto["voltar_sem_imprimir"] = request.path + (
+        f"?{parametros.urlencode()}" if parametros else ""
+    )
+    return render(request, "pedidos/detalhe.html", contexto)
 
 
 @login_required

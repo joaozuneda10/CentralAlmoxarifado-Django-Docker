@@ -75,6 +75,17 @@ def badge_autorizacao(situacao: str) -> str:
 
 
 @register.filter
+def edicao_permitida_no_painel(atendimento) -> bool:
+    """O ⋮ do painel (spec 015) só oferece "Editar atendimento" quando o detalhe também deixaria:
+    a mesma regra, pelas linhas do lote já pré-carregadas (`pedidos_do_painel`)."""
+    from pedidos.regras import edicao_permitida
+
+    if atendimento is None:
+        return False
+    return edicao_permitida(True, atendimento.linhas.all()).permitida
+
+
+@register.filter
 def nome_usuario(usuario) -> str:
     """Nome completo do usuário, ou a matrícula quando não tem nome."""
     return usuario.get_full_name() or usuario.username

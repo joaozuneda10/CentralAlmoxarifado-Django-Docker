@@ -34,36 +34,42 @@ carrinho continuar nesta.
   <div class="pedido-grade">
   <div class="pedido-passos pilha-larga">
   <section class="passo">
-    <span class="passo-numero" aria-hidden="true">01</span>
+    <span class="passo-numero" aria-hidden="true">1</span>
     <div class="passo-cabecalho"><h2>Seus dados</h2><p id="solicitante-dica" class="texto-secundario">{% if com_conta %}O nome é o da sua conta.{% else %}Ficam guardados no seu aparelho para o próximo pedido.{% endif %}</p></div>
     <div class="passo-corpo">
+      {% comment %}
+      Rótulo flutuante (contracts/campos-publicos.md): o `placeholder=" "` diz ao CSS se o campo está
+      vazio, e o exemplo vai no `campo-dica` embaixo. Com erro, a dica sai do HTML e o campo cita só o
+      erro. A dica do nome é a frase do cabeçalho do passo.
+      {% endcomment %}
       {% with erros_nome=erros_por_campo|obter:"solicitante" %}
-      <div class="campo{% if erros_nome %} campo-com-erro{% endif %}">
+      <div class="campo campo-flutuante{% if erros_nome %} campo-com-erro{% endif %}">
         <label class="campo-rotulo" for="solicitante">Nome completo</label>
         {# "Limpar" dentro do campo (pedidos.js): aparece com o campo preenchido e apaga o valor e o que ficou lembrado dele neste aparelho. #}
         <div class="com-acao">
-          <input id="solicitante" class="campo-entrada" type="text" name="solicitante" maxlength="200" autocomplete="off" value="{{ campos.solicitante }}" aria-describedby="solicitante-dica{% if erros_nome %} solicitante-erro{% endif %}"{% if erros_nome %} aria-invalid="true"{% endif %}{% if com_conta %} readonly{% endif %}>
+          <input id="solicitante" class="campo-entrada" type="text" name="solicitante" maxlength="200" autocomplete="off" placeholder=" " value="{{ campos.solicitante }}" aria-describedby="{% if erros_nome %}solicitante-erro{% else %}solicitante-dica{% endif %}"{% if erros_nome %} aria-invalid="true"{% endif %}{% if com_conta %} readonly{% endif %}>
           {% if not com_conta %}<button type="button" class="botao-suave acao-campo acao-limpar" data-limpar-campo="solicitante" aria-label="Limpar o nome completo" hidden>{% include "interface/_icone.html" with nome="fechar" %}<span>Limpar</span></button>{% endif %}
         </div>
         {% include "pedidos/_erro_campo.html" with nome="solicitante" erros=erros_nome %}
       </div>
       {% endwith %}
       {% with erros_destino=erros_por_campo|obter:"destino" %}
-      <div class="campo{% if erros_destino %} campo-com-erro{% endif %}">
+      <div class="campo campo-flutuante{% if erros_destino %} campo-com-erro{% endif %}">
         <label class="campo-rotulo" for="destino">{{ fluxo.rotulo_destino }}</label>
         <div class="com-acao">
-          <input id="destino" class="campo-entrada" type="text" name="destino" maxlength="200" list="destinos" autocomplete="off" placeholder="{{ fluxo.exemplo_destino }}" value="{{ campos.destino }}"{% if erros_destino %} aria-describedby="destino-erro" aria-invalid="true"{% endif %}>
+          <input id="destino" class="campo-entrada" type="text" name="destino" maxlength="200" list="destinos" autocomplete="off" placeholder=" " value="{{ campos.destino }}" aria-describedby="{% if erros_destino %}destino-erro{% else %}destino-dica{% endif %}"{% if erros_destino %} aria-invalid="true"{% endif %}>
           <button type="button" class="botao-suave acao-campo acao-limpar" data-limpar-campo="destino" aria-label="Limpar o destino" hidden>{% include "interface/_icone.html" with nome="fechar" %}<span>Limpar</span></button>
         </div>
+        {% if not erros_destino %}<p id="destino-dica" class="campo-dica">{{ fluxo.exemplo_destino }}</p>{% endif %}
         {% include "pedidos/_erro_campo.html" with nome="destino" erros=erros_destino %}
         <datalist id="destinos">{% for d in destinos %}<option value="{{ d }}">{% endfor %}</datalist>
       </div>
       {% endwith %}
       {% if fluxo.pede_ocorrencia %}{% with erros_ocorrencia=erros_por_campo|obter:"ocorrencia" %}
-      <div class="campo{% if erros_ocorrencia %} campo-com-erro{% endif %}">
-        <label class="campo-rotulo" for="ocorrencia">Nº da ocorrência <span class="texto-secundario">(opcional)</span></label>
-        <input id="ocorrencia" class="campo-entrada" type="text" name="ocorrencia" maxlength="20" autocomplete="off" value="{{ campos.ocorrencia }}" aria-describedby="ocorrencia-dica{% if erros_ocorrencia %} ocorrencia-erro{% endif %}"{% if erros_ocorrencia %} aria-invalid="true"{% endif %}>
-        <p id="ocorrencia-dica" class="campo-dica">Se as peças foram usadas numa ocorrência, o número dela.</p>
+      <div class="campo campo-flutuante{% if erros_ocorrencia %} campo-com-erro{% endif %}">
+        <label class="campo-rotulo" for="ocorrencia">Nº da ocorrência (opcional)</label>
+        <input id="ocorrencia" class="campo-entrada" type="text" name="ocorrencia" maxlength="20" autocomplete="off" placeholder=" " value="{{ campos.ocorrencia }}" aria-describedby="{% if erros_ocorrencia %}ocorrencia-erro{% else %}ocorrencia-dica{% endif %}"{% if erros_ocorrencia %} aria-invalid="true"{% endif %}>
+        {% if not erros_ocorrencia %}<p id="ocorrencia-dica" class="campo-dica">Se as peças foram usadas numa ocorrência, o número dela.</p>{% endif %}
         {% include "pedidos/_erro_campo.html" with nome="ocorrencia" erros=erros_ocorrencia %}
       </div>
       {% endwith %}{% endif %}
@@ -71,13 +77,13 @@ carrinho continuar nesta.
   </section>
 
   <section class="passo">
-    <span class="passo-numero" aria-hidden="true">02</span>
-    <div class="passo-cabecalho"><h2>Materiais</h2><p class="texto-secundario">Busque, escolha a quantidade e adicione ao pedido.</p></div>
+    <span class="passo-numero" aria-hidden="true">2</span>
+    <div class="passo-cabecalho"><h2>Materiais</h2><p class="texto-secundario">Toque no material, escolha a quantidade e confirme.</p></div>
     <div class="passo-corpo">{% include "pedidos/_materiais.html" %}</div>
   </section>
 
   <section class="passo">
-    <span class="passo-numero" aria-hidden="true">03</span>
+    <span class="passo-numero" aria-hidden="true">3</span>
     <div class="passo-cabecalho"><h2 id="obs-titulo">Observações <span class="texto-secundario">(opcional)</span></h2><p id="obs-dica" class="texto-secundario">Se quiser, avise o almoxarifado de urgência ou de qualquer detalhe do pedido.</p></div>
     <div class="passo-corpo">
       {% with erros_obs=erros_por_campo|obter:"obs" %}

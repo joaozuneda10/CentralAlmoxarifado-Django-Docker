@@ -6,6 +6,7 @@ Copiadas do WMS-Almoxarifado (commit 70798439575da9d51547b0bc585b6a783b2e524c).
   demais (filtros, outras seções paginadas); usada por `interface/_paginacao.html`.
 - `intervalo_paginas`: números e reticências da paginação (lista larga e compacta).
 - `separador_milhar`: inteiro com "." de milhar.
+- `iniciais`: até duas iniciais do nome (avatar da conta).
 - `quantidade`: quantidade/saldo em pt-BR ("27.000", "32,5"), só para exibição — nunca em
   `value` de input nem em dado enviado.
 """
@@ -172,3 +173,15 @@ def dinheiro(valor):
     except (InvalidOperation, ValueError, TypeError):
         return valor
     return f"{'-' if numero < 0 else ''}R$ {_numero_br(numero)}"
+
+
+@register.filter
+def iniciais(nome):
+    """Até duas iniciais do nome, para o avatar da conta: "Ana Maria Souza" → "AS",
+    "joao" → "J". Sem letra (vazio ou só a matrícula), vazio: o avatar mostra o ícone."""
+    partes = [p for p in str(nome or "").split() if p[:1].isalpha()]
+    if not partes:
+        return ""
+    if len(partes) == 1:
+        return partes[0][0].upper()
+    return (partes[0][0] + partes[-1][0]).upper()

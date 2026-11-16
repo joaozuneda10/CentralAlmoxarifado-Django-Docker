@@ -78,7 +78,7 @@
           <tbody>
             {% for l in linhas %}
             <tr>
-              <td>{% if l.motivo %}—{% else %}<input type="checkbox" id="marcar-{{ l.item_id }}" name="marcar-{{ l.item_id }}" value="1" aria-label="Receber o item {{ l.numero }}"{% if l.item_id in formulario.marcados %} checked{% endif %}{% if l.item_id in total_sugerido %} data-sugerido="1"{% endif %}>{% endif %}</td>
+              <td class="celula-marca">{% if l.motivo %}—{% else %}<label><input type="checkbox" id="marcar-{{ l.item_id }}" name="marcar-{{ l.item_id }}" value="1" aria-label="Receber o item {{ l.numero }}"{% if l.item_id in formulario.marcados %} checked{% endif %}{% if l.item_id in total_sugerido %} data-sugerido="1"{% endif %}></label>{% endif %}</td>
               <td class="mono">{{ l.numero }}</td>
               <td><span class="mono">{{ l.item.codigo }}</span>{% if l.material %} {{ l.material.nome }}{% endif %}{% if l.motivo %}<br><span class="texto-secundario texto-pequeno">Indisponível: {{ l.motivo }}.</span>{% endif %}</td>
               <td>{{ l.saldo_livre|quantidade }} {{ l.item.unidade }}</td>

@@ -645,6 +645,11 @@
     select.addEventListener("change", function () {
       atualizarGatilho(d);
     });
+    // Quem troca o valor sem querer um envio (o filtros.js, ao desfazer um filtro que falhou) pede
+    // só o redesenho do gatilho.
+    select.addEventListener("dropdown:atualizar", function () {
+      atualizarGatilho(d);
+    });
   }
 
   function montarSelect(select) {
@@ -687,6 +692,11 @@
     });
     // Alteração de fora (outro script troca o valor e dispara `change`).
     select.addEventListener("change", function () {
+      atualizarGatilho(d);
+    });
+    // Quem troca o valor sem querer um envio (o filtros.js, ao desfazer um filtro que falhou) pede
+    // só o redesenho do gatilho.
+    select.addEventListener("dropdown:atualizar", function () {
       atualizarGatilho(d);
     });
   }

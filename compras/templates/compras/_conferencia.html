@@ -5,26 +5,30 @@ Região "Conferência" da aba Entradas no SCPI (spec 014, US4): a última extra�
 As diferenças aparecem em texto, nunca só por cor.
 {% endcomment %}
 <div class="cartao pilha" id="conferencia-entradas">
-  <h2 class="cartao-titulo">Conferência com o SCPI</h2>
   <div class="conferir-cabecalho">
+    <div class="andamento-topo">
+      <h2 class="cartao-titulo">Conferência com o SCPI</h2>
+      <div class="acoes">
+        <form method="post" action="{% url 'automacoes:importar' 'pedidos_compra' %}">
+          {% csrf_token %}
+          <input type="hidden" name="origem" value="scpi">
+          <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Atualizar pedidos</button>
+        </form>
+        <form method="post" action="{% url 'automacoes:conferir_entradas' %}">
+          {% csrf_token %}
+          <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Conferir agora</button>
+        </form>
+      </div>
+    </div>
     <p class="texto-secundario">
       {% if ultima_extracao_entradas %}Última extração: {{ ultima_extracao_entradas.importacao.inicio|date:"d/m/Y H:i" }} · {{ ultima_extracao_entradas.get_motivo_display }}{% if erro_extracao_entradas %} · <strong>falhou:</strong> {{ erro_extracao_entradas }}{% else %} · {{ ultima_extracao_entradas.requisicoes }} requisições{% endif %}{% else %}Ainda não houve extração das entradas.{% endif %}
     </p>
-    <div class="acoes">
-      <form method="post" action="{% url 'automacoes:conferir_entradas' %}">
-        {% csrf_token %}
-        <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Conferir agora</button>
-      </form>
-      <form method="post" action="{% url 'automacoes:importar' 'pedidos_compra' %}">
-        {% csrf_token %}
-        <input type="hidden" name="origem" value="scpi">
-        <button type="submit" class="botao botao-secundario"{% if conferir_entradas_motivo %} disabled{% endif %}>Atualizar pedidos</button>
-      </form>
-    </div>
     {% if conferir_entradas_motivo %}<p class="texto-secundario texto-pequeno">{{ conferir_entradas_motivo }}</p>{% endif %}
   </div>
-  <nav class="filtros-veredito" aria-label="Filtrar os recebimentos lançados">
-    {% for chave, rotulo in filtros_veredito %}<a class="botao {% if chave == filtro_veredito %}botao-primario{% else %}botao-secundario{% endif %}" href="?aba=entradas&amp;veredito_entradas={{ chave }}"{% if chave == filtro_veredito %} aria-current="true"{% endif %}>{{ rotulo }}</a>{% endfor %}
+  <nav aria-label="Filtrar os recebimentos lançados">
+    <ul class="chips-links">
+      {% for chave, rotulo in filtros_veredito %}<li><a class="chip-link" href="?aba=entradas&amp;veredito_entradas={{ chave }}"{% if chave == filtro_veredito %} aria-current="true"{% endif %}>{% include "interface/_icone.html" with nome="check" %}{{ rotulo }}</a></li>{% endfor %}
+    </ul>
   </nav>
   {% if pagina_vereditos.object_list %}
   <div class="tabela-rolagem">

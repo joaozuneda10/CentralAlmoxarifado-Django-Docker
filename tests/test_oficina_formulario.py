@@ -41,7 +41,9 @@ def test_a_pagina_inicial_lista_o_formulario(client):
 def test_o_formulario_abre_sem_campos_dos_outros(client):
     html = client.get(URL).text
     assert "Ex.: filtro de óleo, pneu" in html
-    assert 'placeholder="Oficina mecânica ou placa da viatura"' in html
+    assert (
+        '<p id="destino-dica" class="campo-dica">Oficina mecânica ou placa da viatura</p>' in html
+    )
     assert 'name="ocorrencia"' not in html and "Preencher a lista de peças" not in html
 
 

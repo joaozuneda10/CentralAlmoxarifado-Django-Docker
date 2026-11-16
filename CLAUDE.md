@@ -240,9 +240,15 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   `contas/bloqueado.html` (429) e o desbloqueio apagando a tentativa no admin. Sem proxy, a origem é
   o `REMOTE_ADDR` (falta conferir no servidor se é o do aparelho). O axes exige o `request` no
   `authenticate`: nos testes, `client.login` falha; entre pelo formulário ou use `force_login`.
-- `interface` é só apresentação (sem modelos nem regras), no design system Clean (skill
-  `.claude/skills/clean-design/`; regras e vocabulário de classes em `docs/DESIGN.md`):
-  `clean.css` (tokens, fontes, tipografia e os ritmos `ritmo-publico`/`ritmo-almox`),
+- `interface` é só apresentação (sem modelos nem regras), no design system Tonal, a linguagem
+  visual do Material 3 sobre o CSS do projeto (spec `specs/015-design-system-m3/`, que trocou o
+  Clean; skill `.claude/skills/design-tonal/`; regras, tokens, combinações de cor permitidas e
+  vocabulário de classes em `docs/DESIGN.md`): `fundacao.css` (tokens, fontes, tipografia e os
+  ritmos `ritmo-publico`/`ritmo-almox`; o contraste das combinações declaradas é conferido por
+  `tests/test_contraste_tokens.py`), o selo com o ícone pelo tom no `::before` (o neutro sem ícone,
+  o selo com `svg` próprio sem o segundo, sem ícone no papel), o recibo impresso idêntico ao de
+  antes (a `.folha-recibo` redefine no `@media print` os tokens que usa) e as capturas para a
+  revisão visual em `scripts/capturar_telas.py` (fora da suíte; `capturas/` fica fora do Git),
   `componentes.css` e `layouts.css`, ícones Lucide em `_icone.html`, fontes `.woff2` locais
   (Geist, DM Sans, Geist Mono), HTMX 4.0.0 vendorizado, parciais e template tags. Só tema
   claro; o `shell.js` só cuida do menu móvel. O `dropdown.js` troca todo `select.campo-entrada` e
@@ -254,12 +260,33 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   elemento original fica escondido e continua guardando o valor e disparando `change` (script
   que troca o valor de um `select` precisa disparar `change`). O `abas.js` (`[data-abas]`, `?aba=` na URL) dá as abas em pasta: a ativa se funde ao primeiro cartão
   do painel. O `filtros.js` recolhe o painel de
-  um `form[data-filtros]` (filtros do painel de pedidos e do histórico de Automações): botão com a contagem, estado lembrado no
-  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. Dois layouts: `base_publico.html` (sem login,
+  um `form[data-filtros]` (filtros do histórico de Automações): botão com a contagem, estado lembrado no
+  `localStorage` e, fechado, um chip por filtro ativo; sem JavaScript o painel fica aberto. No
+  `form[data-filtros-estado]` (o painel de pedidos, sempre à vista, em chips) ele só mantém a tela em
+  dia: depois de cada troca concluída da lista, refaz os rótulos dos chips com lista
+  (`data-chip-nome`, "Origem: Limpeza") e o `aria-current` dos indicadores pelo que foi enviado, e
+  guarda isso como a última troca aplicada; na falha da requisição (não no cancelamento pelo
+  `hx-sync="this:replace"`), devolve a ela os campos que ainda estão como foram enviados, sem envio
+  novo (o `select` só redesenha o gatilho, pelo evento `dropdown:atualizar` do `dropdown.js`). O
+  `menus.js` atende todo `details[data-menu]` (o ⋮ das linhas e os chips com lista): abrir um fecha
+  os outros, o Esc fecha e devolve o foco ao `summary`, o clique fora fecha, e escolher num `select`
+  de um chip o fecha; sem JavaScript o `<details>` abre e fecha sozinho. Dois layouts: `base_publico.html` (sem login,
   pensado para o celular) e `base_almoxarifado.html` (barra lateral), os dois com o bloco `voltar`
   (`link-voltar`, acima do rótulo; no almoxarifado, "Voltar ao painel" por padrão, vazio no painel). Cada subprojeto
   acrescenta seus destinos (com ícone) a `ITENS_MENU` em `interface/navegacao.py`; o menu só
-  mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Scripts
+  mostra o que a tabela de rotas abre ao usuário (`contas.acesso.pode_abrir`). Acima de 1286px a
+  barra lateral é o menu estreito de 88px (a marca num quadrado tonal, ícone sobre rótulo e, no pé,
+  só o Sair com o ícone), e a área interna é branca com a barra do topo (`app-topo`: o nome, a busca
+  da página no bloco `topo_busca` e o usuário com as iniciais), como no protótipo do painel; até
+  1286px, o cabeçalho com o botão de menu de sempre, e a barra do topo só com a busca. Dois itens têm
+  contador (`_CONTADORES`, só para quem abre o item e nunca com zero; o número `aria-hidden` e o texto
+  escondido ", 2 para atender"): o Painel, com os pedidos aguardando atendimento, e Automações, com as
+  travas a conferir, as requisições travadas mais os recebimentos travados, cada um sem o
+  `EM_LANCAMENTO` enquanto o robô do seu tipo roda (aí é o robô trabalhando; a conferência da
+  execução só roda com algum em lançamento). As parcelas vêm de `navegacao.contadores(request)`
+  (`Contadores`, uma vez por requisição e só quando lidas: o trecho do HTMX não conta nada), a mesma
+  memória que o painel usa nos cartões; o cartão do robô conta as requisições travadas com o
+  `EM_LANCAMENTO`, como antes, e não soma as entradas. Scripts
   ficam no `<head>` com `defer`, nunca no `<body>` (o HTMX re-executa scripts do corpo ao
   restaurar o histórico).
 - `pedidos/regras.py` guarda as regras de negócio: funções puras, sem ORM. Vieram de
@@ -317,7 +344,12 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   "Materiais AB", e o rótulo do Telegram é o da origem (`get_origem_display`). `regras.Erro` tem
   `campo` (`solicitante`, `destino`, `obs`, `ocorrencia`) nos erros de um campo:
   a view monta `erros_por_campo`, e o formulário mostra o resumo no topo (focado pelo `pedidos.js`,
-  com link para o campo) e o erro embaixo do próprio campo. No celular, a gaveta do pedido envia
+  com link para o campo) e o erro embaixo do próprio campo. Nome, destino e ocorrência (e os campos
+  da consulta, do login e da troca de senha) têm o rótulo flutuante do M3 (`campo-flutuante`, spec 015,
+  `contracts/campos-publicos.md`): `placeholder=" "` no campo (o CSS sabe se está vazio), o rótulo
+  dentro da caixa só com o campo vazio, sem foco e sem erro, e o exemplo no `campo-dica` embaixo; com
+  erro, a dica sai do HTML e o `aria-describedby` aponta só para o erro (na troca de senha, o
+  `FormularioTrocaSenha.full_clean` o fixa no widget). No celular, a gaveta do pedido envia
   (`data-carrinho-enviar`, que aciona o botão do fim do formulário por `requestSubmit`; esse botão
   fica escondido com JavaScript), também na saída avulsa, com os textos da
   saída (`Fluxo.rotulo_carrinho` e afins: "Materiais da saída", "Revisar e registrar"). O "Nome completo" é texto livre, sem sugestões de nomes. O `pedidos.js`
@@ -351,7 +383,24 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
   concordam), detalhe com o atendimento, saída avulsa e recibos (`_recibo.html`, que nunca
   mostra quem registrou). Não há página de recibos: o "Imprimir recibo" do detalhe imprime a própria
   página (`data-imprimir`, escondido sem JavaScript) e, depois, mostra ali a confirmação de impresso
-  (`marcar_impressos`); o atalho do painel filtra os não impressos (`?recibo=pendente`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
+  (`marcar_impressos`); o cartão Recibos do painel filtra os não impressos (`?recibo=pendente`). O
+  "Imprimir recibo" do ⋮ da lista abre o detalhe com `?imprimir=1`: o botão ganha
+  `data-imprimir-ao-abrir` só com atendimento e recibo não impresso, o `pedidos.js` o aciona uma vez
+  no `load` e tira o parâmetro da barra (`history.replaceState`), e o `voltar` da confirmação vem da
+  view sem ele (`voltar_sem_imprimir`), para não imprimir de novo. Nada é marcado sem a confirmação.
+  O painel (spec 015, `contracts/painel.md`, no desenho do protótipo): a busca `q` em pílula na barra do topo, fora do formulário e
+  ligada a ele por `form="filtros-painel"` (o gatilho do HTMX tem `input delay:400ms from:#id_q`);
+  os quatro indicadores (Atendimento, com o envio mais antigo, `regras.texto_envio_mais_antigo`, e
+  "+N aguardando autorização"; Recibos; Lançamento no SCPI, só com `operar_automacoes`, com o
+  formulário do "Lançar no SCPI" e levando à aba do lançamento, não a um filtro; Catálogo, erros mais
+  avisos, levando a `#saude`), numa seção que nunca fica dentro do formulário de filtros; o
+  formulário com a situação em chips de rádio (`RadioSelect`: o valor vale em todo envio), o
+  material, os chips com lista de Origem, SCPI, Recibo, Autorização e Período
+  (`FiltrosPainel.rotulos_dos_chips`) e o "Filtrar" como primeiro botão de envio, sem `name`; a
+  lista com Situação (e "Recibo não impresso") e SCPI em colunas separadas e o ⋮ de cada linha (Abrir
+  pedido; com atendimento, Imprimir recibo; e Editar atendimento ou Editar saída quando
+  `regras.edicao_permitida` deixa, pelas linhas já pré-carregadas); e a saída avulsa no botão
+  flutuante (`fab`). Cada material entregue vira uma `LinhaSaida` (`PENDENTE`, ou
   `NAO_LANCAR` com a opção marcada): é o contrato com o robô do subprojeto 4. Na área interna a
   unidade é a do cadastro do SCPI (`consultas.unidades_scpi`), nunca a unidade exibida do
   formulário de limpeza (`ItemPedido.unidade`, que só vale para código fora do cadastro), e vai
@@ -425,7 +474,7 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
 - Formulário da oficina mecânica (spec `specs/007-formulario-oficina-mecanica/`): o formulário
   público `FLUXOS["oficina"]` (origem `OFICINA`, `/pedido/oficina/`), pedido de autopeças e insumos
   da oficina, sem folha nem ocorrência; o único campo novo no `Fluxo` é `exemplo_destino`, o
-  placeholder do destino (antes deduzido de `fluxo.centros`). O catálogo
+  texto de apoio do destino, embaixo do campo (`campo-dica`; antes deduzido de `fluxo.centros`). O catálogo
   (`catalogos.formulario_oficina`) são os materiais visíveis dos grupos da lista `Opcao`
   `GRUPO_OFICINA` ("Grupos (oficina)", comparados por `_grupo`, como os ocultos do AB; lista vazia =
   nenhum grupo) mais os avulsos (exceções da configuração, spec 009: antes um cadastro
@@ -1057,12 +1106,11 @@ django-axes (exige o `request`): use `force_login` ou o POST no formulário de e
 - Logout só por POST com CSRF, num único formulário por página. Requisição HTMX que grava vai
   dentro de um `<form>` com `{% csrf_token %}`.
 - Estado nunca só por cor; códigos (CADPRO, matrícula, placa) em fonte mono (`.mono`).
-- Todo ajuste de UI/UX usa três skills juntas: `clean-design` (no repositório) com o
+- Todo ajuste de UI/UX usa três skills juntas: `design-tonal` (no repositório) com o
   `docs/DESIGN.md`, que são a referência fixa de estilo e vencem as outras duas;
   `ui-ux-pro-max` (plugin), para conferir usabilidade e acessibilidade pelo buscador; e
   `frontend-design` (plugin), para hierarquia, contenção, textos de interface e a conferência
-  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não refazer o
-  questionário inicial da `clean-design` (o projeto já o respondeu) nem gerar ou gravar um
-  design system novo das skills sem pedido.
+  por screenshot. Onde discordarem, valem o DESIGN.md e o que já está no código. Não gerar nem
+  gravar um design system novo das skills sem pedido.
 - O servidor está em produção com dados reais: mudança de modelo ganha **migration nova**,
   nunca regenerada (nem `migrate <app> zero`).

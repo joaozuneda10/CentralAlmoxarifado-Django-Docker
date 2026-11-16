@@ -1,5 +1,5 @@
 /*
- * Filtros recolhíveis — o formulário `form[data-filtros]` (painel de pedidos). Carregado com
+ * Filtros recolhíveis — o formulário `form[data-filtros]` (histórico de Automações). Carregado com
  * `defer` no <head>.
  *
  * Melhoria progressiva: sem JavaScript o painel fica aberto e o botão "Filtrar" envia. Com ele,
@@ -10,6 +10,12 @@
  *
  * O `form[data-filtros-auto]` (catálogo: Formulários e Curva ABC) é mais simples: sem painel, só
  * envia o formulário quando um campo muda.
+ *
+ * O `form[data-filtros-estado]` (painel de pedidos, spec 015) fica sempre à vista, em chips. O HTMX
+ * troca só a lista, então o resto da tela é mantido daqui: depois de cada troca concluída, os
+ * rótulos dos chips com lista ("Origem: Limpeza") e o `aria-current` dos indicadores passam a
+ * mostrar o que foi enviado, e esses valores viram a última troca aplicada; na falha da requisição,
+ * os campos voltam a ela, sem envio novo (contracts/painel.md).
  *
  * Os eventos são delegados no `document`: ao restaurar o histórico, o HTMX troca o <body> e os
  * elementos são outros.
@@ -206,6 +212,118 @@
     });
   });
 
+  // ---- form[data-filtros-estado]: o painel de pedidos ------------------------------------------
+
+  // Os valores do formulário, campo a campo (a busca do cabeçalho entra pelo atributo `form`).
+  function valores(form) {
+    var mapa = {};
+    Array.prototype.forEach.call(form.elements, function (campo) {
+      if (!campo.name || campo.disabled) return;
+      if (campo.type === "radio") {
+        if (!(campo.name in mapa)) mapa[campo.name] = "";
+        if (campo.checked) mapa[campo.name] = campo.value;
+      } else if (campo.type !== "submit" && campo.type !== "button") {
+        mapa[campo.name] = campo.value;
+      }
+    });
+    return mapa;
+  }
+
+  function periodo(de, ate) {
+    if (de && ate) return data(de) + " a " + data(ate);
+    if (de) return "a partir de " + data(de);
+    if (ate) return "até " + data(ate);
+    return "";
+  }
+
+  // O mesmo texto de `FiltrosPainel.rotulos_dos_chips`: o nome sozinho, ou "nome: valor".
+  function mostrar(form, mapa) {
+    form.querySelectorAll("[data-chip-nome]").forEach(function (rotulo) {
+      var nome = rotulo.getAttribute("data-chip-nome");
+      var texto = "";
+      if (rotulo.hasAttribute("data-chip-periodo")) {
+        texto = periodo(mapa.de, mapa.ate);
+      } else {
+        var select = rotulo.closest("details").querySelector("select");
+        var opcao = select && mapa[select.name] && select.querySelector('option[value="' + CSS.escape(mapa[select.name]) + '"]');
+        texto = opcao ? opcao.textContent.trim() : "";
+      }
+      rotulo.textContent = texto ? nome + ": " + texto : nome;
+      var resumo = rotulo.closest("summary");
+      if (resumo) resumo.classList.toggle("chip-ativo", Boolean(texto));
+    });
+    document.querySelectorAll(".indicador-link[data-indicador-campo]").forEach(function (link) {
+      var atual = (mapa[link.getAttribute("data-indicador-campo")] || "") === link.getAttribute("data-indicador-valor");
+      if (atual) link.setAttribute("aria-current", "true");
+      else link.removeAttribute("aria-current");
+    });
+  }
+
+  // Volta à última troca aplicada só o campo que ainda está como foi enviado: o que a pessoa mudou
+  // depois do envio fica como ela deixou. O `select` só tem o gatilho do dropdown.js redesenhado.
+  function desfazer(form, enviado, aplicado) {
+    var atual = valores(form);
+    Array.prototype.forEach.call(form.elements, function (campo) {
+      var nome = campo.name;
+      if (!nome || !(nome in aplicado) || atual[nome] !== enviado[nome]) return;
+      if (campo.type === "radio") {
+        campo.checked = campo.value === aplicado[nome];
+      } else if (campo.type !== "submit" && campo.type !== "button") {
+        campo.value = aplicado[nome];
+        if (campo.tagName === "SELECT") campo.dispatchEvent(new Event("dropdown:atualizar"));
+      }
+    });
+  }
+
+  function formDoEstado(e) {
+    var ctx = e.detail && e.detail.ctx;
+    var origem = ctx && ctx.sourceElement;
+    return origem && origem.matches && origem.matches("form[data-filtros-estado]") ? origem : null;
+  }
+
+  var envios = 0;
+
+  document.addEventListener("htmx:config:request", function (e) {
+    var form = formDoEstado(e);
+    if (!form) return;
+    envios += 1;
+    e.detail.ctx.filtrosEstado = { numero: envios, enviado: valores(form) };
+  });
+
+  document.addEventListener("htmx:after:swap", function (e) {
+    var form = formDoEstado(e);
+    var estado = form && e.detail.ctx.filtrosEstado;
+    if (!estado) return;
+    // Resposta 4xx/5xx: o `noSwap` do `htmx-config` deixa a lista antiga, mas o evento dispara
+    // igual (a troca vira `none`); quem cuida dela é o `falhou`.
+    var resposta = e.detail.ctx.response;
+    if ((resposta && resposta.status >= 400) || e.detail.ctx.swap === "none") return;
+    form._filtrosAplicados = estado.enviado;
+    mostrar(form, estado.enviado);
+  });
+
+  // Erro do servidor (4xx/5xx, que o `htmx-config` do base.html não deixa trocar a lista), da rede
+  // ou o tempo esgotado (o HTMX aborta a requisição). A requisição cancelada pelo `hx-sync` não
+  // desfaz nada: o envio mais novo que a substituiu já ganhou o número seguinte no
+  // `htmx:config:request`, que vem antes do cancelamento.
+  function falhou(e) {
+    var form = formDoEstado(e);
+    var estado = form && e.detail.ctx.filtrosEstado;
+    if (!estado || estado.numero !== envios || !form._filtrosAplicados) return;
+    desfazer(form, estado.enviado, form._filtrosAplicados);
+    mostrar(form, form._filtrosAplicados);
+  }
+  document.addEventListener("htmx:response:error", falhou);
+  document.addEventListener("htmx:error", falhou);
+
+  function iniciarEstado() {
+    document.querySelectorAll("form[data-filtros-estado]").forEach(function (form) {
+      if (!form._filtrosAplicados) form._filtrosAplicados = valores(form);
+    });
+  }
+
   document.addEventListener("DOMContentLoaded", iniciar);
   document.addEventListener("htmx:after:swap", iniciar);
+  document.addEventListener("DOMContentLoaded", iniciarEstado);
+  document.addEventListener("htmx:after:swap", iniciarEstado);
 })();

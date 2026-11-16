@@ -164,7 +164,7 @@ def test_pedido_com_folha_e_busca_registra_tudo(client):
 def test_o_envio_registra_o_pedido_de_viaturas(client):
     r = enviar(client, [(TUBO, "2,5"), (FITA, "2")], ocorrencia="1234/2026")
     assert "Pedido registrado" in r.text
-    assert "Nº da ocorrência: 1234/2026" in texto(r.text)  # o encarregado confere o que enviou
+    assert "Nº da ocorrência 1234/2026" in texto(r.text)  # o encarregado confere o que enviou
     pedido = Pedido.objects.get()
     assert pedido.origem == VIATURAS and pedido.numero.startswith("P-")
     assert pedido.destino == EQUIPE and pedido.ocorrencia == "1234/2026"
@@ -185,7 +185,7 @@ def test_painel_detalhe_recibo_e_aviso(client):
         dar_papeis(get_user_model().objects.create_user(username="12345", password="x"))
     )
     painel = client.get(reverse("pedidos:painel")).text
-    assert "Ocorrência 1234/2026" in texto(painel)
+    assert "Viaturas ocorrência 1234/2026" in texto(painel)
     assert pedido.numero in client.get(reverse("pedidos:painel"), {"origem": VIATURAS}).text
     assert pedido.numero in client.get(reverse("pedidos:painel"), {"q": "1234/2026"}).text
     assert pedido.numero not in client.get(reverse("pedidos:painel"), {"origem": "AB"}).text
