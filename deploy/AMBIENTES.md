@@ -150,7 +150,7 @@ marcador) o `atualizar.ps1` recusa a pasta, e este roteiro não se aplica: a
 primeira versão com o script é aplicada pela seção anterior.
 
 Pré-requisitos: tag `vX.Y.Z` em `main` e a imagem aprovada do workflow **Imagem
-de release** (`ghcr.io/joaozuneda9/centralalmoxarifado-django-docker@sha256:...`),
+de release** (`ghcr.io/joaozuneda10/centralalmoxarifado-django-docker@sha256:...`),
 conforme [FLUXO_GIT.md](FLUXO_GIT.md). Num terminal PowerShell limpo, em
 `C:\docker\producao`:
 
@@ -158,7 +158,7 @@ conforme [FLUXO_GIT.md](FLUXO_GIT.md). Num terminal PowerShell limpo, em
 git fetch origin --tags
 git switch --detach vX.Y.Z
 git status   # precisa estar limpo
-$imagem = 'ghcr.io/joaozuneda9/centralalmoxarifado-django-docker@sha256:<digest>'
+$imagem = 'ghcr.io/joaozuneda10/centralalmoxarifado-django-docker@sha256:<digest>'
 .\deploy\atualizar.ps1 -Ambiente producao -Versao vX.Y.Z -Imagem $imagem -AtivarOperacao
 ```
 
